@@ -24,7 +24,7 @@ export const EVENT_CONFIGS: EventConfig[] = [
   { type: "grito_guerra", emoji: "🗣️", label: "Grito de guerra", sentiment: "fun" },
   { type: "raquetazo_cristal", emoji: "😤", label: "Raquetazo al cristal", sentiment: "negative" },
   { type: "por_la_puerta", emoji: "🚪", label: "Por la puerta", sentiment: "positive" },
-  { type: "hacer_souhel", emoji: "🪩", label: "Hacer un Souhel", sentiment: "fun" },
+  { type: "bola_no_baja", emoji: "🪩", label: "Bola que no baja", sentiment: "fun" },
 ];
 
 export const EVENT_MAP = new Map(EVENT_CONFIGS.map((e) => [e.type, e]));

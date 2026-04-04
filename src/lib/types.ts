@@ -72,7 +72,7 @@ export type MatchEventType =
   | "grito_guerra"
   | "raquetazo_cristal"
   | "por_la_puerta"
-  | "hacer_souhel";
+  | "bola_no_baja";
 
 export interface Profile {
   id: string;
