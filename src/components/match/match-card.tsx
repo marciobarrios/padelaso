@@ -20,7 +20,7 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
   const { team1Wins, team2Wins } = getSetWins(match.sets);
 
   return (
-    <Link href={`/matches/${match.id}`}>
+    <Link href={`/matches/${match.id}`} className="block">
       <Card className="hover:bg-muted/30 transition-colors">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
