@@ -83,12 +83,13 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-2 mt-2">
+          <div className="flex flex-wrap justify-center mt-2">
             {match.sets.map((set, i) => (
               <span
                 key={i}
                 className="text-xs text-muted-foreground tabular-nums"
               >
+                {i > 0 && <span className="mx-1">·</span>}
                 Set {i + 1}: {set.team1Score}-{set.team2Score}
               </span>
             ))}

@@ -5,12 +5,14 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { useMatches, usePlayers } from "@/lib/db-hooks";
+import { useGroup } from "@/components/group/group-provider";
 import { MatchCard } from "@/components/match/match-card";
 import { buildPlayerMap } from "@/lib/utils";
 
 export default function HomePage() {
-  const matches = useMatches();
-  const players = usePlayers();
+  const { activeGroup } = useGroup();
+  const matches = useMatches(activeGroup?.id);
+  const players = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
 
   return (

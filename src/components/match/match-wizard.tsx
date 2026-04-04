@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Player, PlayerId, MatchSet, MatchEventType } from "@/lib/types";
+import { Player, PlayerId, MatchSet, MatchEventType, GroupId } from "@/lib/types";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { TeamPicker } from "./team-picker";
 import { ScoreInput } from "./score-input";
@@ -31,9 +31,10 @@ interface PendingEvent {
 
 interface MatchWizardProps {
   players: Player[];
+  groupId?: GroupId;
 }
 
-export function MatchWizard({ players }: MatchWizardProps) {
+export function MatchWizard({ players, groupId }: MatchWizardProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { refresh } = useDataRefresh();
@@ -112,10 +113,11 @@ export function MatchWizard({ players }: MatchWizardProps) {
       team2,
       sets,
       user.id,
-      pendingEvents
+      pendingEvents,
+      groupId
     );
     refresh();
-    router.push(`/matches/${matchId}`);
+    router.replace(`/matches/${matchId}`);
   }
 
   // Navigation
@@ -149,7 +151,7 @@ export function MatchWizard({ players }: MatchWizardProps) {
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
   return (
-    <div className="flex flex-col min-h-dvh">
+    <div className="flex flex-col min-h-dvh max-w-lg mx-auto w-full">
       {/* Progress bar */}
       <div className="flex gap-1 px-4 pt-4">
         {STEPS.map((_, i) => (
@@ -311,9 +313,9 @@ export function MatchWizard({ players }: MatchWizardProps) {
             </div>
 
             {/* Score summary */}
-            <div className="text-center space-y-2">
+            <div className="space-y-2">
               {sets.map((set, i) => (
-                <div key={i} className="flex items-center justify-center gap-2">
+                <div key={i} className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     Set {i + 1}:
                   </span>

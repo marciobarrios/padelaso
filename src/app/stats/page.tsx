@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { usePlayers, useMatches, useAllMatchEvents } from "@/lib/db-hooks";
+import { useGroup } from "@/components/group/group-provider";
 import {
   calculatePlayerStats,
   getEventLeaderboards,
@@ -14,9 +15,10 @@ import { getEventConfig } from "@/lib/event-config";
 import { buildPlayerMap } from "@/lib/utils";
 
 export default function StatsPage() {
-  const players = usePlayers();
-  const matches = useMatches();
-  const events = useAllMatchEvents();
+  const { activeGroup } = useGroup();
+  const players = usePlayers(activeGroup?.id);
+  const matches = useMatches(activeGroup?.id);
+  const events = useAllMatchEvents(activeGroup?.id);
 
   const playerMap = buildPlayerMap(players);
 

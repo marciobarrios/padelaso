@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "./supabase";
-import { Player, Match, MatchEvent, MatchId } from "./types";
+import { Player, Match, MatchEvent, MatchId, Group, GroupMember, GroupId } from "./types";
 
 // ---------- Data refresh context ----------
 
@@ -33,6 +33,7 @@ function mapPlayer(row: Record<string, unknown>): Player {
     name: row.name as string,
     emoji: row.emoji as string,
     userId: (row.user_id as string) ?? null,
+    groupId: row.group_id as string,
     createdBy: row.created_by as string,
     createdAt: row.created_at as string,
   };
@@ -46,6 +47,7 @@ function mapMatch(row: Record<string, unknown>): Match {
     team1: row.team1 as string[],
     team2: row.team2 as string[],
     sets: row.sets as Match["sets"],
+    groupId: row.group_id as string,
     createdBy: row.created_by as string,
     createdAt: row.created_at as string,
   };
@@ -62,40 +64,112 @@ function mapMatchEvent(row: Record<string, unknown>): MatchEvent {
   } as MatchEvent;
 }
 
+function mapGroup(row: Record<string, unknown>): Group {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    emoji: row.emoji as string,
+    inviteCode: row.invite_code as string,
+    createdBy: row.created_by as string,
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapGroupMember(row: Record<string, unknown>): GroupMember {
+  return {
+    groupId: row.group_id as string,
+    userId: row.user_id as string,
+    role: row.role as "admin" | "member",
+    joinedAt: row.joined_at as string,
+  };
+}
+
 // ---------- Hooks ----------
 
 const supabase = createClient();
 
-export function usePlayers(): Player[] {
+// ---------- Group hooks ----------
+
+export function useGroups(): { groups: Group[]; loaded: boolean } {
+  const { refreshKey } = useDataRefresh();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("groups")
+      .select("*")
+      .order("created_at")
+      .then(({ data }) => {
+        if (data) setGroups(data.map(mapGroup));
+        setLoaded(true);
+      });
+  }, [refreshKey]);
+
+  return { groups, loaded };
+}
+
+export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
+  const { refreshKey } = useDataRefresh();
+  const [members, setMembers] = useState<GroupMember[]>([]);
+
+  useEffect(() => {
+    if (!groupId) return;
+    supabase
+      .from("group_members")
+      .select("*")
+      .eq("group_id", groupId)
+      .order("joined_at")
+      .then(({ data }) => {
+        if (data) setMembers(data.map(mapGroupMember));
+      });
+  }, [groupId, refreshKey]);
+
+  return members;
+}
+
+// ---------- Player/Match hooks (group-scoped) ----------
+
+export function usePlayers(groupId?: GroupId): Player[] {
   const { refreshKey } = useDataRefresh();
   const [players, setPlayers] = useState<Player[]>([]);
 
   useEffect(() => {
+    if (!groupId) {
+      setPlayers([]);
+      return;
+    }
     supabase
       .from("players")
       .select("*")
+      .eq("group_id", groupId)
       .order("name")
       .then(({ data }) => {
         if (data) setPlayers(data.map(mapPlayer));
       });
-  }, [refreshKey]);
+  }, [groupId, refreshKey]);
 
   return players;
 }
 
-export function useMatches(): Match[] {
+export function useMatches(groupId?: GroupId): Match[] {
   const { refreshKey } = useDataRefresh();
   const [matches, setMatches] = useState<Match[]>([]);
 
   useEffect(() => {
+    if (!groupId) {
+      setMatches([]);
+      return;
+    }
     supabase
       .from("matches")
       .select("*")
+      .eq("group_id", groupId)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setMatches(data.map(mapMatch));
       });
-  }, [refreshKey]);
+  }, [groupId, refreshKey]);
 
   return matches;
 }
@@ -135,18 +209,35 @@ export function useMatchEvents(matchId: MatchId): MatchEvent[] {
   return events;
 }
 
-export function useAllMatchEvents(): MatchEvent[] {
+export function useAllMatchEvents(groupId?: GroupId): MatchEvent[] {
   const { refreshKey } = useDataRefresh();
   const [events, setEvents] = useState<MatchEvent[]>([]);
 
   useEffect(() => {
+    if (!groupId) {
+      setEvents([]);
+      return;
+    }
+    // Get match IDs for this group, then fetch events
     supabase
-      .from("match_events")
-      .select("*")
-      .then(({ data }) => {
-        if (data) setEvents(data.map(mapMatchEvent));
+      .from("matches")
+      .select("id")
+      .eq("group_id", groupId)
+      .then(({ data: matches }) => {
+        if (!matches || matches.length === 0) {
+          setEvents([]);
+          return;
+        }
+        const matchIds = matches.map((m) => m.id);
+        supabase
+          .from("match_events")
+          .select("*")
+          .in("match_id", matchIds)
+          .then(({ data }) => {
+            if (data) setEvents(data.map(mapMatchEvent));
+          });
       });
-  }, [refreshKey]);
+  }, [groupId, refreshKey]);
 
   return events;
 }
