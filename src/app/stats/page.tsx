@@ -13,6 +13,7 @@ import {
   getEventLeaderboards,
 } from "@/lib/stats";
 import { getEventConfig } from "@/lib/event-config";
+import { buildPlayerMap } from "@/lib/utils";
 
 export default function StatsPage() {
   const players = usePlayers();
@@ -20,9 +21,8 @@ export default function StatsPage() {
   const events =
     useLiveQuery(() => db.matchEvents.toArray()) ?? [];
 
-  const playerMap = new Map(players.map((p) => [p.id, p]));
+  const playerMap = buildPlayerMap(players);
 
-  // Calculate stats for all players
   const allStats = players
     .map((p) => ({
       player: p,
@@ -31,8 +31,7 @@ export default function StatsPage() {
     .filter((s) => s.stats.matches > 0)
     .sort((a, b) => b.stats.winRate - a.stats.winRate);
 
-  // Event leaderboards
-  const leaderboards = getEventLeaderboards(events, players);
+  const leaderboards = getEventLeaderboards(events);
 
   if (matches.length === 0) {
     return (

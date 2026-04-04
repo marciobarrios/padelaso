@@ -16,6 +16,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useMatch, useMatchEvents, usePlayers } from "@/lib/db-hooks";
 import { db } from "@/lib/db";
 import { MatchEventType, MatchEventId } from "@/lib/types";
+import { buildPlayerMap, getSetWins } from "@/lib/utils";
 
 export default function MatchDetailPage({
   params,
@@ -67,16 +68,10 @@ export default function MatchDetailPage({
     );
   }
 
-  const playerMap = new Map(players.map((p) => [p.id, p]));
+  const playerMap = buildPlayerMap(players);
   const team1Players = match.team1.map((id) => playerMap.get(id));
   const team2Players = match.team2.map((id) => playerMap.get(id));
-
-  const team1Wins = match.sets.filter(
-    (s) => s.team1Score > s.team2Score
-  ).length;
-  const team2Wins = match.sets.filter(
-    (s) => s.team2Score > s.team1Score
-  ).length;
+  const { team1Wins, team2Wins } = getSetWins(match.sets);
 
   return (
     <MobileShell>
@@ -225,7 +220,7 @@ export default function MatchDetailPage({
                   events.reduce((acc, e) => {
                     acc.set(e.type, (acc.get(e.type) ?? 0) + 1);
                     return acc;
-                  }, new Map<string, number>())
+                  }, new Map<MatchEventType, number>())
                 )}
                 onSelect={(type) => setPickerEventType(type)}
               />

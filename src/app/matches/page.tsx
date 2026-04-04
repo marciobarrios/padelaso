@@ -7,10 +7,12 @@ import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { MatchCard } from "@/components/match/match-card";
 import { useMatches, usePlayers } from "@/lib/db-hooks";
+import { buildPlayerMap } from "@/lib/utils";
 
 export default function MatchesPage() {
   const matches = useMatches();
   const players = usePlayers();
+  const playerMap = buildPlayerMap(players);
 
   return (
     <MobileShell>
@@ -31,7 +33,7 @@ export default function MatchesPage() {
           </p>
         ) : (
           matches.map((match) => (
-            <MatchCard key={match.id} match={match} players={players} />
+            <MatchCard key={match.id} match={match} playerMap={playerMap} />
           ))
         )}
       </div>

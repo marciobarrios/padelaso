@@ -32,11 +32,7 @@ export function PlayerEventPicker({
       <DrawerContent>
         <DrawerHeader>
           <DrawerTitle className="text-center">
-            {config && (
-              <span>
-                {config.emoji} {config.label}
-              </span>
-            )}
+            {config && `${config.emoji} ${config.label}`}
           </DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pb-8">

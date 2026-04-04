@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./db";
-import { MatchId, PlayerId } from "./types";
+import { MatchId } from "./types";
 
 export function usePlayers() {
   return useLiveQuery(() => db.players.orderBy("name").toArray()) ?? [];
@@ -21,30 +21,6 @@ export function useMatchEvents(matchId: MatchId) {
     useLiveQuery(
       () => db.matchEvents.where("matchId").equals(matchId).toArray(),
       [matchId]
-    ) ?? []
-  );
-}
-
-export function usePlayerMatches(playerId: PlayerId) {
-  return (
-    useLiveQuery(
-      () =>
-        db.matches
-          .filter(
-            (m) =>
-              m.team1.includes(playerId) || m.team2.includes(playerId)
-          )
-          .toArray(),
-      [playerId]
-    ) ?? []
-  );
-}
-
-export function usePlayerEvents(playerId: PlayerId) {
-  return (
-    useLiveQuery(
-      () => db.matchEvents.where("playerId").equals(playerId).toArray(),
-      [playerId]
     ) ?? []
   );
 }

@@ -9,14 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmojiPicker } from "./emoji-picker";
 import { db } from "@/lib/db";
 import { Player } from "@/lib/types";
-
-const EMOJI_OPTIONS = [
-  "😎", "🦁", "🐯", "🦊", "🐻", "🐸", "🦄", "🐙",
-  "🎃", "👻", "🤖", "👽", "🧙", "🧛", "🥷", "🏄",
-  "⚡", "🌟", "🔥", "💎", "🎯", "🏆", "🎸", "🎭",
-];
 
 interface EditPlayerDialogProps {
   player: Player;
@@ -62,25 +57,7 @@ export function EditPlayerDialog({
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
             autoFocus
           />
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Elige avatar</p>
-            <div className="grid grid-cols-8 gap-1">
-              {EMOJI_OPTIONS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setEmoji(e)}
-                  className={`size-10 text-xl rounded-lg flex items-center justify-center transition-colors ${
-                    emoji === e
-                      ? "bg-primary/20 ring-2 ring-primary"
-                      : "hover:bg-muted"
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          </div>
+          <EmojiPicker value={emoji} onChange={setEmoji} />
           <Button onClick={handleSave} disabled={!name.trim()} className="w-full">
             Guardar cambios
           </Button>

@@ -5,7 +5,7 @@ import { MatchEventType } from "@/lib/types";
 import { EventButton } from "./event-button";
 
 interface EventGridProps {
-  counts: Map<string, number>;
+  counts: Map<MatchEventType, number>;
   onSelect: (type: MatchEventType) => void;
 }
 

@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { useMatches, usePlayers } from "@/lib/db-hooks";
 import { MatchCard } from "@/components/match/match-card";
+import { buildPlayerMap } from "@/lib/utils";
 
 export default function HomePage() {
   const matches = useMatches();
   const players = usePlayers();
+  const playerMap = buildPlayerMap(players);
 
   return (
     <MobileShell>
@@ -37,7 +39,7 @@ export default function HomePage() {
               Últimos partidos
             </h2>
             {matches.slice(0, 10).map((match) => (
-              <MatchCard key={match.id} match={match} players={players} />
+              <MatchCard key={match.id} match={match} playerMap={playerMap} />
             ))}
           </div>
         ) : (

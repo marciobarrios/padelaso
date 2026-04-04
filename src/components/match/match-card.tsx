@@ -2,23 +2,22 @@
 
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Player, Match } from "@/lib/types";
+import { Player, Match, PlayerId } from "@/lib/types";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { getSetWins } from "@/lib/utils";
 
 interface MatchCardProps {
   match: Match;
-  players: Player[];
+  playerMap: Map<PlayerId, Player>;
 }
 
-export function MatchCard({ match, players }: MatchCardProps) {
-  const playerMap = new Map(players.map((p) => [p.id, p]));
+export function MatchCard({ match, playerMap }: MatchCardProps) {
   const team1Players = match.team1.map((id) => playerMap.get(id));
   const team2Players = match.team2.map((id) => playerMap.get(id));
 
   const team1Total = match.sets.reduce((s, set) => s + set.team1Score, 0);
   const team2Total = match.sets.reduce((s, set) => s + set.team2Score, 0);
-  const team1Won = match.sets.filter((s) => s.team1Score > s.team2Score).length;
-  const team2Won = match.sets.filter((s) => s.team2Score > s.team1Score).length;
+  const { team1Wins, team2Wins } = getSetWins(match.sets);
 
   return (
     <Link href={`/matches/${match.id}`}>
@@ -40,7 +39,6 @@ export function MatchCard({ match, players }: MatchCardProps) {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Team 1 */}
             <div className="flex-1 flex items-center gap-2">
               <div className="flex -space-x-2">
                 {team1Players.map(
@@ -55,18 +53,16 @@ export function MatchCard({ match, players }: MatchCardProps) {
               </div>
             </div>
 
-            {/* Score */}
             <div className="flex items-center gap-1 font-heading text-lg font-bold tabular-nums">
-              <span className={team1Won > team2Won ? "text-primary" : ""}>
+              <span className={team1Wins > team2Wins ? "text-primary" : ""}>
                 {team1Total}
               </span>
               <span className="text-muted-foreground">-</span>
-              <span className={team2Won > team1Won ? "text-primary" : ""}>
+              <span className={team2Wins > team1Wins ? "text-primary" : ""}>
                 {team2Total}
               </span>
             </div>
 
-            {/* Team 2 */}
             <div className="flex-1 flex items-center gap-2 justify-end">
               <div className="text-sm truncate text-right">
                 {team2Players.map((p) => p?.name ?? "?").join(" · ")}
@@ -82,7 +78,6 @@ export function MatchCard({ match, players }: MatchCardProps) {
             </div>
           </div>
 
-          {/* Set scores */}
           <div className="flex justify-center gap-3 mt-2">
             {match.sets.map((set, i) => (
               <span

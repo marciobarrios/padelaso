@@ -97,11 +97,9 @@ export function MatchWizard({ players }: MatchWizardProps) {
     setPickerEventType(null);
   }
 
-  // Event counts for display
-  const eventCounts = new Map<string, number>();
+  const eventCounts = new Map<MatchEventType, number>();
   for (const e of pendingEvents) {
-    const key = e.type;
-    eventCounts.set(key, (eventCounts.get(key) ?? 0) + 1);
+    eventCounts.set(e.type, (eventCounts.get(e.type) ?? 0) + 1);
   }
 
   // Save match

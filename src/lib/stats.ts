@@ -1,4 +1,5 @@
 import { Match, MatchEvent, Player, PlayerId, MatchEventType } from "./types";
+import { getSetWins } from "./utils";
 
 export interface PlayerStats {
   playerId: PlayerId;
@@ -6,8 +7,15 @@ export interface PlayerStats {
   wins: number;
   losses: number;
   winRate: number;
-  currentStreak: number; // positive = wins, negative = losses
+  currentStreak: number;
   bestStreak: number;
+}
+
+function didPlayerWin(match: Match, playerId: PlayerId): boolean | null {
+  const inTeam1 = match.team1.includes(playerId);
+  const { team1Wins, team2Wins } = getSetWins(match.sets);
+  if (team1Wins === team2Wins) return null;
+  return inTeam1 ? team1Wins > team2Wins : team2Wins > team1Wins;
 }
 
 export function calculatePlayerStats(
@@ -24,29 +32,14 @@ export function calculatePlayerStats(
   let bestStreak = 0;
 
   for (const match of playerMatches) {
-    const inTeam1 = match.team1.includes(playerId);
-    const team1Wins = match.sets.filter(
-      (s) => s.team1Score > s.team2Score
-    ).length;
-    const team2Wins = match.sets.filter(
-      (s) => s.team2Score > s.team1Score
-    ).length;
-
-    const won =
-      (inTeam1 && team1Wins > team2Wins) ||
-      (!inTeam1 && team2Wins > team1Wins);
-    const lost =
-      (inTeam1 && team2Wins > team1Wins) ||
-      (!inTeam1 && team1Wins > team2Wins);
-
-    if (won) {
+    const won = didPlayerWin(match, playerId);
+    if (won === true) {
       wins++;
       currentStreak = currentStreak > 0 ? currentStreak + 1 : 1;
-    } else if (lost) {
+    } else if (won === false) {
       losses++;
       currentStreak = currentStreak < 0 ? currentStreak - 1 : -1;
     }
-
     if (currentStreak > bestStreak) bestStreak = currentStreak;
   }
 
@@ -72,10 +65,7 @@ export function getPartnerStats(
   playerId: PlayerId,
   matches: Match[]
 ): PartnerStats[] {
-  const partnerMap = new Map<
-    PlayerId,
-    { matches: number; wins: number }
-  >();
+  const partnerMap = new Map<PlayerId, { matches: number; wins: number }>();
 
   for (const match of matches) {
     const inTeam1 = match.team1.includes(playerId);
@@ -86,16 +76,7 @@ export function getPartnerStats(
     const partnerId = team.find((id) => id !== playerId);
     if (!partnerId) continue;
 
-    const team1Wins = match.sets.filter(
-      (s) => s.team1Score > s.team2Score
-    ).length;
-    const team2Wins = match.sets.filter(
-      (s) => s.team2Score > s.team1Score
-    ).length;
-    const won =
-      (inTeam1 && team1Wins > team2Wins) ||
-      (!inTeam1 && team2Wins > team1Wins);
-
+    const won = didPlayerWin(match, playerId);
     const existing = partnerMap.get(partnerId) ?? { matches: 0, wins: 0 };
     existing.matches++;
     if (won) existing.wins++;
@@ -117,15 +98,16 @@ export interface EventLeaderboard {
 }
 
 export function getEventLeaderboards(
-  events: MatchEvent[],
-  players: Player[]
+  events: MatchEvent[]
 ): EventLeaderboard[] {
   const byType = new Map<MatchEventType, Map<PlayerId, number>>();
+  const totals = new Map<MatchEventType, number>();
 
   for (const event of events) {
     const typeMap = byType.get(event.type) ?? new Map<PlayerId, number>();
     typeMap.set(event.playerId, (typeMap.get(event.playerId) ?? 0) + 1);
     byType.set(event.type, typeMap);
+    totals.set(event.type, (totals.get(event.type) ?? 0) + 1);
   }
 
   return [...byType.entries()]
@@ -135,9 +117,5 @@ export function getEventLeaderboards(
         .map(([playerId, count]) => ({ playerId, count }))
         .sort((a, b) => b.count - a.count),
     }))
-    .sort((a, b) => {
-      const totalA = a.entries.reduce((s, e) => s + e.count, 0);
-      const totalB = b.entries.reduce((s, e) => s + e.count, 0);
-      return totalB - totalA;
-    });
+    .sort((a, b) => (totals.get(b.type) ?? 0) - (totals.get(a.type) ?? 0));
 }

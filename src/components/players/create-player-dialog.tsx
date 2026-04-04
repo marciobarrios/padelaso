@@ -11,13 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
+import { EmojiPicker } from "./emoji-picker";
 import { db } from "@/lib/db";
-
-const EMOJI_OPTIONS = [
-  "😎", "🦁", "🐯", "🦊", "🐻", "🐸", "🦄", "🐙",
-  "🎃", "👻", "🤖", "👽", "🧙", "🧛", "🥷", "🏄",
-  "⚡", "🌟", "🔥", "💎", "🎯", "🏆", "🎸", "🎭",
-];
 
 export function CreatePlayerDialog() {
   const [open, setOpen] = useState(false);
@@ -54,25 +49,7 @@ export function CreatePlayerDialog() {
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             autoFocus
           />
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Elige avatar</p>
-            <div className="grid grid-cols-8 gap-1">
-              {EMOJI_OPTIONS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setEmoji(e)}
-                  className={`size-10 text-xl rounded-lg flex items-center justify-center transition-colors ${
-                    emoji === e
-                      ? "bg-primary/20 ring-2 ring-primary"
-                      : "hover:bg-muted"
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          </div>
+          <EmojiPicker value={emoji} onChange={setEmoji} />
           <Button onClick={handleCreate} disabled={!name.trim()} className="w-full">
             Crear jugador
           </Button>

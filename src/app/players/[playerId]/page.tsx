@@ -15,6 +15,8 @@ import { db } from "@/lib/db";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getEventConfig } from "@/lib/event-config";
 import { MatchEventType } from "@/lib/types";
+import { calculatePlayerStats, getPartnerStats } from "@/lib/stats";
+import { buildPlayerMap } from "@/lib/utils";
 
 export default function PlayerProfilePage({
   params,
@@ -64,45 +66,17 @@ export default function PlayerProfilePage({
   const playerMatches = matches ?? [];
   const playerEvents = events ?? [];
   const players = allPlayers ?? [];
-  const playerMap = new Map(players.map((p) => [p.id, p]));
+  const playerMap = buildPlayerMap(players);
 
-  // Stats
-  let wins = 0;
-  let losses = 0;
-  for (const match of playerMatches) {
-    const inTeam1 = match.team1.includes(playerId);
-    const team1Wins = match.sets.filter(
-      (s) => s.team1Score > s.team2Score
-    ).length;
-    const team2Wins = match.sets.filter(
-      (s) => s.team2Score > s.team1Score
-    ).length;
-    if ((inTeam1 && team1Wins > team2Wins) || (!inTeam1 && team2Wins > team1Wins)) {
-      wins++;
-    } else if (team1Wins !== team2Wins) {
-      losses++;
-    }
-  }
+  const stats = calculatePlayerStats(playerId, playerMatches);
+  const partners = getPartnerStats(playerId, playerMatches);
+  const topPartner = partners[0];
 
-  // Event counts
   const eventCounts = new Map<MatchEventType, number>();
   for (const e of playerEvents) {
     eventCounts.set(e.type, (eventCounts.get(e.type) ?? 0) + 1);
   }
   const sortedEvents = [...eventCounts.entries()].sort((a, b) => b[1] - a[1]);
-
-  // Most frequent partner
-  const partnerCounts = new Map<string, number>();
-  for (const match of playerMatches) {
-    const team = match.team1.includes(playerId) ? match.team1 : match.team2;
-    const partnerId = team.find((id) => id !== playerId);
-    if (partnerId) {
-      partnerCounts.set(partnerId, (partnerCounts.get(partnerId) ?? 0) + 1);
-    }
-  }
-  const topPartner = [...partnerCounts.entries()].sort(
-    (a, b) => b[1] - a[1]
-  )[0];
 
   return (
     <MobileShell>
@@ -145,13 +119,13 @@ export default function PlayerProfilePage({
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-heading font-bold text-primary">{wins}</p>
+              <p className="text-2xl font-heading font-bold text-primary">{stats.wins}</p>
               <p className="text-xs text-muted-foreground">Victorias</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-heading font-bold">{losses}</p>
+              <p className="text-2xl font-heading font-bold">{stats.losses}</p>
               <p className="text-xs text-muted-foreground">Derrotas</p>
             </CardContent>
           </Card>
@@ -163,7 +137,7 @@ export default function PlayerProfilePage({
             <CardContent className="p-4 flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Win rate</span>
               <span className="text-lg font-heading font-bold">
-                {Math.round((wins / playerMatches.length) * 100)}%
+                {Math.round(stats.winRate * 100)}%
               </span>
             </CardContent>
           </Card>
@@ -178,13 +152,13 @@ export default function PlayerProfilePage({
               </span>
               <div className="flex items-center gap-2">
                 <PlayerAvatar
-                  emoji={playerMap.get(topPartner[0])?.emoji ?? "❓"}
+                  emoji={playerMap.get(topPartner.partnerId)?.emoji ?? "❓"}
                   size="sm"
                 />
                 <span className="font-medium">
-                  {playerMap.get(topPartner[0])?.name ?? "?"}
+                  {playerMap.get(topPartner.partnerId)?.name ?? "?"}
                 </span>
-                <Badge variant="secondary">{topPartner[1]}x</Badge>
+                <Badge variant="secondary">{topPartner.matches}x</Badge>
               </div>
             </CardContent>
           </Card>
