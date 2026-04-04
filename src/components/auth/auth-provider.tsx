@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
 import { DataContext } from "@/lib/supabase-hooks";
@@ -22,11 +15,11 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const refresh = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
     // Get initial session
@@ -63,18 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const signInWithGoogle = useCallback(async () => {
+  async function signInWithGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
-  }, [supabase]);
+  }
 
-  const signOut = useCallback(async () => {
+  async function signOut() {
     await supabase.auth.signOut();
-  }, [supabase]);
+  }
 
   return (
     <AuthContext value={{ user, loading, signInWithGoogle, signOut }}>
