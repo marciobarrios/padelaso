@@ -90,9 +90,10 @@ const supabase = createClient();
 
 // ---------- Group hooks ----------
 
-export function useGroups(): Group[] {
+export function useGroups(): { groups: Group[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     supabase
@@ -101,10 +102,11 @@ export function useGroups(): Group[] {
       .order("created_at")
       .then(({ data }) => {
         if (data) setGroups(data.map(mapGroup));
+        setLoaded(true);
       });
   }, [refreshKey]);
 
-  return groups;
+  return { groups, loaded };
 }
 
 export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {

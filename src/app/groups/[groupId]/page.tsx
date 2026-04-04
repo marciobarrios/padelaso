@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Copy, Check, RefreshCw, LogOut, Pencil, Crown } from "lucide-react";
+import { Copy, Check, RefreshCw, LogOut, Pencil, Crown, Trash2 } from "lucide-react";
 import { useGroup } from "@/components/group/group-provider";
 import { useGroupMembers, useDataRefresh, usePlayers } from "@/lib/db-hooks";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -17,6 +17,7 @@ import {
   updateGroup,
   regenerateInviteCode,
   leaveGroup,
+  deleteGroup,
 } from "@/lib/supabase-mutations";
 import { cn } from "@/lib/utils";
 import { buildPlayerMap } from "@/lib/utils";
@@ -49,6 +50,7 @@ export default function GroupSettingsPage({
   const [editEmoji, setEditEmoji] = useState("");
   const [copied, setCopied] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   function startEdit() {
     if (!group) return;
@@ -94,7 +96,18 @@ export default function GroupSettingsPage({
     if (!user) return;
     await leaveGroup(groupId, user.id);
     refresh();
-    // Switch to another group or go to onboarding
+    const remaining = groups.filter((g) => g.id !== groupId);
+    if (remaining.length > 0) {
+      setActiveGroupId(remaining[0].id);
+      router.replace("/");
+    } else {
+      router.replace("/groups/onboarding");
+    }
+  }
+
+  async function handleDelete() {
+    await deleteGroup(groupId);
+    refresh();
     const remaining = groups.filter((g) => g.id !== groupId);
     if (remaining.length > 0) {
       setActiveGroupId(remaining[0].id);
@@ -249,15 +262,27 @@ export default function GroupSettingsPage({
           </div>
         </div>
 
-        {/* Leave group */}
-        <Button
-          variant="outline"
-          className="w-full text-destructive hover:text-destructive"
-          onClick={() => setLeaveOpen(true)}
-        >
-          <LogOut className="size-4 mr-2" />
-          Salir del grupo
-        </Button>
+        {/* Leave / Delete group */}
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            className="w-full text-destructive hover:text-destructive"
+            onClick={() => setLeaveOpen(true)}
+          >
+            <LogOut className="size-4 mr-2" />
+            Salir del grupo
+          </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              className="w-full text-destructive hover:text-destructive"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-4 mr-2" />
+              Eliminar grupo
+            </Button>
+          )}
+        </div>
       </div>
 
       <ConfirmDialog
@@ -267,6 +292,14 @@ export default function GroupSettingsPage({
         description={`¿Seguro que quieres salir de "${group.name}"? Podrás volver a unirte con el código de invitación.`}
         confirmLabel="Salir"
         onConfirm={handleLeave}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Eliminar grupo"
+        description={`¿Seguro que quieres eliminar "${group.name}"? Se borrarán todos los jugadores, partidos y eventos del grupo. Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        onConfirm={handleDelete}
       />
     </MobileShell>
   );

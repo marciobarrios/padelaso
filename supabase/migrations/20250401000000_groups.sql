@@ -30,14 +30,38 @@ create table public.group_members (
 alter table public.group_members enable row level security;
 
 -- ============================================================
--- 2. RLS POLICIES FOR GROUPS (now group_members exists)
+-- 2. HELPER: check group membership (bypasses RLS for use in policies)
+-- ============================================================
+
+create or replace function public.user_group_ids(uid uuid)
+returns setof uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select group_id from public.group_members where user_id = uid;
+$$;
+
+create or replace function public.user_admin_group_ids(uid uuid)
+returns setof uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select group_id from public.group_members where user_id = uid and role = 'admin';
+$$;
+
+-- ============================================================
+-- 3. RLS POLICIES FOR GROUPS (now group_members exists)
 -- ============================================================
 
 create policy "Group members can view group"
   on public.groups for select
   to authenticated
   using (
-    id in (select group_id from public.group_members where user_id = auth.uid())
+    id in (select public.user_group_ids(auth.uid()))
   );
 
 create policy "Authenticated users can create groups"
@@ -50,8 +74,7 @@ create policy "Group admins can update group"
   to authenticated
   using (
     id in (
-      select group_id from public.group_members
-      where user_id = auth.uid() and role = 'admin'
+      select public.user_admin_group_ids(auth.uid())
     )
   );
 
@@ -60,8 +83,7 @@ create policy "Group admins can delete group"
   to authenticated
   using (
     id in (
-      select group_id from public.group_members
-      where user_id = auth.uid() and role = 'admin'
+      select public.user_admin_group_ids(auth.uid())
     )
   );
 
@@ -73,7 +95,7 @@ create policy "Group members can view members"
   on public.group_members for select
   to authenticated
   using (
-    group_id in (select group_id from public.group_members where user_id = auth.uid())
+    group_id in (select public.user_group_ids(auth.uid()))
   );
 
 create policy "Authenticated users can insert own membership"
@@ -94,7 +116,35 @@ alter table public.players add column group_id uuid references public.groups(id)
 alter table public.matches add column group_id uuid references public.groups(id);
 
 -- ============================================================
--- 5. RPC: join_group_by_code
+-- 5. RPC: create_group (SECURITY DEFINER to bypass RLS chicken-and-egg)
+-- ============================================================
+
+create or replace function public.create_group(
+  group_name text,
+  group_emoji text,
+  group_invite_code text
+)
+returns public.groups
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_group public.groups;
+begin
+  insert into public.groups (name, emoji, invite_code, created_by)
+  values (group_name, group_emoji, group_invite_code, auth.uid())
+  returning * into new_group;
+
+  insert into public.group_members (group_id, user_id, role)
+  values (new_group.id, auth.uid(), 'admin');
+
+  return new_group;
+end;
+$$;
+
+-- ============================================================
+-- 6. RPC: join_group_by_code
 -- ============================================================
 
 create or replace function public.join_group_by_code(code text)
@@ -121,7 +171,7 @@ end;
 $$;
 
 -- ============================================================
--- 6. HELPER: generate random invite code
+-- 7. HELPER: generate random invite code
 -- ============================================================
 
 create or replace function public.generate_invite_code()
@@ -196,7 +246,7 @@ create policy "Players viewable by group members"
   on public.players for select
   to authenticated
   using (
-    group_id in (select group_id from public.group_members where user_id = auth.uid())
+    group_id in (select public.user_group_ids(auth.uid()))
   );
 
 drop policy if exists "Authenticated users can create players" on public.players;
@@ -205,7 +255,7 @@ create policy "Group members can create players"
   to authenticated
   with check (
     created_by = auth.uid()
-    and group_id in (select group_id from public.group_members where user_id = auth.uid())
+    and group_id in (select public.user_group_ids(auth.uid()))
   );
 
 drop policy if exists "Creator or linked user can update player" on public.players;
@@ -213,7 +263,7 @@ create policy "Creator or linked user can update player in group"
   on public.players for update
   to authenticated
   using (
-    group_id in (select group_id from public.group_members where user_id = auth.uid())
+    group_id in (select public.user_group_ids(auth.uid()))
     and (
       created_by = auth.uid()
       or user_id = auth.uid()
@@ -227,7 +277,7 @@ create policy "Creator can delete player in group"
   to authenticated
   using (
     created_by = auth.uid()
-    and group_id in (select group_id from public.group_members where user_id = auth.uid())
+    and group_id in (select public.user_group_ids(auth.uid()))
   );
 
 -- MATCHES
@@ -236,7 +286,7 @@ create policy "Matches viewable by group members"
   on public.matches for select
   to authenticated
   using (
-    group_id in (select group_id from public.group_members where user_id = auth.uid())
+    group_id in (select public.user_group_ids(auth.uid()))
   );
 
 drop policy if exists "Authenticated users can create matches" on public.matches;
@@ -245,7 +295,7 @@ create policy "Group members can create matches"
   to authenticated
   with check (
     created_by = auth.uid()
-    and group_id in (select group_id from public.group_members where user_id = auth.uid())
+    and group_id in (select public.user_group_ids(auth.uid()))
   );
 
 drop policy if exists "Creator can update match" on public.matches;
@@ -254,7 +304,7 @@ create policy "Creator can update match in group"
   to authenticated
   using (
     created_by = auth.uid()
-    and group_id in (select group_id from public.group_members where user_id = auth.uid())
+    and group_id in (select public.user_group_ids(auth.uid()))
   );
 
 drop policy if exists "Creator can delete match" on public.matches;
@@ -263,7 +313,7 @@ create policy "Creator can delete match in group"
   to authenticated
   using (
     created_by = auth.uid()
-    and group_id in (select group_id from public.group_members where user_id = auth.uid())
+    and group_id in (select public.user_group_ids(auth.uid()))
   );
 
 -- MATCH EVENTS
@@ -274,7 +324,7 @@ create policy "Match events viewable by group members"
   using (
     match_id in (
       select id from public.matches
-      where group_id in (select group_id from public.group_members where user_id = auth.uid())
+      where group_id in (select public.user_group_ids(auth.uid()))
     )
   );
 
@@ -286,7 +336,7 @@ create policy "Group members can create match events"
     created_by = auth.uid()
     and match_id in (
       select id from public.matches
-      where group_id in (select group_id from public.group_members where user_id = auth.uid())
+      where group_id in (select public.user_group_ids(auth.uid()))
     )
   );
 
@@ -298,6 +348,6 @@ create policy "Creator can delete match events in group"
     created_by = auth.uid()
     and match_id in (
       select id from public.matches
-      where group_id in (select group_id from public.group_members where user_id = auth.uid())
+      where group_id in (select public.user_group_ids(auth.uid()))
     )
   );

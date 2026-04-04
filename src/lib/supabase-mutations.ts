@@ -21,35 +21,24 @@ export async function createGroup(
 ): Promise<Group> {
   const inviteCode = generateInviteCode();
 
-  const { data: group, error: groupError } = await supabase
-    .from("groups")
-    .insert({
-      name,
-      emoji,
-      invite_code: inviteCode,
-      created_by: userId,
-    })
-    .select("*")
-    .single();
-  if (groupError) throw groupError;
+  // Use RPC to atomically create the group + add creator as admin
+  // This avoids RLS chicken-and-egg: SELECT policy on groups requires
+  // membership, but membership doesn't exist until after insert
+  const { data, error } = await supabase.rpc("create_group", {
+    group_name: name,
+    group_emoji: emoji,
+    group_invite_code: inviteCode,
+  });
+  if (error) throw error;
 
-  // Add creator as admin member
-  const { error: memberError } = await supabase
-    .from("group_members")
-    .insert({
-      group_id: group.id,
-      user_id: userId,
-      role: "admin",
-    });
-  if (memberError) throw memberError;
-
+  const g = data as Record<string, unknown>;
   return {
-    id: group.id,
-    name: group.name,
-    emoji: group.emoji,
-    inviteCode: group.invite_code,
-    createdBy: group.created_by,
-    createdAt: group.created_at,
+    id: g.id as string,
+    name: g.name as string,
+    emoji: g.emoji as string,
+    inviteCode: g.invite_code as string,
+    createdBy: g.created_by as string,
+    createdAt: g.created_at as string,
   };
 }
 
@@ -67,6 +56,14 @@ export async function joinGroupByCode(code: string): Promise<Group> {
     createdBy: g.created_by as string,
     createdAt: g.created_at as string,
   };
+}
+
+export async function deleteGroup(groupId: GroupId) {
+  const { error } = await supabase
+    .from("groups")
+    .delete()
+    .eq("id", groupId);
+  if (error) throw error;
 }
 
 export async function leaveGroup(groupId: GroupId, userId: string) {

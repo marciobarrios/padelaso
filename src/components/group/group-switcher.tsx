@@ -25,7 +25,7 @@ const GROUP_EMOJIS = [
 ];
 
 export function GroupSwitcher() {
-  const { groups, activeGroup, setActiveGroupId } = useGroup();
+  const { groups, activeGroup, setActiveGroup, setActiveGroupId } = useGroup();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"list" | "create" | "join">("list");
   const [name, setName] = useState("");
@@ -53,7 +53,7 @@ export function GroupSwitcher() {
     try {
       const group = await createGroup(name.trim(), emoji, user.id);
       refresh();
-      setActiveGroupId(group.id);
+      setActiveGroup(group);
       resetAndClose();
     } catch {
       setError("No se pudo crear el grupo");
@@ -69,7 +69,7 @@ export function GroupSwitcher() {
     try {
       const group = await joinGroupByCode(joinCode);
       refresh();
-      setActiveGroupId(group.id);
+      setActiveGroup(group);
       resetAndClose();
     } catch {
       setError("Código no válido o grupo no encontrado");

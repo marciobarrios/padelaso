@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Group } from "@/lib/types";
 import { useGroups } from "@/lib/db-hooks";
 
@@ -9,6 +9,7 @@ const STORAGE_KEY = "padelaso_active_group_id";
 interface GroupContextValue {
   groups: Group[];
   activeGroup: Group | null;
+  setActiveGroup: (group: Group) => void;
   setActiveGroupId: (id: string) => void;
   loading: boolean;
 }
@@ -16,9 +17,22 @@ interface GroupContextValue {
 const GroupContext = createContext<GroupContextValue | null>(null);
 
 export function GroupProvider({ children }: { children: React.ReactNode }) {
-  const groups = useGroups();
+  const { groups: fetchedGroups, loaded: groupsLoaded } = useGroups();
+  const [optimisticGroup, setOptimisticGroup] = useState<Group | null>(null);
   const [activeGroupId, setActiveGroupIdState] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+
+  // Merge fetched groups with optimistic group (if not yet in fetched list)
+  const groups = optimisticGroup && !fetchedGroups.some((g) => g.id === optimisticGroup.id)
+    ? [...fetchedGroups, optimisticGroup]
+    : fetchedGroups;
+
+  // Clear optimistic group once it appears in fetched data
+  useEffect(() => {
+    if (optimisticGroup && fetchedGroups.some((g) => g.id === optimisticGroup.id)) {
+      setOptimisticGroup(null);
+    }
+  }, [fetchedGroups, optimisticGroup]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -33,7 +47,6 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
 
     const validGroup = groups.find((g) => g.id === activeGroupId);
     if (!validGroup) {
-      // Default to the first group
       setActiveGroupIdState(groups[0].id);
       localStorage.setItem(STORAGE_KEY, groups[0].id);
     }
@@ -44,12 +57,19 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, id);
   }
 
+  // Optimistically set a newly created/joined group as active
+  const setActiveGroup = useCallback((group: Group) => {
+    setOptimisticGroup(group);
+    setActiveGroupIdState(group.id);
+    localStorage.setItem(STORAGE_KEY, group.id);
+  }, []);
+
   const activeGroup = groups.find((g) => g.id === activeGroupId) ?? null;
-  // Still loading if we haven't initialized from localStorage yet
-  const loading = !initialized;
+  // Loading until both localStorage is initialized AND first groups fetch completes
+  const loading = !initialized || !groupsLoaded;
 
   return (
-    <GroupContext value={{ groups, activeGroup, setActiveGroupId, loading }}>
+    <GroupContext value={{ groups, activeGroup, setActiveGroup, setActiveGroupId, loading }}>
       {children}
     </GroupContext>
   );

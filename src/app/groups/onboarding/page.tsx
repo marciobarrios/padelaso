@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, UserPlus } from "lucide-react";
+import { Plus, UserPlus, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGroup } from "@/components/group/group-provider";
 import { useDataRefresh } from "@/lib/supabase-hooks";
@@ -18,8 +18,8 @@ const GROUP_EMOJIS = [
 
 export default function GroupOnboardingPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const { setActiveGroupId } = useGroup();
+  const { user, signOut } = useAuth();
+  const { setActiveGroup } = useGroup();
   const { refresh } = useDataRefresh();
   const [mode, setMode] = useState<"choice" | "create" | "join">("choice");
   const [name, setName] = useState("");
@@ -35,7 +35,7 @@ export default function GroupOnboardingPage() {
     try {
       const group = await createGroup(name.trim(), emoji, user.id);
       refresh();
-      setActiveGroupId(group.id);
+      setActiveGroup(group);
       router.replace("/");
     } catch {
       setError("No se pudo crear el grupo");
@@ -50,7 +50,7 @@ export default function GroupOnboardingPage() {
     try {
       const group = await joinGroupByCode(joinCode);
       refresh();
-      setActiveGroupId(group.id);
+      setActiveGroup(group);
       router.replace("/");
     } catch {
       setError("Código no válido o grupo no encontrado");
@@ -159,6 +159,14 @@ export default function GroupOnboardingPage() {
             </div>
           </div>
         )}
+
+        <button
+          onClick={async () => { await signOut(); router.replace("/login"); }}
+          className="w-full flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors pt-4"
+        >
+          <LogOut className="size-3.5" />
+          Cerrar sesión
+        </button>
       </div>
     </div>
   );
