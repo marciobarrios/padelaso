@@ -35,6 +35,7 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} ${GeistPixelSquare.variable} h-full antialiased dark`}
+      suppressHydrationWarning
     >
       <body className="min-h-dvh flex flex-col pb-[env(safe-area-inset-bottom)]">
         <AuthProvider>{children}</AuthProvider>
