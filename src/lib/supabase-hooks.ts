@@ -91,7 +91,7 @@ export function useMatches(): Match[] {
     supabase
       .from("matches")
       .select("*")
-      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setMatches(data.map(mapMatch));
       });
@@ -160,7 +160,7 @@ export function usePlayerMatches(playerId: string): Match[] {
       .from("matches")
       .select("*")
       .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`)
-      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setMatches(data.map(mapMatch));
       });
