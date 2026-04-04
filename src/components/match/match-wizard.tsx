@@ -76,18 +76,16 @@ export function MatchWizard({ players }: MatchWizardProps) {
     }
   }
 
-  // Toggle team membership
+  // Swap tapped player with the first player on the other team
   function toggleTeam(playerId: PlayerId) {
     if (team1.includes(playerId)) {
-      if (team2.length < 2) {
-        setTeam1((prev) => prev.filter((id) => id !== playerId));
-        setTeam2((prev) => [...prev, playerId]);
-      }
+      const swapTarget = team2[0];
+      setTeam1((prev) => prev.map((id) => (id === playerId ? swapTarget : id)));
+      setTeam2((prev) => prev.map((id) => (id === swapTarget ? playerId : id)));
     } else {
-      if (team1.length < 2) {
-        setTeam2((prev) => prev.filter((id) => id !== playerId));
-        setTeam1((prev) => [...prev, playerId]);
-      }
+      const swapTarget = team1[0];
+      setTeam2((prev) => prev.map((id) => (id === playerId ? swapTarget : id)));
+      setTeam1((prev) => prev.map((id) => (id === swapTarget ? playerId : id)));
     }
   }
 
