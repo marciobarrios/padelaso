@@ -74,6 +74,7 @@ export default function PlayerProfilePage({
 
   async function handleUnlinkSelf() {
     if (!user) return;
+    setLinkError(null);
     try {
       await unlinkPlayerFromUser(playerId, user.id);
       refresh();
