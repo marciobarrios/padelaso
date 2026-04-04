@@ -166,3 +166,22 @@ export async function linkPlayerToUser(
     .eq("id", userId);
   if (profileError) throw profileError;
 }
+
+export async function unlinkPlayerFromUser(
+  playerId: PlayerId,
+  userId: string
+) {
+  // Clear user_id on the player
+  const { error: playerError } = await supabase
+    .from("players")
+    .update({ user_id: null })
+    .eq("id", playerId);
+  if (playerError) throw playerError;
+
+  // Clear player_id on the profile
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ player_id: null })
+    .eq("id", userId);
+  if (profileError) throw profileError;
+}
