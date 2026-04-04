@@ -57,7 +57,11 @@ create policy "Authenticated users can create players"
 create policy "Creator or linked user can update player"
   on public.players for update
   to authenticated
-  using (created_by = auth.uid() or user_id = auth.uid());
+  using (
+    created_by = auth.uid()
+    or user_id = auth.uid()
+    or (user_id is null)  -- allow any authenticated user to claim an unlinked player
+  );
 
 create policy "Creator can delete player"
   on public.players for delete
@@ -80,18 +84,11 @@ create table public.matches (
 
 alter table public.matches enable row level security;
 
--- Visible if you created it OR a player linked to your account is a participant
-create policy "Matches visible to creator or participants"
+-- All authenticated users can view matches (shared group experience)
+create policy "Matches visible to authenticated users"
   on public.matches for select
   to authenticated
-  using (
-    created_by = auth.uid()
-    or exists (
-      select 1 from public.players
-      where players.user_id = auth.uid()
-        and (players.id = any(team1) or players.id = any(team2))
-    )
-  );
+  using (true);
 
 create policy "Authenticated users can create matches"
   on public.matches for insert
@@ -122,24 +119,11 @@ create table public.match_events (
 
 alter table public.match_events enable row level security;
 
--- Follow match visibility
-create policy "Match events visible with match"
+-- Match events follow match visibility (all authenticated users)
+create policy "Match events visible to authenticated users"
   on public.match_events for select
   to authenticated
-  using (
-    exists (
-      select 1 from public.matches
-      where matches.id = match_events.match_id
-        and (
-          matches.created_by = auth.uid()
-          or exists (
-            select 1 from public.players
-            where players.user_id = auth.uid()
-              and (players.id = any(matches.team1) or players.id = any(matches.team2))
-          )
-        )
-    )
-  );
+  using (true);
 
 create policy "Authenticated users can create match events"
   on public.match_events for insert
@@ -161,7 +145,7 @@ alter table public.profiles
 -- ============================================================
 -- Indexes for common queries
 -- ============================================================
-create index idx_players_user_id on public.players(user_id);
+create unique index idx_players_user_id_unique on public.players(user_id) where user_id is not null;
 create index idx_players_created_by on public.players(created_by);
 create index idx_matches_created_by on public.matches(created_by);
 create index idx_matches_date on public.matches(date desc);

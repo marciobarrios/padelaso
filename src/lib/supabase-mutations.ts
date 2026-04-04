@@ -30,6 +30,27 @@ export async function updatePlayer(
 }
 
 export async function deletePlayer(playerId: PlayerId) {
+  // Remove this player from any match team arrays (no FK cascade for array elements)
+  const { data: matches } = await supabase
+    .from("matches")
+    .select("id, team1, team2")
+    .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`);
+
+  if (matches) {
+    for (const match of matches) {
+      const updates: Record<string, PlayerId[]> = {};
+      if ((match.team1 as PlayerId[]).includes(playerId)) {
+        updates.team1 = (match.team1 as PlayerId[]).filter((id) => id !== playerId);
+      }
+      if ((match.team2 as PlayerId[]).includes(playerId)) {
+        updates.team2 = (match.team2 as PlayerId[]).filter((id) => id !== playerId);
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("matches").update(updates).eq("id", match.id);
+      }
+    }
+  }
+
   // match_events with this player_id will cascade delete via FK
   const { error } = await supabase
     .from("players")
@@ -127,12 +148,16 @@ export async function linkPlayerToUser(
   playerId: PlayerId,
   userId: string
 ) {
-  // Set user_id on the player
-  const { error: playerError } = await supabase
+  // Set user_id on the player — verify the row was actually updated
+  const { data: updatedPlayer, error: playerError } = await supabase
     .from("players")
     .update({ user_id: userId })
-    .eq("id", playerId);
+    .eq("id", playerId)
+    .select("id");
   if (playerError) throw playerError;
+  if (!updatedPlayer || updatedPlayer.length === 0) {
+    throw new Error("Failed to link player: update was not applied");
+  }
 
   // Set player_id on the profile
   const { error: profileError } = await supabase
