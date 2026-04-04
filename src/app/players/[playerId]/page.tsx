@@ -10,14 +10,14 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, UserCheck } from "lucide-react";
+import { Pencil, Trash2, UserCheck, Unlink2, Info } from "lucide-react";
 import {
   usePlayers,
   usePlayerMatches,
   usePlayerEvents,
   useDataRefresh,
 } from "@/lib/db-hooks";
-import { deletePlayer, linkPlayerToUser } from "@/lib/supabase-mutations";
+import { deletePlayer, linkPlayerToUser, unlinkPlayerFromUser } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getEventConfig } from "@/lib/event-config";
 import { MatchEventType } from "@/lib/types";
@@ -35,6 +35,8 @@ export default function PlayerProfilePage({
   const { refresh } = useDataRefresh();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [unlinkOpen, setUnlinkOpen] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const allPlayers = usePlayers();
   const playerMatches = usePlayerMatches(playerId);
@@ -44,7 +46,9 @@ export default function PlayerProfilePage({
   const playerMap = buildPlayerMap(allPlayers);
 
   // Check if current user already linked to a player
-  const userAlreadyLinked = allPlayers.some((p) => p.userId === user?.id);
+  const linkedPlayer = allPlayers.find((p) => p.userId === user?.id);
+  const userAlreadyLinked = !!linkedPlayer;
+  const isOwnPlayer = !!user && player?.userId === user.id;
   const canLinkSelf =
     player &&
     !player.userId &&
@@ -59,8 +63,24 @@ export default function PlayerProfilePage({
 
   async function handleLinkSelf() {
     if (!user) return;
-    await linkPlayerToUser(playerId, user.id);
-    refresh();
+    setLinkError(null);
+    try {
+      await linkPlayerToUser(playerId, user.id);
+      refresh();
+    } catch {
+      setLinkError("No se pudo vincular la cuenta. Inténtalo de nuevo.");
+    }
+  }
+
+  async function handleUnlinkSelf() {
+    if (!user) return;
+    setLinkError(null);
+    try {
+      await unlinkPlayerFromUser(playerId, user.id);
+      refresh();
+    } catch {
+      setLinkError("No se pudo desvincular la cuenta. Inténtalo de nuevo.");
+    }
   }
 
   if (!player) {
@@ -121,16 +141,49 @@ export default function PlayerProfilePage({
           )}
         </div>
 
-        {/* "Soy yo" button */}
-        {canLinkSelf && (
-          <Button
-            onClick={handleLinkSelf}
-            variant="outline"
-            className="w-full"
-          >
-            <UserCheck className="size-4 mr-2" />
-            Soy yo
-          </Button>
+        {/* Account linking section */}
+        {user && (
+          <>
+            {canLinkSelf && (
+              <Button
+                onClick={handleLinkSelf}
+                variant="outline"
+                className="w-full"
+              >
+                <UserCheck className="size-4 mr-2" />
+                Soy yo
+              </Button>
+            )}
+
+            {isOwnPlayer && (
+              <Button
+                onClick={() => setUnlinkOpen(true)}
+                variant="outline"
+                className="w-full text-muted-foreground"
+              >
+                <Unlink2 className="size-4 mr-2" />
+                Desvincular cuenta
+              </Button>
+            )}
+
+            {!canLinkSelf && !isOwnPlayer && player.userId && player.userId !== user.id && (
+              <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-1.5">
+                <Info className="size-3.5 shrink-0" />
+                Este jugador ya tiene una cuenta vinculada
+              </p>
+            )}
+
+            {!canLinkSelf && !isOwnPlayer && !player.userId && userAlreadyLinked && linkedPlayer && (
+              <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-1.5">
+                <Info className="size-3.5 shrink-0" />
+                Ya estás vinculado a {linkedPlayer.name}
+              </p>
+            )}
+
+            {linkError && (
+              <p className="text-sm text-destructive text-center">{linkError}</p>
+            )}
+          </>
         )}
 
         {/* Win/loss stats */}
@@ -225,6 +278,14 @@ export default function PlayerProfilePage({
         title="Eliminar jugador"
         description={`¿Seguro que quieres eliminar a ${player.name}? Se borrarán sus eventos. Los partidos en los que participó se mantendrán.`}
         onConfirm={handleDelete}
+      />
+      <ConfirmDialog
+        open={unlinkOpen}
+        onOpenChange={setUnlinkOpen}
+        title="Desvincular cuenta"
+        description={`¿Seguro que quieres desvincular tu cuenta de ${player.name}? Podrás volver a vincularla después.`}
+        confirmLabel="Desvincular"
+        onConfirm={handleUnlinkSelf}
       />
     </MobileShell>
   );
