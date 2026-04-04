@@ -1,12 +1,30 @@
 export type PlayerId = string;
 export type MatchId = string;
 export type MatchEventId = string;
+export type GroupId = string;
+
+export interface Group {
+  id: GroupId;
+  name: string;
+  emoji: string;
+  inviteCode: string;
+  createdBy: string;
+  createdAt: string | Date;
+}
+
+export interface GroupMember {
+  groupId: GroupId;
+  userId: string;
+  role: "admin" | "member";
+  joinedAt: string | Date;
+}
 
 export interface Player {
   id: PlayerId;
   name: string;
   emoji: string;
   userId?: string | null;
+  groupId: GroupId;
   createdBy?: string;
   createdAt: string | Date;
 }
@@ -23,6 +41,7 @@ export interface Match {
   team1: PlayerId[];
   team2: PlayerId[];
   sets: MatchSet[];
+  groupId: GroupId;
   createdBy?: string;
   createdAt: string | Date;
 }

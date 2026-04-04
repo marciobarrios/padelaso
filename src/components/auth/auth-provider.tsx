@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
 import { DataContext } from "@/lib/supabase-hooks";
+import { GroupProvider } from "@/components/group/group-provider";
 
 interface AuthContextValue {
   user: User | null;
@@ -72,7 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext value={{ user, loading, signInWithGoogle, signOut }}>
       <DataContext value={{ refreshKey, refresh }}>
-        {children}
+        <GroupProvider>
+          {children}
+        </GroupProvider>
       </DataContext>
     </AuthContext>
   );

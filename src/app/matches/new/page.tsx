@@ -3,9 +3,11 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { MatchWizard } from "@/components/match/match-wizard";
 import { usePlayers } from "@/lib/db-hooks";
+import { useGroup } from "@/components/group/group-provider";
 
 export default function NewMatchPage() {
-  const players = usePlayers();
+  const { activeGroup } = useGroup();
+  const players = usePlayers(activeGroup?.id);
 
   if (players.length < 4) {
     return (
@@ -26,5 +28,5 @@ export default function NewMatchPage() {
     );
   }
 
-  return <MatchWizard players={players} />;
+  return <MatchWizard players={players} groupId={activeGroup?.id} />;
 }

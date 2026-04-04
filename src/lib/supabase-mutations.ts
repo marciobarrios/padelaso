@@ -1,19 +1,117 @@
 import { createClient } from "./supabase";
-import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId } from "./types";
+import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group } from "./types";
 
 const supabase = createClient();
+
+// ---------- Groups ----------
+
+function generateInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous I/1/O/0
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+export async function createGroup(
+  name: string,
+  emoji: string,
+  userId: string
+): Promise<Group> {
+  const inviteCode = generateInviteCode();
+
+  const { data: group, error: groupError } = await supabase
+    .from("groups")
+    .insert({
+      name,
+      emoji,
+      invite_code: inviteCode,
+      created_by: userId,
+    })
+    .select("*")
+    .single();
+  if (groupError) throw groupError;
+
+  // Add creator as admin member
+  const { error: memberError } = await supabase
+    .from("group_members")
+    .insert({
+      group_id: group.id,
+      user_id: userId,
+      role: "admin",
+    });
+  if (memberError) throw memberError;
+
+  return {
+    id: group.id,
+    name: group.name,
+    emoji: group.emoji,
+    inviteCode: group.invite_code,
+    createdBy: group.created_by,
+    createdAt: group.created_at,
+  };
+}
+
+export async function joinGroupByCode(code: string): Promise<Group> {
+  const { data, error } = await supabase.rpc("join_group_by_code", {
+    code: code.toUpperCase().trim(),
+  });
+  if (error) throw error;
+  const g = data as Record<string, unknown>;
+  return {
+    id: g.id as string,
+    name: g.name as string,
+    emoji: g.emoji as string,
+    inviteCode: g.invite_code as string,
+    createdBy: g.created_by as string,
+    createdAt: g.created_at as string,
+  };
+}
+
+export async function leaveGroup(groupId: GroupId, userId: string) {
+  const { error } = await supabase
+    .from("group_members")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function updateGroup(
+  groupId: GroupId,
+  data: { name?: string; emoji?: string }
+) {
+  const { error } = await supabase
+    .from("groups")
+    .update(data)
+    .eq("id", groupId);
+  if (error) throw error;
+}
+
+export async function regenerateInviteCode(groupId: GroupId): Promise<string> {
+  const newCode = generateInviteCode();
+  const { error } = await supabase
+    .from("groups")
+    .update({ invite_code: newCode })
+    .eq("id", groupId);
+  if (error) throw error;
+  return newCode;
+}
 
 // ---------- Players ----------
 
 export async function createPlayer(
   name: string,
   emoji: string,
-  userId: string
+  userId: string,
+  groupId: GroupId
 ) {
   const { error } = await supabase.from("players").insert({
     name,
     emoji,
     created_by: userId,
+    group_id: groupId,
   });
   if (error) throw error;
 }
@@ -66,7 +164,8 @@ export async function createMatch(
   team2: PlayerId[],
   sets: MatchSet[],
   userId: string,
-  events: { playerId: PlayerId; type: MatchEventType }[] = []
+  events: { playerId: PlayerId; type: MatchEventType }[] = [],
+  groupId?: GroupId
 ) {
   const { data: match, error: matchError } = await supabase
     .from("matches")
@@ -75,6 +174,7 @@ export async function createMatch(
       team2,
       sets,
       created_by: userId,
+      ...(groupId ? { group_id: groupId } : {}),
     })
     .select("id")
     .single();

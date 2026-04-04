@@ -17,6 +17,7 @@ import {
   usePlayerEvents,
   useDataRefresh,
 } from "@/lib/db-hooks";
+import { useGroup } from "@/components/group/group-provider";
 import { deletePlayer, linkPlayerToUser, unlinkPlayerFromUser } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getEventConfig } from "@/lib/event-config";
@@ -32,13 +33,14 @@ export default function PlayerProfilePage({
   const { playerId } = use(params);
   const router = useRouter();
   const { user } = useAuth();
+  const { activeGroup } = useGroup();
   const { refresh } = useDataRefresh();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
 
-  const allPlayers = usePlayers();
+  const allPlayers = usePlayers(activeGroup?.id);
   const playerMatches = usePlayerMatches(playerId);
   const playerEvents = usePlayerEvents(playerId);
 

@@ -5,9 +5,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PlayerList } from "@/components/players/player-list";
 import { CreatePlayerDialog } from "@/components/players/create-player-dialog";
 import { usePlayers } from "@/lib/db-hooks";
+import { useGroup } from "@/components/group/group-provider";
 
 export default function PlayersPage() {
-  const players = usePlayers();
+  const { activeGroup } = useGroup();
+  const players = usePlayers(activeGroup?.id);
 
   return (
     <MobileShell>

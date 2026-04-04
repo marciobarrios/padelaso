@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Player, PlayerId, MatchSet, MatchEventType } from "@/lib/types";
+import { Player, PlayerId, MatchSet, MatchEventType, GroupId } from "@/lib/types";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { TeamPicker } from "./team-picker";
 import { ScoreInput } from "./score-input";
@@ -31,9 +31,10 @@ interface PendingEvent {
 
 interface MatchWizardProps {
   players: Player[];
+  groupId?: GroupId;
 }
 
-export function MatchWizard({ players }: MatchWizardProps) {
+export function MatchWizard({ players, groupId }: MatchWizardProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { refresh } = useDataRefresh();
@@ -112,7 +113,8 @@ export function MatchWizard({ players }: MatchWizardProps) {
       team2,
       sets,
       user.id,
-      pendingEvents
+      pendingEvents,
+      groupId
     );
     refresh();
     router.push(`/matches/${matchId}`);
