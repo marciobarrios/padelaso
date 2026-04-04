@@ -355,7 +355,11 @@ export function MatchWizard({ players }: MatchWizardProps) {
 
       {/* Navigation */}
       <div className="sticky bottom-0 border-t border-border bg-background p-4 flex gap-3">
-        {step > 0 && (
+        {step === 0 ? (
+          <Button variant="outline" onClick={() => router.back()} className="flex-1">
+            Cancelar
+          </Button>
+        ) : (
           <Button variant="outline" onClick={goBack} className="flex-1">
             <ChevronLeft className="size-4 mr-1" />
             Atrás
