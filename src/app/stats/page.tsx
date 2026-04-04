@@ -34,8 +34,8 @@ export default function StatsPage() {
     return (
       <MobileShell>
         <PageHeader title="Stats" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-2">
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center space-y-2 -mt-20">
             <p className="text-4xl">📊</p>
             <p className="text-muted-foreground">
               Juega partidos para ver estadísticas
