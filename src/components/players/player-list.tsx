@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { UserCheck } from "lucide-react";
 import { Player } from "@/lib/types";
 import { PlayerAvatar } from "./player-avatar";
 
@@ -26,7 +27,10 @@ export function PlayerList({ players }: PlayerListProps) {
           className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
         >
           <PlayerAvatar emoji={player.emoji} name={player.name} />
-          <span className="font-medium">{player.name}</span>
+          <span className="font-medium flex-1">{player.name}</span>
+          {player.userId && (
+            <UserCheck className="size-4 text-primary shrink-0" />
+          )}
         </Link>
       ))}
     </div>

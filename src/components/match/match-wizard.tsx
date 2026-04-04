@@ -9,7 +9,9 @@ import { TeamPicker } from "./team-picker";
 import { ScoreInput } from "./score-input";
 import { EventGrid } from "@/components/events/event-grid";
 import { PlayerEventPicker } from "@/components/events/player-event-picker";
-import { db } from "@/lib/db";
+import { createMatch } from "@/lib/supabase-mutations";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useDataRefresh } from "@/lib/supabase-hooks";
 import { cn } from "@/lib/utils";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { getEventConfig } from "@/lib/event-config";
@@ -33,6 +35,8 @@ interface MatchWizardProps {
 
 export function MatchWizard({ players }: MatchWizardProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const { refresh } = useDataRefresh();
   const [step, setStep] = useState(0);
 
   // Step 1: Selected players
@@ -104,28 +108,15 @@ export function MatchWizard({ players }: MatchWizardProps) {
 
   // Save match
   async function handleSave() {
-    const matchId = crypto.randomUUID();
-    await db.matches.add({
-      id: matchId,
-      date: new Date(),
-      team1: team1 as [PlayerId, PlayerId],
-      team2: team2 as [PlayerId, PlayerId],
+    if (!user) return;
+    const matchId = await createMatch(
+      team1,
+      team2,
       sets,
-      createdAt: new Date(),
-    });
-
-    if (pendingEvents.length > 0) {
-      await db.matchEvents.bulkAdd(
-        pendingEvents.map((e) => ({
-          id: crypto.randomUUID(),
-          matchId,
-          playerId: e.playerId,
-          type: e.type,
-          createdAt: new Date(),
-        }))
-      );
-    }
-
+      user.id,
+      pendingEvents
+    );
+    refresh();
     router.push(`/matches/${matchId}`);
   }
 

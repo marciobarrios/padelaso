@@ -34,13 +34,15 @@ export default function HomePage() {
         </Link>
 
         {matches.length > 0 ? (
-          <div className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
               Últimos partidos
             </h2>
-            {matches.slice(0, 10).map((match) => (
-              <MatchCard key={match.id} match={match} playerMap={playerMap} />
-            ))}
+            <div className="space-y-6">
+              {matches.slice(0, 10).map((match) => (
+                <MatchCard key={match.id} match={match} playerMap={playerMap} />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="text-center py-16 text-muted-foreground">

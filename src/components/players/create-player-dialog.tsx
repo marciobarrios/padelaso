@@ -12,21 +12,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { EmojiPicker } from "./emoji-picker";
-import { db } from "@/lib/db";
+import { createPlayer } from "@/lib/supabase-mutations";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useDataRefresh } from "@/lib/supabase-hooks";
 
 export function CreatePlayerDialog() {
+  const { user } = useAuth();
+  const { refresh } = useDataRefresh();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("😎");
 
   async function handleCreate() {
-    if (!name.trim()) return;
-    await db.players.add({
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      emoji,
-      createdAt: new Date(),
-    });
+    if (!name.trim() || !user) return;
+    await createPlayer(name.trim(), emoji, user.id);
+    refresh();
     setName("");
     setEmoji("😎");
     setOpen(false);

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Home, Users, BarChart3 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Home, Users, BarChart3, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const NAV_ITEMS = [
   { href: "/", label: "Inicio", icon: Home },
@@ -13,6 +15,22 @@ const NAV_ITEMS = [
 
 export function MobileShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, signOut } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-dvh">
+        <p className="text-muted-foreground">Cargando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-dvh">
@@ -38,6 +56,21 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          <button
+            onClick={signOut}
+            className="flex flex-col items-center gap-1 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {user.user_metadata?.avatar_url ? (
+              <img
+                src={user.user_metadata.avatar_url}
+                alt=""
+                className="size-5 rounded-full"
+              />
+            ) : (
+              <LogOut className="size-5" />
+            )}
+            <span>Salir</span>
+          </button>
         </div>
       </nav>
     </div>
