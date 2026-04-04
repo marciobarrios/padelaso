@@ -58,7 +58,6 @@ export interface MatchEvent {
 export type MatchEventType =
   | "mvp"
   | "bola_fuera"
-  | "jugada_destacada"
   | "pelotazo"
   | "bola_perdida"
   | "ace"
@@ -67,12 +66,21 @@ export type MatchEventType =
   | "globo"
   | "bajada_muro"
   | "doble_falta"
-  | "punto_oro"
+  | "puntazo"
   | "caida_epica"
   | "grito_guerra"
   | "raquetazo_cristal"
   | "por_la_puerta"
-  | "bola_no_baja";
+  | "tomahawk"
+  | "tocaste_techo"
+  | "por_3_metros"
+  | "remate_red"
+  | "cano"
+  | "dejada_imposible"
+  | "cinta"
+  | "chiquita"
+  | "golpe_tapia"
+  | "mejor_salvada";
 
 export interface Profile {
   id: string;
