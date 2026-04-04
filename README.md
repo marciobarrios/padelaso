@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Padelaso
+
+Padel match tracker with gamification for friends.
+
+Built with **Next.js 16** | **React 19** | **TypeScript** | **Supabase** | **Tailwind CSS 4** | **shadcn/ui**
+
+## Overview
+
+Padelaso is a mobile-first web app for tracking padel matches among a group of friends. Record matches, log in-match events (MVPs, trick shots, epic falls...), and follow stats and leaderboards. The UI is in Spanish.
+
+## Features
+
+- **Match creation wizard** — 5-step flow: select players, form teams, input set scores, log events, confirm
+- **17 event types** — MVP, Ace, Vibora, Bandeja, Globo, Bajada de muro, Punto de oro, Caida epica, and more
+- **Player management** — Create players with custom emoji avatars
+- **Stats and leaderboards** — Win rates, current streaks, event-specific rankings
+- **Google OAuth** — Authentication via Supabase Auth
+- **Match sharing** — View and share match details via unique URLs
+- **Dark theme** — Mobile-optimized dark UI with bottom navigation
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16 (App Router) |
+| UI | React 19, Tailwind CSS 4, shadcn/ui |
+| Language | TypeScript 5.9 |
+| Database | Supabase (PostgreSQL) |
+| Auth | Supabase Auth (Google OAuth) |
+| Icons | Lucide React, Hugeicons |
+| Fonts | Geist (via next/font) |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- A [Supabase](https://supabase.com) project
+
+### Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Install dependencies
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a `.env.local` file with your Supabase credentials:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Run
 
-## Learn More
+```bash
+npm run dev     # Development server at http://localhost:3000
+npm run build   # Production build
+npm run start   # Start production server
+npm run lint    # Run ESLint
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/
+│   ├── layout.tsx                # Root layout (auth, fonts)
+│   ├── page.tsx                  # Home dashboard
+│   ├── login/page.tsx            # Google OAuth login
+│   ├── matches/
+│   │   ├── page.tsx              # Match list
+│   │   ├── new/page.tsx          # New match (wizard)
+│   │   └── [matchId]/page.tsx    # Match details
+│   ├── players/
+│   │   ├── page.tsx              # Player list
+│   │   └── [playerId]/page.tsx   # Player profile
+│   ├── stats/page.tsx            # Leaderboards & stats
+│   └── auth/callback/route.ts    # OAuth callback
+├── components/
+│   ├── auth/          # Auth provider & hooks
+│   ├── layout/        # Mobile shell, page header
+│   ├── match/         # Match wizard, cards, score input
+│   ├── players/       # Player list, dialogs, avatar
+│   ├── events/        # Event grid, buttons, feed
+│   └── ui/            # shadcn/ui primitives
+└── lib/
+    ├── types.ts              # TypeScript interfaces
+    ├── event-config.ts       # Event type definitions
+    ├── stats.ts              # Stats calculations
+    ├── supabase.ts           # Client-side Supabase
+    ├── supabase-server.ts    # Server-side Supabase
+    ├── supabase-hooks.ts     # Data fetching hooks
+    └── supabase-mutations.ts # Create/update operations
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Table | Purpose |
+|-------|---------|
+| `players` | Player profiles (name, emoji avatar) |
+| `matches` | Match records (teams, set scores, date) |
+| `match_events` | In-match events linked to players |
+| `profiles` | User accounts (synced from auth) |
