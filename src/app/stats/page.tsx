@@ -114,7 +114,7 @@ export default function StatsPage() {
         {leaderboards.length > 0 && (
           <div>
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-              Top por evento
+              Ranking por evento
             </h2>
             <div className="space-y-3">
               {leaderboards.slice(0, 8).map((lb) => {
@@ -137,6 +137,9 @@ export default function StatsPage() {
                             emoji={topPlayer.emoji}
                             size="sm"
                           />
+                          <span className="text-sm font-medium truncate">
+                            {topPlayer.name}
+                          </span>
                           <Badge variant="secondary">{top.count}</Badge>
                         </div>
                       )}
