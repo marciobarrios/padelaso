@@ -10,9 +10,15 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from "lucide-react";
-import { db } from "@/lib/db";
-import { useLiveQuery } from "dexie-react-hooks";
+import { Pencil, Trash2, UserCheck } from "lucide-react";
+import {
+  usePlayers,
+  usePlayerMatches,
+  usePlayerEvents,
+  useDataRefresh,
+} from "@/lib/db-hooks";
+import { deletePlayer, linkPlayerToUser } from "@/lib/supabase-mutations";
+import { useAuth } from "@/components/auth/auth-provider";
 import { getEventConfig } from "@/lib/event-config";
 import { MatchEventType } from "@/lib/types";
 import { calculatePlayerStats, getPartnerStats } from "@/lib/stats";
@@ -25,31 +31,36 @@ export default function PlayerProfilePage({
 }) {
   const { playerId } = use(params);
   const router = useRouter();
+  const { user } = useAuth();
+  const { refresh } = useDataRefresh();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const player = useLiveQuery(() => db.players.get(playerId), [playerId]);
-  const matches = useLiveQuery(
-    () =>
-      db.matches
-        .filter(
-          (m) => m.team1.includes(playerId) || m.team2.includes(playerId)
-        )
-        .toArray(),
-    [playerId]
-  );
-  const events = useLiveQuery(
-    () => db.matchEvents.where("playerId").equals(playerId).toArray(),
-    [playerId]
-  );
-  const allPlayers = useLiveQuery(() => db.players.toArray());
+  const allPlayers = usePlayers();
+  const playerMatches = usePlayerMatches(playerId);
+  const playerEvents = usePlayerEvents(playerId);
+
+  const player = allPlayers.find((p) => p.id === playerId);
+  const playerMap = buildPlayerMap(allPlayers);
+
+  // Check if current user already linked to a player
+  const userAlreadyLinked = allPlayers.some((p) => p.userId === user?.id);
+  const canLinkSelf =
+    player &&
+    !player.userId &&
+    !userAlreadyLinked &&
+    user !== null;
 
   async function handleDelete() {
-    await db.transaction("rw", db.players, db.matchEvents, async () => {
-      await db.matchEvents.where("playerId").equals(playerId).delete();
-      await db.players.delete(playerId);
-    });
+    await deletePlayer(playerId);
+    refresh();
     router.replace("/players");
+  }
+
+  async function handleLinkSelf() {
+    if (!user) return;
+    await linkPlayerToUser(playerId, user.id);
+    refresh();
   }
 
   if (!player) {
@@ -62,11 +73,6 @@ export default function PlayerProfilePage({
       </MobileShell>
     );
   }
-
-  const playerMatches = matches ?? [];
-  const playerEvents = events ?? [];
-  const players = allPlayers ?? [];
-  const playerMap = buildPlayerMap(players);
 
   const stats = calculatePlayerStats(playerId, playerMatches);
   const partners = getPartnerStats(playerId, playerMatches);
@@ -107,7 +113,25 @@ export default function PlayerProfilePage({
         <div className="flex flex-col items-center gap-2">
           <PlayerAvatar emoji={player.emoji} size="lg" />
           <h2 className="text-xl font-bold">{player.name}</h2>
+          {player.userId && (
+            <Badge variant="secondary" className="gap-1">
+              <UserCheck className="size-3" />
+              Cuenta vinculada
+            </Badge>
+          )}
         </div>
+
+        {/* "Soy yo" button */}
+        {canLinkSelf && (
+          <Button
+            onClick={handleLinkSelf}
+            variant="outline"
+            className="w-full"
+          >
+            <UserCheck className="size-4 mr-2" />
+            Soy yo
+          </Button>
+        )}
 
         {/* Win/loss stats */}
         <div className="grid grid-cols-3 gap-3">

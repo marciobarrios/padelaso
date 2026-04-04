@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Match, MatchSet } from "@/lib/types";
 import { ScoreInput } from "./score-input";
-import { db } from "@/lib/db";
+import { updateMatch } from "@/lib/supabase-mutations";
+import { useDataRefresh } from "@/lib/supabase-hooks";
 
 interface EditMatchDialogProps {
   match: Match;
@@ -23,6 +24,7 @@ export function EditMatchDialog({
   open,
   onOpenChange,
 }: EditMatchDialogProps) {
+  const { refresh } = useDataRefresh();
   const [sets, setSets] = useState<MatchSet[]>(match.sets);
 
   useEffect(() => {
@@ -32,7 +34,8 @@ export function EditMatchDialog({
   }, [open, match.sets]);
 
   async function handleSave() {
-    await db.matches.update(match.id, { sets });
+    await updateMatch(match.id, { sets });
+    refresh();
     onOpenChange(false);
   }
 

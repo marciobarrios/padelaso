@@ -5,9 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PlayerAvatar } from "@/components/players/player-avatar";
-import { usePlayers, useMatches } from "@/lib/db-hooks";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { usePlayers, useMatches, useAllMatchEvents } from "@/lib/db-hooks";
 import {
   calculatePlayerStats,
   getEventLeaderboards,
@@ -18,8 +16,7 @@ import { buildPlayerMap } from "@/lib/utils";
 export default function StatsPage() {
   const players = usePlayers();
   const matches = useMatches();
-  const events =
-    useLiveQuery(() => db.matchEvents.toArray()) ?? [];
+  const events = useAllMatchEvents();
 
   const playerMap = buildPlayerMap(players);
 

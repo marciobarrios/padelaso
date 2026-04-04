@@ -6,7 +6,9 @@ export interface Player {
   id: PlayerId;
   name: string;
   emoji: string;
-  createdAt: Date;
+  userId?: string | null;
+  createdBy?: string;
+  createdAt: string | Date;
 }
 
 export interface MatchSet {
@@ -16,12 +18,13 @@ export interface MatchSet {
 
 export interface Match {
   id: MatchId;
-  date: Date;
-  courtNumber?: number;
-  team1: [PlayerId, PlayerId];
-  team2: [PlayerId, PlayerId];
+  date: string | Date;
+  courtNumber?: number | null;
+  team1: PlayerId[];
+  team2: PlayerId[];
   sets: MatchSet[];
-  createdAt: Date;
+  createdBy?: string;
+  createdAt: string | Date;
 }
 
 export interface MatchEvent {
@@ -29,7 +32,8 @@ export interface MatchEvent {
   matchId: MatchId;
   playerId: PlayerId;
   type: MatchEventType;
-  createdAt: Date;
+  createdBy?: string;
+  createdAt: string | Date;
 }
 
 export type MatchEventType =
@@ -50,3 +54,11 @@ export type MatchEventType =
   | "raquetazo_cristal"
   | "por_la_puerta"
   | "hacer_souhel";
+
+export interface Profile {
+  id: string;
+  playerId?: string | null;
+  displayName?: string;
+  avatarUrl?: string | null;
+  createdAt: string;
+}

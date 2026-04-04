@@ -13,8 +13,9 @@ import { EventGrid } from "@/components/events/event-grid";
 import { PlayerEventPicker } from "@/components/events/player-event-picker";
 import { EditMatchDialog } from "@/components/match/edit-match-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useMatch, useMatchEvents, usePlayers } from "@/lib/db-hooks";
-import { db } from "@/lib/db";
+import { useMatch, useMatchEvents, usePlayers, useDataRefresh } from "@/lib/db-hooks";
+import { addMatchEvent, removeMatchEvent, deleteMatch } from "@/lib/supabase-mutations";
+import { useAuth } from "@/components/auth/auth-provider";
 import { MatchEventType, MatchEventId } from "@/lib/types";
 import { buildPlayerMap, getSetWins } from "@/lib/utils";
 
@@ -25,6 +26,8 @@ export default function MatchDetailPage({
 }) {
   const { matchId } = use(params);
   const router = useRouter();
+  const { user } = useAuth();
+  const { refresh } = useDataRefresh();
   const match = useMatch(matchId);
   const events = useMatchEvents(matchId);
   const players = usePlayers();
@@ -34,26 +37,20 @@ export default function MatchDetailPage({
   const [pickerEventType, setPickerEventType] = useState<MatchEventType | null>(null);
 
   async function handleAddEvent(playerId: string) {
-    if (!pickerEventType) return;
-    await db.matchEvents.add({
-      id: crypto.randomUUID(),
-      matchId,
-      playerId,
-      type: pickerEventType,
-      createdAt: new Date(),
-    });
+    if (!pickerEventType || !user) return;
+    await addMatchEvent(matchId, playerId, pickerEventType, user.id);
+    refresh();
     setPickerEventType(null);
   }
 
   async function handleRemoveEvent(eventId: MatchEventId) {
-    await db.matchEvents.delete(eventId);
+    await removeMatchEvent(eventId);
+    refresh();
   }
 
   async function handleDelete() {
-    await db.transaction("rw", db.matches, db.matchEvents, async () => {
-      await db.matchEvents.where("matchId").equals(matchId).delete();
-      await db.matches.delete(matchId);
-    });
+    await deleteMatch(matchId);
+    refresh();
     router.replace("/");
   }
 

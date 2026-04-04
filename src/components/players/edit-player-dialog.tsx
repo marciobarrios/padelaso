@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmojiPicker } from "./emoji-picker";
-import { db } from "@/lib/db";
+import { updatePlayer } from "@/lib/supabase-mutations";
+import { useDataRefresh } from "@/lib/supabase-hooks";
 import { Player } from "@/lib/types";
 
 interface EditPlayerDialogProps {
@@ -24,6 +25,7 @@ export function EditPlayerDialog({
   open,
   onOpenChange,
 }: EditPlayerDialogProps) {
+  const { refresh } = useDataRefresh();
   const [name, setName] = useState(player.name);
   const [emoji, setEmoji] = useState(player.emoji);
 
@@ -36,10 +38,11 @@ export function EditPlayerDialog({
 
   async function handleSave() {
     if (!name.trim()) return;
-    await db.players.update(player.id, {
+    await updatePlayer(player.id, {
       name: name.trim(),
       emoji,
     });
+    refresh();
     onOpenChange(false);
   }
 
