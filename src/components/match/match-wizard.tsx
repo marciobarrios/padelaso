@@ -117,7 +117,7 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
       groupId
     );
     refresh();
-    router.push(`/matches/${matchId}`);
+    router.replace(`/matches/${matchId}`);
   }
 
   // Navigation
