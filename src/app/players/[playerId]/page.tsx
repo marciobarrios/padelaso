@@ -40,7 +40,7 @@ export default function PlayerProfilePage({
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
 
-  const allPlayers = usePlayers(activeGroup?.id);
+  const { players: allPlayers, loaded: playersLoaded } = usePlayers(activeGroup?.id);
   const playerMatches = usePlayerMatches(playerId);
   const playerEvents = usePlayerEvents(playerId);
 
@@ -86,6 +86,7 @@ export default function PlayerProfilePage({
   }
 
   if (!player) {
+    if (!playersLoaded) return null;
     return (
       <MobileShell>
         <PageHeader title="Jugador" back />

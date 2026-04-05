@@ -38,7 +38,7 @@ export default function GroupSettingsPage({
   const { groups, setActiveGroupId } = useGroup();
   const { refresh } = useDataRefresh();
   const members = useGroupMembers(groupId);
-  const players = usePlayers(groupId);
+  const { players } = usePlayers(groupId);
   const playerMap = buildPlayerMap(players);
 
   const group = groups.find((g) => g.id === groupId);

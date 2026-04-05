@@ -16,7 +16,7 @@ import { buildPlayerMap } from "@/lib/utils";
 
 export default function StatsPage() {
   const { activeGroup } = useGroup();
-  const players = usePlayers(activeGroup?.id);
+  const { players } = usePlayers(activeGroup?.id);
   const matches = useMatches(activeGroup?.id);
   const events = useAllMatchEvents(activeGroup?.id);
 
