@@ -33,7 +33,7 @@ export default function PlayerProfilePage({
   const { playerId } = use(params);
   const router = useRouter();
   const { user } = useAuth();
-  const { activeGroup } = useGroup();
+  const { activeGroup, loading } = useGroup();
   const { refresh } = useDataRefresh();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -89,9 +89,11 @@ export default function PlayerProfilePage({
     return (
       <MobileShell>
         <PageHeader title="Jugador" back />
-        <p className="text-center py-12 text-muted-foreground">
-          Jugador no encontrado
-        </p>
+        {!loading && (
+          <p className="text-center py-12 text-muted-foreground">
+            Jugador no encontrado
+          </p>
+        )}
       </MobileShell>
     );
   }
