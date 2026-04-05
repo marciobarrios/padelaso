@@ -10,11 +10,12 @@ Padelaso is a mobile-first web app for tracking padel matches among a group of f
 
 ## Features
 
+- **Groups/Clubs** — Multi-tenant match scoping: create or join groups via invite codes, admin/member roles, group switcher
 - **Match creation wizard** — 5-step flow: select players, form teams, input set scores, log events, confirm
-- **17 event types** — MVP, Ace, Vibora, Bandeja, Globo, Bajada de muro, Punto de oro, Caida epica, and more
+- **25 event types** — MVP, Ace, Víbora, Bandeja, Globo, Bajada de muro, Puntazo, Dejada imposible, Chiquita, Caída épica, and more — classified as positive, negative, or fun
 - **Player management** — Create players with custom emoji avatars
-- **Stats and leaderboards** — Win rates, current streaks, event-specific rankings
-- **Google OAuth** — Authentication via Supabase Auth
+- **Stats and leaderboards** — Win rates, current streaks, event-specific rankings (all scoped per group)
+- **Google OAuth** — Authentication via Supabase Auth with account linking
 - **Match sharing** — View and share match details via unique URLs
 - **Dark theme** — Mobile-optimized dark UI with bottom navigation
 
@@ -68,6 +69,9 @@ src/
 │   ├── layout.tsx                # Root layout (auth, fonts)
 │   ├── page.tsx                  # Home dashboard
 │   ├── login/page.tsx            # Google OAuth login
+│   ├── groups/
+│   │   ├── onboarding/page.tsx   # Create/join group on first login
+│   │   └── [groupId]/page.tsx    # Group settings (admin)
 │   ├── matches/
 │   │   ├── page.tsx              # Match list
 │   │   ├── new/page.tsx          # New match (wizard)
@@ -79,6 +83,7 @@ src/
 │   └── auth/callback/route.ts    # OAuth callback
 ├── components/
 │   ├── auth/          # Auth provider & hooks
+│   ├── group/         # Group provider, switcher
 │   ├── layout/        # Mobile shell, page header
 │   ├── match/         # Match wizard, cards, score input
 │   ├── players/       # Player list, dialogs, avatar
@@ -86,19 +91,27 @@ src/
 │   └── ui/            # shadcn/ui primitives
 └── lib/
     ├── types.ts              # TypeScript interfaces
-    ├── event-config.ts       # Event type definitions
+    ├── event-config.ts       # Event type definitions (25 types)
     ├── stats.ts              # Stats calculations
+    ├── db-hooks.ts           # Database event hooks
+    ├── utils.ts              # Utility functions
     ├── supabase.ts           # Client-side Supabase
     ├── supabase-server.ts    # Server-side Supabase
-    ├── supabase-hooks.ts     # Data fetching hooks
+    ├── supabase-hooks.ts     # Data fetching hooks (group-scoped)
     └── supabase-mutations.ts # Create/update operations
+supabase/
+└── migrations/               # Database schema & migrations
 ```
 
 ## Database
 
 | Table | Purpose |
 |-------|---------|
-| `players` | Player profiles (name, emoji avatar) |
-| `matches` | Match records (teams, set scores, date) |
+| `groups` | Group/club profiles (name, emoji, invite code) |
+| `group_members` | User-group memberships with roles (admin/member) |
+| `players` | Player profiles scoped to a group (name, emoji avatar) |
+| `matches` | Match records scoped to a group (teams, set scores, date) |
 | `match_events` | In-match events linked to players |
 | `profiles` | User accounts (synced from auth) |
+
+All player and match data is isolated per group via Row-Level Security (RLS) policies.
