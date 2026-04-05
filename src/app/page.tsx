@@ -12,7 +12,7 @@ import { buildPlayerMap } from "@/lib/utils";
 export default function HomePage() {
   const { activeGroup } = useGroup();
   const matches = useMatches(activeGroup?.id);
-  const players = usePlayers(activeGroup?.id);
+  const { players } = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
 
   return (

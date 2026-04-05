@@ -130,13 +130,15 @@ export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
 
 // ---------- Player/Match hooks (group-scoped) ----------
 
-export function usePlayers(groupId?: GroupId): Player[] {
+export function usePlayers(groupId?: GroupId): { players: Player[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [players, setPlayers] = useState<Player[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!groupId) {
       setPlayers([]);
+      setLoaded(false);
       return;
     }
     supabase
@@ -146,10 +148,11 @@ export function usePlayers(groupId?: GroupId): Player[] {
       .order("name")
       .then(({ data }) => {
         if (data) setPlayers(data.map(mapPlayer));
+        setLoaded(true);
       });
   }, [groupId, refreshKey]);
 
-  return players;
+  return { players, loaded };
 }
 
 export function useMatches(groupId?: GroupId): Match[] {

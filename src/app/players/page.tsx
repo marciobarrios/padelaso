@@ -9,7 +9,7 @@ import { useGroup } from "@/components/group/group-provider";
 
 export default function PlayersPage() {
   const { activeGroup } = useGroup();
-  const players = usePlayers(activeGroup?.id);
+  const { players } = usePlayers(activeGroup?.id);
 
   return (
     <MobileShell>

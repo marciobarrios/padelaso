@@ -32,7 +32,7 @@ export default function MatchDetailPage({
   const { refresh } = useDataRefresh();
   const match = useMatch(matchId);
   const events = useMatchEvents(matchId);
-  const players = usePlayers(activeGroup?.id);
+  const { players } = usePlayers(activeGroup?.id);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [addingEvents, setAddingEvents] = useState(false);
