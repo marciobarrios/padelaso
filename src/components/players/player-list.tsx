@@ -8,12 +8,14 @@ import { PlayerAvatar } from "./player-avatar";
 
 interface PlayerListProps {
   players: Player[];
+  loaded?: boolean;
 }
 
-export function PlayerList({ players }: PlayerListProps) {
+export function PlayerList({ players, loaded = true }: PlayerListProps) {
   const { user } = useAuth();
 
   if (players.length === 0) {
+    if (!loaded) return null;
     return (
       <p className="text-center text-muted-foreground py-12">
         No hay jugadores todavía. ¡Añade el primero!

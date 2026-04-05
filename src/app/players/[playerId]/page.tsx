@@ -86,14 +86,13 @@ export default function PlayerProfilePage({
   }
 
   if (!player) {
+    if (!playersLoaded) return null;
     return (
       <MobileShell>
         <PageHeader title="Jugador" back />
-        {playersLoaded && (
-          <p className="text-center py-12 text-muted-foreground">
-            Jugador no encontrado
-          </p>
-        )}
+        <p className="text-center py-12 text-muted-foreground">
+          Jugador no encontrado
+        </p>
       </MobileShell>
     );
   }

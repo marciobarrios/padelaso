@@ -9,13 +9,13 @@ import { useGroup } from "@/components/group/group-provider";
 
 export default function PlayersPage() {
   const { activeGroup } = useGroup();
-  const { players } = usePlayers(activeGroup?.id);
+  const { players, loaded } = usePlayers(activeGroup?.id);
 
   return (
     <MobileShell>
       <PageHeader title="Jugadores" action={<CreatePlayerDialog />} />
       <div className="max-w-lg mx-auto">
-        <PlayerList players={players} />
+        <PlayerList players={players} loaded={loaded} />
       </div>
     </MobileShell>
   );
