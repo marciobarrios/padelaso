@@ -31,6 +31,7 @@ export function MatchVoting({
   const { refresh } = useDataRefresh();
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
+  const [isChangingVote, setIsChangingVote] = useState(false);
 
   const matchPlayerIds = [...match.team1, ...match.team2];
   const matchPlayers = matchPlayerIds
@@ -84,6 +85,7 @@ export function MatchVoting({
         );
       }
       refresh();
+      setIsChangingVote(false);
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,7 @@ export function MatchVoting({
         <Card>
           <CardContent className="p-4">
             {/* Voting cards */}
-            {canVote && !hasEnoughVotes && (
+            {canVote && (!hasEnoughVotes || isChangingVote) && (
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {matchPlayers.map((player) => {
                   const isMyChoice =
@@ -168,7 +170,7 @@ export function MatchVoting({
             )}
 
             {/* Results view (read-only or after enough votes) */}
-            {(!canVote || hasEnoughVotes) && (
+            {(!canVote || (hasEnoughVotes && !isChangingVote)) && (
               <div className="space-y-2">
                 {matchPlayers.map((player) => {
                   const playerVoteCount = tally.get(player.id) ?? 0;
@@ -207,12 +209,12 @@ export function MatchVoting({
             )}
 
             {/* Voting still possible: show "change vote" hint */}
-            {canVote && hasEnoughVotes && myVote && (
+            {canVote && hasEnoughVotes && !isChangingVote && myVote && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="mt-2 w-full"
-                onClick={() => setExpanded(true)}
+                onClick={() => setIsChangingVote(true)}
                 disabled={loading}
               >
                 Cambiar voto
