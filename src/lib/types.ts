@@ -1,6 +1,7 @@
 export type PlayerId = string;
 export type MatchId = string;
 export type MatchEventId = string;
+export type MatchVoteId = string;
 export type GroupId = string;
 
 export interface Group {
@@ -56,7 +57,6 @@ export interface MatchEvent {
 }
 
 export type MatchEventType =
-  | "mvp"
   | "bola_fuera"
   | "pelotazo"
   | "bola_perdida"
@@ -80,7 +80,18 @@ export type MatchEventType =
   | "cinta"
   | "chiquita"
   | "golpe_tapia"
-  | "mejor_salvada";
+  | "salvada_top";
+
+export type VoteType = "mvp" | "jugada_del_partido";
+
+export interface MatchVote {
+  id: MatchVoteId;
+  matchId: MatchId;
+  voterPlayerId: PlayerId;
+  votedForPlayerId: PlayerId;
+  voteType: VoteType;
+  createdAt: string | Date;
+}
 
 export interface Profile {
   id: string;

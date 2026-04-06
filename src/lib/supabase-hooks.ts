@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "./supabase";
-import { Player, Match, MatchEvent, MatchId, Group, GroupMember, GroupId } from "./types";
+import { Player, Match, MatchEvent, MatchVote, MatchId, Group, GroupMember, GroupId } from "./types";
 
 // ---------- Data refresh context ----------
 
@@ -73,6 +73,17 @@ function mapGroup(row: Record<string, unknown>): Group {
     createdBy: row.created_by as string,
     createdAt: row.created_at as string,
   };
+}
+
+function mapMatchVote(row: Record<string, unknown>): MatchVote {
+  return {
+    id: row.id as string,
+    matchId: row.match_id as string,
+    voterPlayerId: row.voter_player_id as string,
+    votedForPlayerId: row.voted_for_player_id as string,
+    voteType: row.vote_type as string,
+    createdAt: row.created_at as string,
+  } as MatchVote;
 }
 
 function mapGroupMember(row: Record<string, unknown>): GroupMember {
@@ -210,6 +221,23 @@ export function useMatchEvents(matchId: MatchId): MatchEvent[] {
   }, [matchId, refreshKey]);
 
   return events;
+}
+
+export function useMatchVotes(matchId: MatchId): MatchVote[] {
+  const { refreshKey } = useDataRefresh();
+  const [votes, setVotes] = useState<MatchVote[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("match_votes")
+      .select("*")
+      .eq("match_id", matchId)
+      .then(({ data }) => {
+        if (data) setVotes(data.map(mapMatchVote));
+      });
+  }, [matchId, refreshKey]);
+
+  return votes;
 }
 
 export function useAllMatchEvents(groupId?: GroupId): MatchEvent[] {
