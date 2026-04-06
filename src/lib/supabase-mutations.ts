@@ -1,5 +1,5 @@
 import { createClient } from "./supabase";
-import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group } from "./types";
+import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group, VoteType } from "./types";
 
 const supabase = createClient();
 
@@ -236,6 +236,40 @@ export async function removeMatchEvent(eventId: MatchEventId) {
     .from("match_events")
     .delete()
     .eq("id", eventId);
+  if (error) throw error;
+}
+
+// ---------- Match Votes ----------
+
+export async function castMatchVote(
+  matchId: MatchId,
+  voterPlayerId: PlayerId,
+  votedForPlayerId: PlayerId,
+  voteType: VoteType
+) {
+  const { error } = await supabase.from("match_votes").upsert(
+    {
+      match_id: matchId,
+      voter_player_id: voterPlayerId,
+      voted_for_player_id: votedForPlayerId,
+      vote_type: voteType,
+    },
+    { onConflict: "match_id,voter_player_id,vote_type" }
+  );
+  if (error) throw error;
+}
+
+export async function removeMatchVote(
+  matchId: MatchId,
+  voterPlayerId: PlayerId,
+  voteType: VoteType
+) {
+  const { error } = await supabase
+    .from("match_votes")
+    .delete()
+    .eq("match_id", matchId)
+    .eq("voter_player_id", voterPlayerId)
+    .eq("vote_type", voteType);
   if (error) throw error;
 }
 

@@ -1,4 +1,4 @@
-import { MatchEventType } from "./types";
+import { MatchEventType, VoteType } from "./types";
 
 export interface EventConfig {
   type: MatchEventType;
@@ -7,8 +7,18 @@ export interface EventConfig {
   sentiment: "positive" | "negative" | "fun";
 }
 
+export interface VoteConfig {
+  type: VoteType;
+  emoji: string;
+  label: string;
+}
+
+export const VOTE_CONFIGS: VoteConfig[] = [
+  { type: "mvp", emoji: "🏆", label: "MVP" },
+  { type: "jugada_del_partido", emoji: "⭐", label: "Jugada del partido" },
+];
+
 export const EVENT_CONFIGS: EventConfig[] = [
-  { type: "mvp", emoji: "🏆", label: "MVP", sentiment: "positive" },
   { type: "bola_fuera", emoji: "🚀", label: "Bola fuera", sentiment: "negative" },
   { type: "pelotazo", emoji: "💥", label: "Pelotazo al rival", sentiment: "negative" },
   { type: "bola_perdida", emoji: "🫠", label: "Bola perdida", sentiment: "negative" },
@@ -32,7 +42,7 @@ export const EVENT_CONFIGS: EventConfig[] = [
   { type: "cinta", emoji: "🍀", label: "Punto gracias a la red", sentiment: "fun" },
   { type: "chiquita", emoji: "🥷", label: "Chiquita letal", sentiment: "positive" },
   { type: "golpe_tapia", emoji: "🪄", label: "Golpe Tapia", sentiment: "positive" },
-  { type: "mejor_salvada", emoji: "🦸", label: "La mejor salvada", sentiment: "positive" },
+  { type: "salvada_top", emoji: "🦸", label: "Salvada top", sentiment: "positive" },
 ];
 
 export const EVENT_MAP = new Map(EVENT_CONFIGS.map((e) => [e.type, e]));

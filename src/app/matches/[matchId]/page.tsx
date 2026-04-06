@@ -13,12 +13,14 @@ import { EventGrid } from "@/components/events/event-grid";
 import { PlayerEventPicker } from "@/components/events/player-event-picker";
 import { EditMatchDialog } from "@/components/match/edit-match-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useMatch, useMatchEvents, usePlayers, useDataRefresh } from "@/lib/db-hooks";
+import { useMatch, useMatchEvents, useMatchVotes, usePlayers, useDataRefresh } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { addMatchEvent, removeMatchEvent, deleteMatch } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { MatchEventType, MatchEventId } from "@/lib/types";
 import { buildPlayerMap, getSetWins } from "@/lib/utils";
+import { MatchVoting } from "@/components/match/match-voting";
+import { VOTE_CONFIGS } from "@/lib/event-config";
 
 export default function MatchDetailPage({
   params,
@@ -32,7 +34,10 @@ export default function MatchDetailPage({
   const { refresh } = useDataRefresh();
   const match = useMatch(matchId);
   const events = useMatchEvents(matchId);
+  const votes = useMatchVotes(matchId);
   const { players } = usePlayers(activeGroup?.id);
+  const currentUserPlayerId =
+    players.find((p) => p.userId === user?.id)?.id ?? null;
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [addingEvents, setAddingEvents] = useState(false);
@@ -189,6 +194,20 @@ export default function MatchDetailPage({
             )}
           </CardContent>
         </Card>
+
+        {/* Voting */}
+        <div className="space-y-4">
+          {VOTE_CONFIGS.map((config) => (
+            <MatchVoting
+              key={config.type}
+              match={match}
+              votes={votes}
+              players={players}
+              currentUserPlayerId={currentUserPlayerId}
+              config={config}
+            />
+          ))}
+        </div>
 
         {/* Events */}
         <div>

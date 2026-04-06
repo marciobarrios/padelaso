@@ -6,6 +6,7 @@ export {
   useMatches,
   useMatch,
   useMatchEvents,
+  useMatchVotes,
   useAllMatchEvents,
   usePlayerMatches,
   usePlayerEvents,
