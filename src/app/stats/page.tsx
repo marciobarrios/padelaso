@@ -17,8 +17,8 @@ import { buildPlayerMap } from "@/lib/utils";
 export default function StatsPage() {
   const { activeGroup } = useGroup();
   const { players } = usePlayers(activeGroup?.id);
-  const matches = useMatches(activeGroup?.id);
-  const events = useAllMatchEvents(activeGroup?.id);
+  const { matches, loaded: matchesLoaded } = useMatches(activeGroup?.id);
+  const { events } = useAllMatchEvents(activeGroup?.id);
 
   const playerMap = buildPlayerMap(players);
 
@@ -31,6 +31,8 @@ export default function StatsPage() {
     .sort((a, b) => b.stats.winRate - a.stats.winRate);
 
   const leaderboards = getEventLeaderboards(events);
+
+  if (!matchesLoaded) return null;
 
   if (matches.length === 0) {
     return (

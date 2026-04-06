@@ -166,13 +166,15 @@ export function usePlayers(groupId?: GroupId): { players: Player[]; loaded: bool
   return { players, loaded };
 }
 
-export function useMatches(groupId?: GroupId): Match[] {
+export function useMatches(groupId?: GroupId): { matches: Match[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!groupId) {
       setMatches([]);
+      setLoaded(false);
       return;
     }
     supabase
@@ -182,15 +184,17 @@ export function useMatches(groupId?: GroupId): Match[] {
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setMatches(data.map(mapMatch));
+        setLoaded(true);
       });
   }, [groupId, refreshKey]);
 
-  return matches;
+  return { matches, loaded };
 }
 
-export function useMatch(id: MatchId): Match | undefined {
+export function useMatch(id: MatchId): { match: Match | undefined; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [match, setMatch] = useState<Match | undefined>();
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     supabase
@@ -200,15 +204,17 @@ export function useMatch(id: MatchId): Match | undefined {
       .single()
       .then(({ data }) => {
         setMatch(data ? mapMatch(data) : undefined);
+        setLoaded(true);
       });
   }, [id, refreshKey]);
 
-  return match;
+  return { match, loaded };
 }
 
-export function useMatchEvents(matchId: MatchId): MatchEvent[] {
+export function useMatchEvents(matchId: MatchId): { events: MatchEvent[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [events, setEvents] = useState<MatchEvent[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     supabase
@@ -217,10 +223,11 @@ export function useMatchEvents(matchId: MatchId): MatchEvent[] {
       .eq("match_id", matchId)
       .then(({ data }) => {
         if (data) setEvents(data.map(mapMatchEvent));
+        setLoaded(true);
       });
   }, [matchId, refreshKey]);
 
-  return events;
+  return { events, loaded };
 }
 
 export function useMatchVotes(matchId: MatchId): MatchVote[] {
@@ -240,13 +247,15 @@ export function useMatchVotes(matchId: MatchId): MatchVote[] {
   return votes;
 }
 
-export function useAllMatchEvents(groupId?: GroupId): MatchEvent[] {
+export function useAllMatchEvents(groupId?: GroupId): { events: MatchEvent[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [events, setEvents] = useState<MatchEvent[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!groupId) {
       setEvents([]);
+      setLoaded(false);
       return;
     }
     // Get match IDs for this group, then fetch events
@@ -257,6 +266,7 @@ export function useAllMatchEvents(groupId?: GroupId): MatchEvent[] {
       .then(({ data: matches }) => {
         if (!matches || matches.length === 0) {
           setEvents([]);
+          setLoaded(true);
           return;
         }
         const matchIds = matches.map((m) => m.id);
@@ -266,16 +276,18 @@ export function useAllMatchEvents(groupId?: GroupId): MatchEvent[] {
           .in("match_id", matchIds)
           .then(({ data }) => {
             if (data) setEvents(data.map(mapMatchEvent));
+            setLoaded(true);
           });
       });
   }, [groupId, refreshKey]);
 
-  return events;
+  return { events, loaded };
 }
 
-export function usePlayerMatches(playerId: string): Match[] {
+export function usePlayerMatches(playerId: string): { matches: Match[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     supabase
@@ -285,15 +297,17 @@ export function usePlayerMatches(playerId: string): Match[] {
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setMatches(data.map(mapMatch));
+        setLoaded(true);
       });
   }, [playerId, refreshKey]);
 
-  return matches;
+  return { matches, loaded };
 }
 
-export function usePlayerEvents(playerId: string): MatchEvent[] {
+export function usePlayerEvents(playerId: string): { events: MatchEvent[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [events, setEvents] = useState<MatchEvent[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     supabase
@@ -302,8 +316,9 @@ export function usePlayerEvents(playerId: string): MatchEvent[] {
       .eq("player_id", playerId)
       .then(({ data }) => {
         if (data) setEvents(data.map(mapMatchEvent));
+        setLoaded(true);
       });
   }, [playerId, refreshKey]);
 
-  return events;
+  return { events, loaded };
 }

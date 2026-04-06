@@ -7,7 +7,9 @@ import { useGroup } from "@/components/group/group-provider";
 
 export default function NewMatchPage() {
   const { activeGroup } = useGroup();
-  const { players } = usePlayers(activeGroup?.id);
+  const { players, loaded } = usePlayers(activeGroup?.id);
+
+  if (!loaded) return null;
 
   if (players.length < 4) {
     return (

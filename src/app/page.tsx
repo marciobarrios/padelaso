@@ -11,9 +11,11 @@ import { buildPlayerMap } from "@/lib/utils";
 
 export default function HomePage() {
   const { activeGroup } = useGroup();
-  const matches = useMatches(activeGroup?.id);
-  const { players } = usePlayers(activeGroup?.id);
+  const { matches, loaded: matchesLoaded } = useMatches(activeGroup?.id);
+  const { players, loaded: playersLoaded } = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
+
+  if (!matchesLoaded || !playersLoaded) return null;
 
   return (
     <MobileShell>
