@@ -60,9 +60,7 @@ export function MatchVoting({
 
   // Determine winner(s) only when >= MIN_VOTES_FOR_WINNER votes are in
   const hasEnoughVotes = totalVotes >= MIN_VOTES_FOR_WINNER;
-  const maxVoteCount = hasEnoughVotes
-    ? Math.max(0, ...tally.values())
-    : 0;
+  const maxVoteCount = hasEnoughVotes ? Math.max(0, ...tally.values()) : 0;
   const winnerIds = hasEnoughVotes
     ? [...tally.entries()]
         .filter(([, count]) => count === maxVoteCount)
@@ -81,7 +79,7 @@ export function MatchVoting({
           match.id,
           currentUserPlayerId,
           playerId,
-          config.type
+          config.type,
         );
       }
       refresh();
@@ -104,7 +102,7 @@ export function MatchVoting({
         <span
           className={cn(
             "text-muted-foreground text-xs transition-transform",
-            expanded && "rotate-180"
+            expanded && "rotate-180",
           )}
         >
           ▾
@@ -130,8 +128,7 @@ export function MatchVoting({
             {canVote && (!hasEnoughVotes || isChangingVote) && (
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {matchPlayers.map((player) => {
-                  const isMyChoice =
-                    myVote?.votedForPlayerId === player.id;
+                  const isMyChoice = myVote?.votedForPlayerId === player.id;
                   const playerVoteCount = tally.get(player.id) ?? 0;
                   return (
                     <button
@@ -142,7 +139,7 @@ export function MatchVoting({
                         "flex items-center gap-2 rounded-lg border p-3 transition-colors text-left",
                         isMyChoice
                           ? "border-primary bg-primary/10"
-                          : "border-border hover:border-muted-foreground/50"
+                          : "border-border hover:border-muted-foreground/50",
                       )}
                     >
                       <PlayerAvatar
@@ -156,7 +153,8 @@ export function MatchVoting({
                         </div>
                         {playerVoteCount > 0 && (
                           <div className="text-xs text-muted-foreground">
-                            {playerVoteCount} {playerVoteCount === 1 ? "voto" : "votos"}
+                            {playerVoteCount}{" "}
+                            {playerVoteCount === 1 ? "voto" : "votos"}
                           </div>
                         )}
                       </div>
@@ -180,7 +178,7 @@ export function MatchVoting({
                       key={player.id}
                       className={cn(
                         "flex items-center gap-2 rounded-lg p-2",
-                        isWinner && "bg-primary/10"
+                        isWinner && "bg-primary/10",
                       )}
                     >
                       <PlayerAvatar
@@ -191,7 +189,7 @@ export function MatchVoting({
                       <span
                         className={cn(
                           "text-sm flex-1",
-                          isWinner && "font-medium text-primary"
+                          isWinner && "font-medium text-primary",
                         )}
                       >
                         {player.name}
