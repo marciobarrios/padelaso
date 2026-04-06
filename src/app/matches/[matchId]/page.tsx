@@ -32,8 +32,8 @@ export default function MatchDetailPage({
   const { user } = useAuth();
   const { activeGroup } = useGroup();
   const { refresh } = useDataRefresh();
-  const match = useMatch(matchId);
-  const events = useMatchEvents(matchId);
+  const { match, loaded: matchLoaded } = useMatch(matchId);
+  const { events, loaded: eventsLoaded } = useMatchEvents(matchId);
   const votes = useMatchVotes(matchId);
   const { players } = usePlayers(activeGroup?.id);
   const currentUserPlayerId =
@@ -62,6 +62,7 @@ export default function MatchDetailPage({
   }
 
   if (!match) {
+    if (!matchLoaded) return null;
     return (
       <MobileShell>
         <PageHeader title="Partido" back />
@@ -257,6 +258,7 @@ export default function MatchDetailPage({
           <EventFeed
             events={events}
             players={players}
+            loaded={eventsLoaded}
             onRemove={handleRemoveEvent}
           />
         </div>

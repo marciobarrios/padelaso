@@ -8,11 +8,14 @@ import { X } from "lucide-react";
 interface EventFeedProps {
   events: MatchEvent[];
   players: Player[];
+  loaded?: boolean;
   onRemove?: (eventId: MatchEventId) => void;
 }
 
-export function EventFeed({ events, players, onRemove }: EventFeedProps) {
+export function EventFeed({ events, players, loaded = true, onRemove }: EventFeedProps) {
   const playerMap = new Map(players.map((p) => [p.id, p]));
+
+  if (!loaded) return null;
 
   if (events.length === 0) {
     return (

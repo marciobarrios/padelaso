@@ -41,8 +41,8 @@ export default function PlayerProfilePage({
   const [linkError, setLinkError] = useState<string | null>(null);
 
   const { players: allPlayers, loaded: playersLoaded } = usePlayers(activeGroup?.id);
-  const playerMatches = usePlayerMatches(playerId);
-  const playerEvents = usePlayerEvents(playerId);
+  const { matches: playerMatches, loaded: matchesLoaded } = usePlayerMatches(playerId);
+  const { events: playerEvents, loaded: eventsLoaded } = usePlayerEvents(playerId);
 
   const player = allPlayers.find((p) => p.id === playerId);
   const playerMap = buildPlayerMap(allPlayers);
@@ -85,8 +85,8 @@ export default function PlayerProfilePage({
     }
   }
 
-  if (!player) {
-    if (!playersLoaded) return null;
+  if (!player || !matchesLoaded || !eventsLoaded) {
+    if (!playersLoaded || !matchesLoaded || !eventsLoaded) return null;
     return (
       <MobileShell>
         <PageHeader title="Jugador" back />
