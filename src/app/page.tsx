@@ -15,7 +15,7 @@ export default function HomePage() {
   const { players, loaded: playersLoaded } = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
 
-  if (!matchesLoaded || !playersLoaded) return null;
+  if (!matchesLoaded || !playersLoaded) return <MobileShell>{null}</MobileShell>;
 
   return (
     <MobileShell>

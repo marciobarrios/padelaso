@@ -62,7 +62,11 @@ export default function MatchDetailPage({
   }
 
   if (!match) {
-    if (!matchLoaded) return null;
+    if (!matchLoaded) return (
+      <MobileShell>
+        <PageHeader title="Partido" back />
+      </MobileShell>
+    );
     return (
       <MobileShell>
         <PageHeader title="Partido" back />

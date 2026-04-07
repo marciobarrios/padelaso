@@ -86,7 +86,11 @@ export default function PlayerProfilePage({
   }
 
   if (!player || !matchesLoaded || !eventsLoaded) {
-    if (!playersLoaded || !matchesLoaded || !eventsLoaded) return null;
+    if (!playersLoaded || !matchesLoaded || !eventsLoaded) return (
+      <MobileShell>
+        <PageHeader title="Jugador" back />
+      </MobileShell>
+    );
     return (
       <MobileShell>
         <PageHeader title="Jugador" back />

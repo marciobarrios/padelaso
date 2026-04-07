@@ -32,7 +32,11 @@ export default function StatsPage() {
 
   const leaderboards = getEventLeaderboards(events);
 
-  if (!matchesLoaded) return null;
+  if (!matchesLoaded) return (
+    <MobileShell>
+      <PageHeader title="Stats" />
+    </MobileShell>
+  );
 
   if (matches.length === 0) {
     return (
