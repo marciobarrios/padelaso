@@ -9,11 +9,7 @@ export default function NewMatchPage() {
   const { activeGroup } = useGroup();
   const { players, loaded } = usePlayers(activeGroup?.id);
 
-  if (!loaded) return (
-    <div className="min-h-dvh flex flex-col">
-      <PageHeader title="Nuevo partido" back />
-    </div>
-  );
+  if (!loaded) return null;
 
   if (players.length < 4) {
     return (
