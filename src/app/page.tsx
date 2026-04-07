@@ -50,7 +50,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="text-center py-16 text-muted-foreground">
-            <p className="text-4xl mb-4">🏓</p>
+            <p className="text-4xl mb-4">🎾</p>
             <p>No hay partidos todavía.</p>
             <p className="text-sm">¡Crea tu primer partido!</p>
           </div>

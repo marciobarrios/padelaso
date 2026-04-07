@@ -17,7 +17,7 @@ export default function NewMatchPage() {
         <PageHeader title="Nuevo partido" back />
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center space-y-2">
-            <p className="text-4xl">🏓</p>
+            <p className="text-4xl">🎾</p>
             <p className="font-medium">
               Necesitas al menos 4 jugadores
             </p>
