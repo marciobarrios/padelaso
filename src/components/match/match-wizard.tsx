@@ -151,7 +151,7 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
   return (
-    <div className="flex flex-col min-h-dvh max-w-lg mx-auto w-full">
+    <div className="flex flex-col flex-1 max-w-lg mx-auto w-full">
       {/* Progress bar */}
       <div className="flex gap-1 px-4 pt-4">
         {STEPS.map((_, i) => (
