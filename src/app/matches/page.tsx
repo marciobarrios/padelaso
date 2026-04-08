@@ -16,7 +16,11 @@ export default function MatchesPage() {
   const { players } = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
 
-  if (!matchesLoaded) return null;
+  if (!matchesLoaded) return (
+    <MobileShell>
+      <PageHeader title="Partidos" />
+    </MobileShell>
+  );
 
   return (
     <MobileShell>

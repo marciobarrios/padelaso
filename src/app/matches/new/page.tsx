@@ -9,7 +9,11 @@ export default function NewMatchPage() {
   const { activeGroup } = useGroup();
   const { players, loaded } = usePlayers(activeGroup?.id);
 
-  if (!loaded) return null;
+  if (!loaded) return (
+    <div className="min-h-dvh flex flex-col">
+      <PageHeader title="Nuevo partido" back />
+    </div>
+  );
 
   if (players.length < 4) {
     return (
@@ -30,5 +34,10 @@ export default function NewMatchPage() {
     );
   }
 
-  return <MatchWizard players={players} groupId={activeGroup?.id} />;
+  return (
+    <div className="min-h-dvh flex flex-col">
+      <PageHeader title="Nuevo partido" back />
+      <MatchWizard players={players} groupId={activeGroup?.id} />
+    </div>
+  );
 }
