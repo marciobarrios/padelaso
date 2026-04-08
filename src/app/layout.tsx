@@ -1,13 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
 import { GeistPixelSquare } from "geist/font/pixel";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Padelaso",
@@ -29,7 +23,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${GeistPixelSquare.variable} h-full antialiased dark`}
+      className={`${GeistPixelSquare.variable} h-full antialiased dark`}
     >
       <body className="min-h-dvh flex flex-col pb-[env(safe-area-inset-bottom)]">
         <AuthProvider>{children}</AuthProvider>
