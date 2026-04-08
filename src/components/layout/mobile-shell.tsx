@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Home, Users, BarChart3, LogOut } from "lucide-react";
@@ -79,9 +80,11 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
             className="flex flex-col items-center gap-1 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {user.user_metadata?.avatar_url ? (
-              <img
+              <Image
                 src={user.user_metadata.avatar_url}
                 alt=""
+                width={20}
+                height={20}
                 className="size-5 rounded-full"
               />
             ) : (

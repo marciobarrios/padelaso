@@ -19,3 +19,9 @@ export function getSetWins(sets: MatchSet[]) {
 export function buildPlayerMap(players: Player[]): Map<PlayerId, Player> {
   return new Map(players.map((p) => [p.id, p]));
 }
+
+export const dateFormatter = new Intl.DateTimeFormat("es-ES", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
