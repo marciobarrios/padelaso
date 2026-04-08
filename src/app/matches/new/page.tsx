@@ -36,6 +36,7 @@ export default function NewMatchPage() {
 
   return (
     <div className="min-h-dvh flex flex-col">
+      <PageHeader title="Nuevo partido" back />
       <MatchWizard players={players} groupId={activeGroup?.id} />
     </div>
   );
