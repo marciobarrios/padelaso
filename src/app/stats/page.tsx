@@ -36,7 +36,13 @@ export default function StatsPage() {
   const { events } = useAllMatchEvents(activeGroup?.id);
   const { votes } = useAllMatchVotes(activeGroup?.id);
 
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerId | null>(null);
+  const [rawSelectedPlayer, setSelectedPlayer] = useState<PlayerId | null>(null);
+
+  // Auto-clear filter if the selected player isn't in the current group
+  const selectedPlayer =
+    rawSelectedPlayer && players.some((p) => p.id === rawSelectedPlayer)
+      ? rawSelectedPlayer
+      : null;
 
   const playerMap = buildPlayerMap(players);
 
@@ -154,24 +160,6 @@ export default function StatsPage() {
         }
       />
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-        {/* Global stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-heading font-bold">
-                {matches.length}
-              </p>
-              <p className="text-xs text-muted-foreground">Partidos</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-heading font-bold">{events.length}</p>
-              <p className="text-xs text-muted-foreground">Eventos</p>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Tabs */}
         <Tabs defaultValue="general">
           <TabsList className="w-full">
@@ -179,6 +167,26 @@ export default function StatsPage() {
             <TabsTrigger value="parejas">Parejas</TabsTrigger>
             <TabsTrigger value="eventos">Eventos</TabsTrigger>
           </TabsList>
+
+          {/* Global stats — filtered */}
+          <div className="grid grid-cols-2 gap-3 pt-4">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-3xl font-heading font-bold">
+                  {selectedPlayer ? playerMatches.length : matches.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Partidos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-3xl font-heading font-bold">
+                  {filteredEvents.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Eventos</p>
+              </CardContent>
+            </Card>
+          </div>
 
           <TabsContent value="general">
             <GeneralTab

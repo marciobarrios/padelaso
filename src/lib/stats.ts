@@ -260,6 +260,7 @@ export function getRecentForm(
     .filter((m) => m.team1.includes(playerId) || m.team2.includes(playerId))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, lastN)
+    .filter((m) => didPlayerWin(m, playerId) !== null)
     .map((m) => {
       const won = didPlayerWin(m, playerId);
       return won ? "W" : "L";

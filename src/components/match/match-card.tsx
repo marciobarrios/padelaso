@@ -40,6 +40,7 @@ export function MatchCard({ match, playerMap, highlightPlayerId }: MatchCardProp
       return playerWon ? "text-primary" : "text-destructive";
     }
     // Default: highlight the winner in green
+    if (team1Wins === team2Wins) return "";
     const isWinningTeam = isTeam1Score ? team1Won : !team1Won;
     return isWinningTeam ? "text-primary" : "";
   }
