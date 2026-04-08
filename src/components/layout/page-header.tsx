@@ -14,7 +14,7 @@ export function PageHeader({ title, back, action }: PageHeaderProps) {
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95">
       <div className="flex items-center h-14 px-4 max-w-lg mx-auto">
         {back && (
           <Button

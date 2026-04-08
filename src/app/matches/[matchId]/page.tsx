@@ -202,7 +202,7 @@ export default function MatchDetailPage({
 
         {/* Voting */}
         <div className="space-y-4">
-          {VOTE_CONFIGS.map((config) => (
+          {VOTE_CONFIGS.filter((config) => config.type !== "jugada_del_partido").map((config) => (
             <MatchVoting
               key={config.type}
               match={match}
@@ -218,7 +218,7 @@ export default function MatchDetailPage({
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Eventos del partido
+              <span className="mr-1">📋</span> Eventos del partido
             </h3>
             <Button
               variant="ghost"

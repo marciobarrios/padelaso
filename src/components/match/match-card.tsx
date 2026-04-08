@@ -27,7 +27,7 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
     <Link href={`/matches/${match.id}`} className="block">
       <Card className="hover:bg-muted/30 transition-colors">
         <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-muted-foreground">
               {new Date(match.date).toLocaleDateString("es-ES", {
                 weekday: "long",
@@ -43,9 +43,10 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0 flex items-center gap-2">
-              <div className="flex -space-x-2">
+          <div className="flex items-center">
+            {/* Team 1 */}
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-1">
                 {team1Players.map(
                   (p, i) =>
                     p && (
@@ -53,11 +54,12 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
                     )
                 )}
               </div>
-              <div className="text-sm truncate">
+              <div className="text-sm">
                 {team1Players.map((p) => p?.name ?? "?").join(" · ")}
               </div>
             </div>
 
+            {/* Score */}
             <div className="flex items-center gap-1 font-heading text-lg font-bold tabular-nums">
               <span className={team1Wins > team2Wins ? "text-primary" : ""}>
                 {team1Total}
@@ -68,17 +70,18 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
               </span>
             </div>
 
-            <div className="flex-1 min-w-0 flex items-center gap-2 justify-end">
-              <div className="text-sm truncate text-right">
-                {team2Players.map((p) => p?.name ?? "?").join(" · ")}
-              </div>
-              <div className="flex -space-x-2">
+            {/* Team 2 */}
+            <div className="flex-1 space-y-1 text-right">
+              <div className="flex items-center gap-1 justify-end">
                 {team2Players.map(
                   (p, i) =>
                     p && (
                       <PlayerAvatar key={i} emoji={p.emoji} name={p.name} size="sm" />
                     )
                 )}
+              </div>
+              <div className="text-sm">
+                {team2Players.map((p) => p?.name ?? "?").join(" · ")}
               </div>
             </div>
           </div>

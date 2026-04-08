@@ -46,54 +46,54 @@ export function ScoreInput({ sets, onChange }: ScoreInputProps) {
               </Button>
             )}
           </div>
-          <div className="flex items-center justify-center gap-6">
+          <div className="flex items-center justify-center gap-3">
             {/* Team 1 score */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
-                className="size-12 rounded-full"
+                className="size-9 rounded-full"
                 onClick={() => updateSet(i, "team1Score", -1)}
                 disabled={set.team1Score <= 0}
               >
-                <Minus className="size-5" />
+                <Minus className="size-4" />
               </Button>
-              <span className="text-4xl font-heading font-bold tabular-nums w-12 text-center text-blue-500">
+              <span className="text-2xl font-heading font-bold tabular-nums w-8 text-center text-blue-500">
                 {set.team1Score}
               </span>
               <Button
                 variant="outline"
                 size="icon"
-                className="size-12 rounded-full"
+                className="size-9 rounded-full"
                 onClick={() => updateSet(i, "team1Score", 1)}
               >
-                <Plus className="size-5" />
+                <Plus className="size-4" />
               </Button>
             </div>
 
-            <span className="text-2xl text-muted-foreground font-heading">-</span>
+            <span className="text-lg text-muted-foreground font-heading">-</span>
 
             {/* Team 2 score */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
-                className="size-12 rounded-full"
+                className="size-9 rounded-full"
                 onClick={() => updateSet(i, "team2Score", -1)}
                 disabled={set.team2Score <= 0}
               >
-                <Minus className="size-5" />
+                <Minus className="size-4" />
               </Button>
-              <span className="text-4xl font-heading font-bold tabular-nums w-12 text-center text-orange-500">
+              <span className="text-2xl font-heading font-bold tabular-nums w-8 text-center text-orange-500">
                 {set.team2Score}
               </span>
               <Button
                 variant="outline"
                 size="icon"
-                className="size-12 rounded-full"
+                className="size-9 rounded-full"
                 onClick={() => updateSet(i, "team2Score", 1)}
               >
-                <Plus className="size-5" />
+                <Plus className="size-4" />
               </Button>
             </div>
           </div>
