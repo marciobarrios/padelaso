@@ -1,42 +1,135 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { PlayerAvatar } from "@/components/players/player-avatar";
-import { usePlayers, useMatches, useAllMatchEvents } from "@/lib/db-hooks";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  usePlayers,
+  useMatches,
+  useAllMatchEvents,
+  useAllMatchVotes,
+} from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import {
   calculatePlayerStats,
   getEventLeaderboards,
+  getPairStats,
+  getHeadToHeadStats,
+  getMvpRankings,
+  computeFunAwards,
 } from "@/lib/stats";
-import { getEventConfig } from "@/lib/event-config";
+import { FUN_AWARD_CONFIGS } from "@/lib/event-config";
 import { buildPlayerMap } from "@/lib/utils";
+import type { PlayerId } from "@/lib/types";
+
+import { PlayerFilter } from "./_components/player-filter";
+import { GeneralTab } from "./_components/general-tab";
+import { ParejasTab } from "./_components/parejas-tab";
+import { EventosTab } from "./_components/eventos-tab";
 
 export default function StatsPage() {
   const { activeGroup } = useGroup();
   const { players } = usePlayers(activeGroup?.id);
   const { matches, loaded: matchesLoaded } = useMatches(activeGroup?.id);
   const { events } = useAllMatchEvents(activeGroup?.id);
+  const { votes } = useAllMatchVotes(activeGroup?.id);
+
+  const [rawSelectedPlayer, setSelectedPlayer] = useState<PlayerId | null>(null);
+
+  // Auto-clear filter if the selected player isn't in the current group
+  const selectedPlayer =
+    rawSelectedPlayer && players.some((p) => p.id === rawSelectedPlayer)
+      ? rawSelectedPlayer
+      : null;
 
   const playerMap = buildPlayerMap(players);
 
-  const allStats = players
-    .map((p) => ({
-      player: p,
-      stats: calculatePlayerStats(p.id, matches),
-    }))
-    .filter((s) => s.stats.matches > 0)
-    .sort((a, b) => b.stats.winRate - a.stats.winRate);
-
-  const leaderboards = getEventLeaderboards(events);
-
-  if (!matchesLoaded) return (
-    <MobileShell>
-      <PageHeader title="Stats" />
-    </MobileShell>
+  const filteredEvents = useMemo(
+    () =>
+      selectedPlayer
+        ? events.filter((e) => e.playerId === selectedPlayer)
+        : events,
+    [events, selectedPlayer],
   );
+
+  const allStats = useMemo(
+    () =>
+      players
+        .map((p) => ({
+          player: p,
+          stats: calculatePlayerStats(p.id, matches),
+        }))
+        .filter((s) => s.stats.matches > 0)
+        .sort((a, b) => b.stats.winRate - a.stats.winRate),
+    [players, matches],
+  );
+
+  const leaderboards = useMemo(
+    () => getEventLeaderboards(filteredEvents),
+    [filteredEvents],
+  );
+
+  const pairStats = useMemo(() => getPairStats(matches), [matches]);
+  const h2hStats = useMemo(() => getHeadToHeadStats(matches), [matches]);
+  const mvpRankings = useMemo(() => getMvpRankings(votes), [votes]);
+  const funAwards = useMemo(
+    () => computeFunAwards(filteredEvents, FUN_AWARD_CONFIGS),
+    [filteredEvents],
+  );
+
+  const filteredPairStats = useMemo(
+    () =>
+      selectedPlayer
+        ? pairStats.filter(
+            (p) =>
+              p.player1Id === selectedPlayer || p.player2Id === selectedPlayer,
+          )
+        : pairStats,
+    [pairStats, selectedPlayer],
+  );
+
+  const filteredH2H = useMemo(
+    () =>
+      selectedPlayer
+        ? h2hStats.filter(
+            (h) =>
+              h.pair1.includes(selectedPlayer) ||
+              h.pair2.includes(selectedPlayer),
+          )
+        : h2hStats,
+    [h2hStats, selectedPlayer],
+  );
+
+  const selectedPlayerStats = useMemo(() => {
+    if (!selectedPlayer) return null;
+    return calculatePlayerStats(selectedPlayer, matches);
+  }, [selectedPlayer, matches]);
+
+  const playerMatches = useMemo(
+    () =>
+      selectedPlayer
+        ? matches
+            .filter(
+              (m) =>
+                m.team1.includes(selectedPlayer) ||
+                m.team2.includes(selectedPlayer),
+            )
+            .sort(
+              (a, b) =>
+                new Date(b.date).getTime() - new Date(a.date).getTime(),
+            )
+        : [],
+    [matches, selectedPlayer],
+  );
+
+  if (!matchesLoaded)
+    return (
+      <MobileShell>
+        <PageHeader title="Stats" />
+      </MobileShell>
+    );
 
   if (matches.length === 0) {
     return (
@@ -56,108 +149,76 @@ export default function StatsPage() {
 
   return (
     <MobileShell>
-      <PageHeader title="Stats" />
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-8">
-        {/* Global stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-heading font-bold">{matches.length}</p>
-              <p className="text-xs text-muted-foreground">Partidos</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-heading font-bold">{events.length}</p>
-              <p className="text-xs text-muted-foreground">Eventos</p>
-            </CardContent>
-          </Card>
-        </div>
+      <PageHeader
+        title="Stats"
+        action={
+          <PlayerFilter
+            players={players}
+            selectedPlayer={selectedPlayer}
+            onSelect={setSelectedPlayer}
+          />
+        }
+      />
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+        {/* Tabs */}
+        <Tabs defaultValue="general" className="gap-4">
+          <TabsList className="w-full">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="parejas">Parejas</TabsTrigger>
+            <TabsTrigger value="eventos">Eventos</TabsTrigger>
+          </TabsList>
 
-        {/* Win rate leaderboard */}
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Ranking de victorias
-          </h2>
-          <div className="space-y-2">
-            {allStats.map(({ player, stats }, i) => (
-              <Card key={player.id}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  <span className="text-lg font-heading font-bold w-6 text-center text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <PlayerAvatar emoji={player.emoji} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {player.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {stats.wins}V {stats.losses}D · {stats.matches} partidos
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-heading font-bold text-primary">
-                      {Math.round(stats.winRate * 100)}%
-                    </p>
-                    {stats.currentStreak !== 0 && (
-                      <p
-                        className={`text-xs ${
-                          stats.currentStreak > 0
-                            ? "text-primary"
-                            : "text-destructive"
-                        }`}
-                      >
-                        {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
-                        {Math.abs(stats.currentStreak)} racha
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {/* Global stats — filtered */}
+          <div className="grid grid-cols-2 gap-3">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-3xl font-heading font-bold">
+                  {selectedPlayer ? playerMatches.length : matches.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Partidos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-3xl font-heading font-bold">
+                  {filteredEvents.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Eventos</p>
+              </CardContent>
+            </Card>
           </div>
-        </div>
 
-        {/* Event leaderboards */}
-        {leaderboards.length > 0 && (
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-              Ranking por evento
-            </h2>
-            <div className="space-y-3">
-              {leaderboards.slice(0, 8).map((lb) => {
-                const config = getEventConfig(lb.type);
-                const top = lb.entries[0];
-                const topPlayer = playerMap.get(top.playerId);
-                return (
-                  <Card key={lb.type}>
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <span className="text-2xl">{config.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{config.label}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {lb.entries.reduce((s, e) => s + e.count, 0)} total
-                        </p>
-                      </div>
-                      {topPlayer && (
-                        <div className="flex items-center gap-1.5">
-                          <PlayerAvatar
-                            emoji={topPlayer.emoji}
-                            size="sm"
-                          />
-                          <span className="text-sm font-medium truncate">
-                            {topPlayer.name}
-                          </span>
-                          <Badge variant="secondary">{top.count}</Badge>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          <TabsContent value="general">
+            <GeneralTab
+              players={players}
+              matches={matches}
+              playerMap={playerMap}
+              allStats={allStats}
+              mvpRankings={mvpRankings}
+              funAwards={funAwards}
+              selectedPlayer={selectedPlayer}
+              selectedPlayerStats={selectedPlayerStats}
+              playerMatches={playerMatches}
+            />
+          </TabsContent>
+
+          <TabsContent value="parejas">
+            <ParejasTab
+              playerMap={playerMap}
+              filteredPairStats={filteredPairStats}
+              filteredH2H={filteredH2H}
+              selectedPlayer={selectedPlayer}
+            />
+          </TabsContent>
+
+          <TabsContent value="eventos">
+            <EventosTab
+              leaderboards={leaderboards}
+              playerMap={playerMap}
+              selectedPlayer={selectedPlayer}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </MobileShell>
   );

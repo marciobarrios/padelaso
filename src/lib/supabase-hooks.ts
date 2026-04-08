@@ -284,6 +284,42 @@ export function useAllMatchEvents(groupId?: GroupId): { events: MatchEvent[]; lo
   return { events, loaded };
 }
 
+export function useAllMatchVotes(groupId?: GroupId): { votes: MatchVote[]; loaded: boolean } {
+  const { refreshKey } = useDataRefresh();
+  const [votes, setVotes] = useState<MatchVote[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!groupId) {
+      setVotes([]);
+      setLoaded(false);
+      return;
+    }
+    supabase
+      .from("matches")
+      .select("id")
+      .eq("group_id", groupId)
+      .then(({ data: matches }) => {
+        if (!matches || matches.length === 0) {
+          setVotes([]);
+          setLoaded(true);
+          return;
+        }
+        const matchIds = matches.map((m) => m.id);
+        supabase
+          .from("match_votes")
+          .select("*")
+          .in("match_id", matchIds)
+          .then(({ data }) => {
+            if (data) setVotes(data.map(mapMatchVote));
+            setLoaded(true);
+          });
+      });
+  }, [groupId, refreshKey]);
+
+  return { votes, loaded };
+}
+
 export function usePlayerMatches(playerId: string): { matches: Match[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
   const [matches, setMatches] = useState<Match[]>([]);

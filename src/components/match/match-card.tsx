@@ -9,9 +9,10 @@ import { getSetWins } from "@/lib/utils";
 interface MatchCardProps {
   match: Match;
   playerMap: Map<PlayerId, Player>;
+  highlightPlayerId?: PlayerId;
 }
 
-export function MatchCard({ match, playerMap }: MatchCardProps) {
+export function MatchCard({ match, playerMap, highlightPlayerId }: MatchCardProps) {
   const team1Players = match.team1.map((id) => playerMap.get(id));
   const team2Players = match.team2.map((id) => playerMap.get(id));
 
@@ -22,6 +23,27 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
   const team1Total = match.sets.reduce((s, set) => s + set.team1Score, 0);
   const team2Total = match.sets.reduce((s, set) => s + set.team2Score, 0);
   const { team1Wins, team2Wins } = getSetWins(match.sets);
+
+  // When highlighting a player, show losing score in red
+  const showLossColor = highlightPlayerId && team1Wins !== team2Wins;
+  const highlightInTeam1 = highlightPlayerId
+    ? match.team1.includes(highlightPlayerId)
+    : false;
+  const team1Won = team1Wins > team2Wins;
+
+  function scoreClass(isTeam1Score: boolean): string {
+    if (showLossColor) {
+      // From the highlighted player's perspective: only color their team's score
+      const isPlayerTeam = isTeam1Score ? highlightInTeam1 : !highlightInTeam1;
+      if (!isPlayerTeam) return "";
+      const playerWon = highlightInTeam1 ? team1Won : !team1Won;
+      return playerWon ? "text-primary" : "text-destructive";
+    }
+    // Default: highlight the winner in green
+    if (team1Wins === team2Wins) return "";
+    const isWinningTeam = isTeam1Score ? team1Won : !team1Won;
+    return isWinningTeam ? "text-primary" : "";
+  }
 
   return (
     <Link href={`/matches/${match.id}`} className="block">
@@ -61,13 +83,9 @@ export function MatchCard({ match, playerMap }: MatchCardProps) {
 
             {/* Score */}
             <div className="flex items-center gap-1 font-heading text-lg font-bold tabular-nums">
-              <span className={team1Wins > team2Wins ? "text-primary" : ""}>
-                {team1Total}
-              </span>
+              <span className={scoreClass(true)}>{team1Total}</span>
               <span className="text-muted-foreground">-</span>
-              <span className={team2Wins > team1Wins ? "text-primary" : ""}>
-                {team2Total}
-              </span>
+              <span className={scoreClass(false)}>{team2Total}</span>
             </div>
 
             {/* Team 2 */}
