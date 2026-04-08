@@ -1,0 +1,9 @@
+{
+  "setup": [
+    "#!/bin/bash\n\nln -s \"$SUPERSET_ROOT_PATH/.env.local\" .env.local\npnpm install"
+  ],
+  "teardown": [],
+  "run": [
+    "pnpm run dev"
+  ]
+}
