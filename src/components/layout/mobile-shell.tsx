@@ -53,7 +53,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
         <GroupSwitcher />
       </div>
       <main className="flex-1 overflow-y-auto pb-20">{children}</main>
-      <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active =
