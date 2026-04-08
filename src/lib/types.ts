@@ -80,7 +80,9 @@ export type MatchEventType =
   | "cinta"
   | "chiquita"
   | "golpe_tapia"
-  | "salvada_top";
+  | "salvada_top"
+  | "raquetazo_companero"
+  | "por_debajo_piernas";
 
 export type VoteType = "mvp" | "jugada_del_partido";
 

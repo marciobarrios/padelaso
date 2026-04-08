@@ -8,6 +8,7 @@ export {
   useMatchEvents,
   useMatchVotes,
   useAllMatchEvents,
+  useAllMatchVotes,
   usePlayerMatches,
   usePlayerEvents,
   useDataRefresh,

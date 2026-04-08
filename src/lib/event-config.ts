@@ -43,6 +43,8 @@ export const EVENT_CONFIGS: EventConfig[] = [
   { type: "chiquita", emoji: "🥷", label: "Chiquita letal", sentiment: "positive" },
   { type: "golpe_tapia", emoji: "🪄", label: "Golpe Tapia", sentiment: "positive" },
   { type: "salvada_top", emoji: "🦸", label: "Salvada top", sentiment: "positive" },
+  { type: "raquetazo_companero", emoji: "🏓", label: "Raquetazo al compañero", sentiment: "fun" },
+  { type: "por_debajo_piernas", emoji: "🦵🏽", label: "Por debajo de las piernas", sentiment: "positive" },
 ];
 
 export const EVENT_MAP = new Map(EVENT_CONFIGS.map((e) => [e.type, e]));
@@ -50,3 +52,21 @@ export const EVENT_MAP = new Map(EVENT_CONFIGS.map((e) => [e.type, e]));
 export function getEventConfig(type: MatchEventType): EventConfig {
   return EVENT_MAP.get(type)!;
 }
+
+export interface FunAwardConfig {
+  emoji: string;
+  title: string;
+  events: MatchEventType[];
+}
+
+export const FUN_AWARD_CONFIGS: FunAwardConfig[] = [
+  { emoji: "🧱", title: "El Muro", events: ["bajada_muro", "salvada_top"] },
+  { emoji: "🗣️", title: "El Showman", events: ["grito_guerra", "caida_epica"] },
+  { emoji: "🫠", title: "Manos de Mantequilla", events: ["bola_perdida", "bola_fuera"] },
+  { emoji: "🎯", title: "El Sniper", events: ["ace", "dejada_imposible"] },
+  { emoji: "🪄", title: "El Tapia", events: ["por_3_metros", "bajada_muro"] },
+  { emoji: "⚡", title: "Vikingo", events: ["grito_guerra", "tomahawk"] },
+  { emoji: "🤞🏽", title: "El Suertudo", events: ["cinta", "ace"] },
+  { emoji: "⚽", title: "Ronaldinho", events: ["por_debajo_piernas", "cano"] },
+  { emoji: "🪓", title: "El Killer", events: ["raquetazo_companero", "tomahawk"] },
+];
