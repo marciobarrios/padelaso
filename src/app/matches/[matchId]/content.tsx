@@ -18,6 +18,7 @@ import { MatchEventType, MatchEventId } from "@/lib/types";
 import { buildPlayerMap, getSetWins } from "@/lib/utils";
 import { MatchVoting } from "@/components/match/match-voting";
 import { VOTE_CONFIGS } from "@/lib/event-config";
+import { dateFormatter } from "@/lib/utils";
 
 const EditMatchDialog = dynamic(() =>
   import("@/components/match/edit-match-dialog").then((m) => ({ default: m.EditMatchDialog }))
@@ -44,7 +45,9 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   const currentUserPlayerId =
     players.find((p) => p.userId === user?.id)?.id ?? null;
   const [editOpen, setEditOpen] = useState(false);
+  const [editMounted, setEditMounted] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteMounted, setDeleteMounted] = useState(false);
   const [addingEvents, setAddingEvents] = useState(false);
   const [pickerEventType, setPickerEventType] = useState<MatchEventType | null>(null);
 
@@ -90,25 +93,21 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   return (
     <MobileShell>
       <PageHeader
-        title={new Date(match.date).toLocaleDateString("es-ES", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })}
+        title={dateFormatter.format(new Date(match.date))}
         back
         action={
           <div className="flex gap-1">
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setEditOpen(true)}
+              onClick={() => { setEditMounted(true); setEditOpen(true); }}
             >
               <Pencil className="size-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => { setDeleteMounted(true); setDeleteOpen(true); }}
             >
               <Trash2 className="size-4 text-destructive" />
             </Button>
@@ -273,14 +272,14 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
         </div>
       </div>
 
-      {editOpen && (
+      {editMounted && (
         <EditMatchDialog
           match={match}
           open={editOpen}
           onOpenChange={setEditOpen}
         />
       )}
-      {deleteOpen && (
+      {deleteMounted && (
         <ConfirmDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}

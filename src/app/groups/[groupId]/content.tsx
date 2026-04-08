@@ -25,6 +25,11 @@ const ConfirmDialog = dynamic(() =>
   import("@/components/confirm-dialog").then((m) => ({ default: m.ConfirmDialog }))
 );
 
+const GROUP_EMOJIS = [
+  "🏸", "🎾", "🏓", "⚽", "🏀", "🎯", "🔥", "⭐",
+  "🦁", "🐯", "🦊", "🐻", "🦄", "🎸", "💎", "🏆",
+];
+
 export function GroupSettingsContent({ groupId }: { groupId: string }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -42,12 +47,9 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
   const [editEmoji, setEditEmoji] = useState("");
   const [copied, setCopied] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveMounted, setLeaveMounted] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const GROUP_EMOJIS = [
-    "🏸", "🎾", "🏓", "⚽", "🏀", "🎯", "🔥", "⭐",
-    "🦁", "🐯", "🦊", "🐻", "🦄", "🎸", "💎", "🏆",
-  ];
+  const [deleteMounted, setDeleteMounted] = useState(false);
 
   function startEdit() {
     if (!group) return;
@@ -264,7 +266,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
           <Button
             variant="outline"
             className="w-full text-destructive hover:text-destructive"
-            onClick={() => setLeaveOpen(true)}
+            onClick={() => { setLeaveMounted(true); setLeaveOpen(true); }}
           >
             <LogOut className="size-4 mr-2" />
             Salir del grupo
@@ -273,7 +275,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
             <Button
               variant="outline"
               className="w-full text-destructive hover:text-destructive"
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => { setDeleteMounted(true); setDeleteOpen(true); }}
             >
               <Trash2 className="size-4 mr-2" />
               Eliminar grupo
@@ -282,7 +284,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
         </div>
       </div>
 
-      {leaveOpen && (
+      {leaveMounted && (
         <ConfirmDialog
           open={leaveOpen}
           onOpenChange={setLeaveOpen}
@@ -292,7 +294,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
           onConfirm={handleLeave}
         />
       )}
-      {deleteOpen && (
+      {deleteMounted && (
         <ConfirmDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}

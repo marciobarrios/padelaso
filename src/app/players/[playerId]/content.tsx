@@ -37,8 +37,11 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
   const { activeGroup } = useGroup();
   const { refresh } = useDataRefresh();
   const [editOpen, setEditOpen] = useState(false);
+  const [editMounted, setEditMounted] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteMounted, setDeleteMounted] = useState(false);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
+  const [unlinkMounted, setUnlinkMounted] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
 
   const { players: allPlayers, loaded: playersLoaded } = usePlayers(activeGroup?.id);
@@ -122,14 +125,14 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setEditOpen(true)}
+              onClick={() => { setEditMounted(true); setEditOpen(true); }}
             >
               <Pencil className="size-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => { setDeleteMounted(true); setDeleteOpen(true); }}
             >
               <Trash2 className="size-4 text-destructive" />
             </Button>
@@ -165,7 +168,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
 
             {isOwnPlayer && (
               <Button
-                onClick={() => setUnlinkOpen(true)}
+                onClick={() => { setUnlinkMounted(true); setUnlinkOpen(true); }}
                 variant="outline"
                 className="w-full text-muted-foreground"
               >
@@ -275,14 +278,14 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
         )}
       </div>
 
-      {editOpen && (
+      {editMounted && (
         <EditPlayerDialog
           player={player}
           open={editOpen}
           onOpenChange={setEditOpen}
         />
       )}
-      {deleteOpen && (
+      {deleteMounted && (
         <ConfirmDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
@@ -291,7 +294,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
           onConfirm={handleDelete}
         />
       )}
-      {unlinkOpen && (
+      {unlinkMounted && (
         <ConfirmDialog
           open={unlinkOpen}
           onOpenChange={setUnlinkOpen}

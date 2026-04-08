@@ -260,7 +260,7 @@ export function useAllMatchEvents(groupId?: GroupId): { events: MatchEvent[]; lo
     }
     supabase
       .from("match_events")
-      .select("*, matches!inner(group_id)")
+      .select("id, match_id, player_id, type, created_by, created_at, matches!inner(group_id)")
       .eq("matches.group_id", groupId)
       .then(({ data }) => {
         if (data) setEvents(data.map(mapMatchEvent));

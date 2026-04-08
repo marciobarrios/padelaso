@@ -4,13 +4,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Player, Match, PlayerId } from "@/lib/types";
 import { PlayerAvatar } from "@/components/players/player-avatar";
-import { getSetWins } from "@/lib/utils";
-
-const dateFormatter = new Intl.DateTimeFormat("es-ES", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-});
+import { getSetWins, dateFormatter } from "@/lib/utils";
 
 interface MatchCardProps {
   match: Match;
