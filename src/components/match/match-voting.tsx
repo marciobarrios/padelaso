@@ -30,7 +30,7 @@ export function MatchVoting({
 }: MatchVotingProps) {
   const { refresh } = useDataRefresh();
   const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [isChangingVote, setIsChangingVote] = useState(false);
 
   const matchPlayerIds = [...match.team1, ...match.team2];
@@ -97,7 +97,11 @@ export function MatchVoting({
       >
         <span className="text-lg">{config.emoji}</span>
         <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-          {config.label}
+          {config.type === "mvp"
+            ? !hasEnoughVotes || winnerIds.length === 0
+              ? "Elige MVP"
+              : "MVP"
+            : config.label}
         </h3>
         <span
           className={cn(
