@@ -161,7 +161,7 @@ export default function StatsPage() {
       />
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
         {/* Tabs */}
-        <Tabs defaultValue="general">
+        <Tabs defaultValue="general" className="gap-4">
           <TabsList className="w-full">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="parejas">Parejas</TabsTrigger>
@@ -169,7 +169,7 @@ export default function StatsPage() {
           </TabsList>
 
           {/* Global stats — filtered */}
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          <div className="grid grid-cols-2 gap-3">
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-3xl font-heading font-bold">

@@ -19,7 +19,7 @@ export function ParejasTab({
   selectedPlayer,
 }: ParejasTabProps) {
   return (
-    <div className="space-y-6 pt-4">
+    <div className="space-y-6">
       {/* Pair rankings */}
       <div>
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">

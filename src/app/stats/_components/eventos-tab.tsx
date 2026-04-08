@@ -26,7 +26,7 @@ export function EventosTab({
 
   if (leaderboards.length === 0) {
     return (
-      <div className="pt-4">
+      <div>
         <p className="text-sm text-muted-foreground text-center py-8">
           No hay eventos registrados
         </p>
@@ -35,7 +35,7 @@ export function EventosTab({
   }
 
   return (
-    <div className="space-y-3 pt-4">
+    <div className="space-y-3">
       {leaderboards.map((lb) => {
         const config = getEventConfig(lb.type);
         const total = lb.entries.reduce((s, e) => s + e.count, 0);

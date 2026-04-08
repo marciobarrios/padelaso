@@ -41,7 +41,7 @@ export function GeneralTab({
     : null;
 
   return (
-    <div className="space-y-6 pt-4">
+    <div className="space-y-6">
       {/* Personal stats when filtered */}
       {selectedPlayer && selectedPlayerStats && selectedPlayerObj && (
         <Card>
@@ -77,6 +77,54 @@ export function GeneralTab({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Logros */}
+      {funAwards.some((a) => a.leaderId) && (
+        <div>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+            Logros
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {funAwards.map((award) => {
+              const leader = award.leaderId
+                ? playerMap.get(award.leaderId)
+                : null;
+              if (!leader) return null;
+              return (
+                <Card key={award.title}>
+                  <CardContent className="p-3 text-center space-y-1.5">
+                    <p className="text-2xl">{award.emoji}</p>
+                    <p className="text-xs font-medium">{award.title}</p>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      {getAwardDescription(award.events)}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      {!selectedPlayer ? (
+                        <div className="flex items-center gap-1.5">
+                          <PlayerAvatar
+                            emoji={leader.emoji}
+                            size="sm"
+                            className="size-5 text-xs"
+                          />
+                          <span className="text-xs truncate">
+                            {leader.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span />
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {award.leaderCount}{" "}
+                        {award.leaderCount === 1 ? "vez" : "veces"}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Win rate leaderboard OR player matches */}
@@ -171,54 +219,6 @@ export function GeneralTab({
                     <Badge variant="secondary">
                       {mvp.count} voto{mvp.count !== 1 ? "s" : ""}
                     </Badge>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Fun Awards */}
-      {funAwards.some((a) => a.leaderId) && (
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Premios
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {funAwards.map((award) => {
-              const leader = award.leaderId
-                ? playerMap.get(award.leaderId)
-                : null;
-              if (!leader) return null;
-              return (
-                <Card key={award.title}>
-                  <CardContent className="p-3 text-center space-y-1.5">
-                    <p className="text-2xl">{award.emoji}</p>
-                    <p className="text-xs font-medium">{award.title}</p>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      {getAwardDescription(award.events)}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      {!selectedPlayer ? (
-                        <div className="flex items-center gap-1.5">
-                          <PlayerAvatar
-                            emoji={leader.emoji}
-                            size="sm"
-                            className="size-5 text-xs"
-                          />
-                          <span className="text-xs truncate">
-                            {leader.name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span />
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {award.leaderCount}{" "}
-                        {award.leaderCount === 1 ? "vez" : "veces"}
-                      </span>
-                    </div>
                   </CardContent>
                 </Card>
               );
