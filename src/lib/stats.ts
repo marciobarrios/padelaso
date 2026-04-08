@@ -1,5 +1,6 @@
 import { Match, MatchEvent, MatchVote, Player, PlayerId, MatchEventType } from "./types";
 import { getSetWins } from "./utils";
+import { type FunAwardConfig } from "./event-config";
 
 export interface PlayerStats {
   playerId: PlayerId;
@@ -279,4 +280,44 @@ export function getMvpRankings(
   return [...counts.entries()]
     .map(([playerId, count]) => ({ playerId, count }))
     .sort((a, b) => b.count - a.count);
+}
+
+// ---------- Fun awards ----------
+
+export interface FunAwardResult extends FunAwardConfig {
+  leaderId: PlayerId | null;
+  leaderCount: number;
+}
+
+export function computeFunAwards(
+  events: MatchEvent[],
+  awards: FunAwardConfig[],
+): FunAwardResult[] {
+  // Group events by matchId+playerId → set of event types
+  const byMatchPlayer = new Map<string, Set<MatchEventType>>();
+  for (const e of events) {
+    const key = `${e.matchId}:${e.playerId}`;
+    const set = byMatchPlayer.get(key) ?? new Set();
+    set.add(e.type);
+    byMatchPlayer.set(key, set);
+  }
+
+  return awards.map((award) => {
+    const counts = new Map<PlayerId, number>();
+    for (const [key, types] of byMatchPlayer) {
+      if (award.events.every((t) => types.has(t))) {
+        const playerId = key.split(":")[1];
+        counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+      }
+    }
+    let leaderId: PlayerId | null = null;
+    let leaderCount = 0;
+    for (const [pid, count] of counts) {
+      if (count > leaderCount) {
+        leaderId = pid;
+        leaderCount = count;
+      }
+    }
+    return { ...award, leaderId, leaderCount };
+  });
 }
