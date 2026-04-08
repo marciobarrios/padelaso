@@ -207,6 +207,7 @@ export default function StatsPage() {
             <EventosTab
               leaderboards={leaderboards}
               playerMap={playerMap}
+              selectedPlayer={selectedPlayer}
             />
           </TabsContent>
         </Tabs>

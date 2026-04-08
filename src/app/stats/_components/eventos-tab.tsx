@@ -12,9 +12,14 @@ import type { Player, PlayerId, MatchEventType } from "@/lib/types";
 interface EventosTabProps {
   leaderboards: EventLeaderboard[];
   playerMap: Map<PlayerId, Player>;
+  selectedPlayer: PlayerId | null;
 }
 
-export function EventosTab({ leaderboards, playerMap }: EventosTabProps) {
+export function EventosTab({
+  leaderboards,
+  playerMap,
+  selectedPlayer,
+}: EventosTabProps) {
   const [expandedEvent, setExpandedEvent] = useState<MatchEventType | null>(
     null,
   );
@@ -33,6 +38,24 @@ export function EventosTab({ leaderboards, playerMap }: EventosTabProps) {
     <div className="space-y-3 pt-4">
       {leaderboards.map((lb) => {
         const config = getEventConfig(lb.type);
+        const total = lb.entries.reduce((s, e) => s + e.count, 0);
+
+        // Simplified card when filtered by player
+        if (selectedPlayer) {
+          return (
+            <Card key={lb.type}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <span className="text-2xl">{config.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{config.label}</p>
+                </div>
+                <Badge variant="secondary">{total}</Badge>
+              </CardContent>
+            </Card>
+          );
+        }
+
+        // Full expandable card for "Todos"
         const top = lb.entries[0];
         const topPlayer = playerMap.get(top.playerId);
         const isExpanded = expandedEvent === lb.type;
@@ -40,7 +63,6 @@ export function EventosTab({ leaderboards, playerMap }: EventosTabProps) {
         return (
           <Card key={lb.type}>
             <CardContent className="p-0">
-              {/* Collapsed row — always visible */}
               <button
                 className="w-full p-3 flex items-center gap-3 text-left"
                 onClick={() =>
@@ -51,7 +73,7 @@ export function EventosTab({ leaderboards, playerMap }: EventosTabProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{config.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    {lb.entries.reduce((s, e) => s + e.count, 0)} total
+                    {total} total
                   </p>
                 </div>
                 {topPlayer && (

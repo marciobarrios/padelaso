@@ -91,6 +91,7 @@ export function GeneralTab({
                 key={match.id}
                 match={match}
                 playerMap={playerMap}
+                highlightPlayerId={selectedPlayer ?? undefined}
               />
             ))}
           </div>
