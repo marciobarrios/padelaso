@@ -258,26 +258,13 @@ export function useAllMatchEvents(groupId?: GroupId): { events: MatchEvent[]; lo
       setLoaded(false);
       return;
     }
-    // Get match IDs for this group, then fetch events
     supabase
-      .from("matches")
-      .select("id")
-      .eq("group_id", groupId)
-      .then(({ data: matches }) => {
-        if (!matches || matches.length === 0) {
-          setEvents([]);
-          setLoaded(true);
-          return;
-        }
-        const matchIds = matches.map((m) => m.id);
-        supabase
-          .from("match_events")
-          .select("*")
-          .in("match_id", matchIds)
-          .then(({ data }) => {
-            if (data) setEvents(data.map(mapMatchEvent));
-            setLoaded(true);
-          });
+      .from("match_events")
+      .select("*, matches!inner(group_id)")
+      .eq("matches.group_id", groupId)
+      .then(({ data }) => {
+        if (data) setEvents(data.map(mapMatchEvent));
+        setLoaded(true);
       });
   }, [groupId, refreshKey]);
 

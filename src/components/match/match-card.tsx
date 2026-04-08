@@ -6,6 +6,12 @@ import { Player, Match, PlayerId } from "@/lib/types";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { getSetWins } from "@/lib/utils";
 
+const dateFormatter = new Intl.DateTimeFormat("es-ES", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
 interface MatchCardProps {
   match: Match;
   playerMap: Map<PlayerId, Player>;
@@ -51,11 +57,7 @@ export function MatchCard({ match, playerMap, highlightPlayerId }: MatchCardProp
         <CardContent className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-muted-foreground">
-              {new Date(match.date).toLocaleDateString("es-ES", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
+              {dateFormatter.format(new Date(match.date))}
               {creatorName && `. Creado por ${creatorName}`}
             </span>
             {match.courtNumber && (
