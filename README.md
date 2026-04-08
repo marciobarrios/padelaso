@@ -14,7 +14,8 @@ Padelaso is a mobile-first web app for tracking padel matches among a group of f
 - **Match creation wizard** — 5-step flow: select players, form teams, input set scores, log events, confirm
 - **25 event types** — MVP, Ace, Víbora, Bandeja, Globo, Bajada de muro, Puntazo, Dejada imposible, Chiquita, Caída épica, and more — classified as positive, negative, or fun
 - **Player management** — Create players with custom emoji avatars
-- **Stats and leaderboards** — Win rates, current streaks, event-specific rankings (all scoped per group)
+- **Stats and leaderboards** — Tabbed stats page (General, Parejas, Eventos) with win rates, streaks, pair/rivalry rankings, player filtering, recent form, and fun achievements — all scoped per group
+- **MVP voting** — Democratic MVP voting among match participants
 - **Google OAuth** — Authentication via Supabase Auth with account linking
 - **Match sharing** — View and share match details via unique URLs
 - **Dark theme** — Mobile-optimized dark UI with bottom navigation
@@ -28,7 +29,7 @@ Padelaso is a mobile-first web app for tracking padel matches among a group of f
 | Language | TypeScript 5.9 |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth (Google OAuth) |
-| Icons | Lucide React, Hugeicons |
+| Icons | Lucide React |
 | Fonts | Geist (via next/font) |
 
 ## Getting Started
@@ -42,7 +43,7 @@ Padelaso is a mobile-first web app for tracking padel matches among a group of f
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 ```
 
 Create a `.env.local` file with your Supabase credentials:
@@ -52,13 +53,15 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+> **Superset:** The project includes a `.superset/` configuration for one-command dev environment setup (symlinks `.env.local` and runs `pnpm install` + `pnpm run dev`).
+
 ### Run
 
 ```bash
-npm run dev     # Development server at http://localhost:3000
-npm run build   # Production build
-npm run start   # Start production server
-npm run lint    # Run ESLint
+pnpm run dev     # Development server at http://localhost:3000
+pnpm run build   # Production build
+pnpm run start   # Start production server
+pnpm run lint    # Run ESLint
 ```
 
 ## Project Structure
@@ -66,21 +69,29 @@ npm run lint    # Run ESLint
 ```
 src/
 ├── app/
-│   ├── layout.tsx                # Root layout (auth, fonts)
-│   ├── page.tsx                  # Home dashboard
-│   ├── login/page.tsx            # Google OAuth login
+│   ├── layout.tsx                  # Root layout (auth, fonts)
+│   ├── page.tsx                    # Home dashboard
+│   ├── login/page.tsx              # Google OAuth login
 │   ├── groups/
-│   │   ├── onboarding/page.tsx   # Create/join group on first login
-│   │   └── [groupId]/page.tsx    # Group settings (admin)
+│   │   ├── onboarding/page.tsx     # Create/join group on first login
+│   │   └── [groupId]/
+│   │       ├── page.tsx            # Group settings (server component)
+│   │       └── content.tsx         # Client content
 │   ├── matches/
-│   │   ├── page.tsx              # Match list
-│   │   ├── new/page.tsx          # New match (wizard)
-│   │   └── [matchId]/page.tsx    # Match details
+│   │   ├── page.tsx                # Match list
+│   │   ├── new/page.tsx            # New match (wizard)
+│   │   └── [matchId]/
+│   │       ├── page.tsx            # Match details (server component)
+│   │       └── content.tsx         # Client content
 │   ├── players/
-│   │   ├── page.tsx              # Player list
-│   │   └── [playerId]/page.tsx   # Player profile
-│   ├── stats/page.tsx            # Leaderboards & stats
-│   └── auth/callback/route.ts    # OAuth callback
+│   │   ├── page.tsx                # Player list
+│   │   └── [playerId]/
+│   │       ├── page.tsx            # Player profile (server component)
+│   │       └── content.tsx         # Client content
+│   ├── stats/
+│   │   ├── page.tsx                # Stats orchestrator
+│   │   └── _components/            # Tab components (General, Parejas, Eventos)
+│   └── auth/callback/route.ts      # OAuth callback
 ├── components/
 │   ├── auth/          # Auth provider & hooks
 │   ├── group/         # Group provider, switcher
@@ -92,9 +103,9 @@ src/
 └── lib/
     ├── types.ts              # TypeScript interfaces
     ├── event-config.ts       # Event type definitions (25 types)
-    ├── stats.ts              # Stats calculations
+    ├── stats.ts              # Stats calculations & fun awards
     ├── db-hooks.ts           # Database event hooks
-    ├── utils.ts              # Utility functions
+    ├── utils.ts              # Utility functions & shared formatters
     ├── supabase.ts           # Client-side Supabase
     ├── supabase-server.ts    # Server-side Supabase
     ├── supabase-hooks.ts     # Data fetching hooks (group-scoped)
