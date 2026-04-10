@@ -1,7 +1,12 @@
 import { createClient } from "./supabase";
 import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group, VoteType } from "./types";
 
-const supabase = createClient();
+// Lazy-initialized client — avoids creation at module-evaluation time
+let _supabase: ReturnType<typeof createClient>;
+function supabase() {
+  if (!_supabase) _supabase = createClient();
+  return _supabase;
+}
 
 // ---------- Groups ----------
 
@@ -24,7 +29,7 @@ export async function createGroup(
   // Use RPC to atomically create the group + add creator as admin
   // This avoids RLS chicken-and-egg: SELECT policy on groups requires
   // membership, but membership doesn't exist until after insert
-  const { data, error } = await supabase.rpc("create_group", {
+  const { data, error } = await supabase().rpc("create_group", {
     group_name: name,
     group_emoji: emoji,
     group_invite_code: inviteCode,
@@ -43,7 +48,7 @@ export async function createGroup(
 }
 
 export async function joinGroupByCode(code: string): Promise<Group> {
-  const { data, error } = await supabase.rpc("join_group_by_code", {
+  const { data, error } = await supabase().rpc("join_group_by_code", {
     code: code.toUpperCase().trim(),
   });
   if (error) throw error;
@@ -59,7 +64,7 @@ export async function joinGroupByCode(code: string): Promise<Group> {
 }
 
 export async function deleteGroup(groupId: GroupId) {
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("groups")
     .delete()
     .eq("id", groupId);
@@ -67,7 +72,7 @@ export async function deleteGroup(groupId: GroupId) {
 }
 
 export async function leaveGroup(groupId: GroupId, userId: string) {
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("group_members")
     .delete()
     .eq("group_id", groupId)
@@ -79,7 +84,7 @@ export async function updateGroup(
   groupId: GroupId,
   data: { name?: string; emoji?: string }
 ) {
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("groups")
     .update(data)
     .eq("id", groupId);
@@ -88,7 +93,7 @@ export async function updateGroup(
 
 export async function regenerateInviteCode(groupId: GroupId): Promise<string> {
   const newCode = generateInviteCode();
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("groups")
     .update({ invite_code: newCode })
     .eq("id", groupId);
@@ -104,7 +109,7 @@ export async function createPlayer(
   userId: string,
   groupId: GroupId
 ) {
-  const { error } = await supabase.from("players").insert({
+  const { error } = await supabase().from("players").insert({
     name,
     emoji,
     created_by: userId,
@@ -117,7 +122,7 @@ export async function updatePlayer(
   playerId: PlayerId,
   data: { name?: string; emoji?: string }
 ) {
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("players")
     .update(data)
     .eq("id", playerId);
@@ -126,7 +131,7 @@ export async function updatePlayer(
 
 export async function deletePlayer(playerId: PlayerId) {
   // Remove this player from any match team arrays (no FK cascade for array elements)
-  const { data: matches } = await supabase
+  const { data: matches } = await supabase()
     .from("matches")
     .select("id, team1, team2")
     .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`);
@@ -141,13 +146,13 @@ export async function deletePlayer(playerId: PlayerId) {
         updates.team2 = (match.team2 as PlayerId[]).filter((id) => id !== playerId);
       }
       if (Object.keys(updates).length > 0) {
-        await supabase.from("matches").update(updates).eq("id", match.id);
+        await supabase().from("matches").update(updates).eq("id", match.id);
       }
     }
   }
 
   // match_events with this player_id will cascade delete via FK
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("players")
     .delete()
     .eq("id", playerId);
@@ -164,7 +169,7 @@ export async function createMatch(
   events: { playerId: PlayerId; type: MatchEventType }[] = [],
   groupId?: GroupId
 ) {
-  const { data: match, error: matchError } = await supabase
+  const { data: match, error: matchError } = await supabase()
     .from("matches")
     .insert({
       team1,
@@ -178,7 +183,7 @@ export async function createMatch(
   if (matchError) throw matchError;
 
   if (events.length > 0) {
-    const { error: eventsError } = await supabase
+    const { error: eventsError } = await supabase()
       .from("match_events")
       .insert(
         events.map((e) => ({
@@ -198,7 +203,7 @@ export async function updateMatch(
   matchId: MatchId,
   data: { sets?: MatchSet[] }
 ) {
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("matches")
     .update(data)
     .eq("id", matchId);
@@ -207,7 +212,7 @@ export async function updateMatch(
 
 export async function deleteMatch(matchId: MatchId) {
   // match_events will cascade delete via FK
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("matches")
     .delete()
     .eq("id", matchId);
@@ -222,7 +227,7 @@ export async function addMatchEvent(
   type: MatchEventType,
   userId: string
 ) {
-  const { error } = await supabase.from("match_events").insert({
+  const { error } = await supabase().from("match_events").insert({
     match_id: matchId,
     player_id: playerId,
     type,
@@ -232,7 +237,7 @@ export async function addMatchEvent(
 }
 
 export async function removeMatchEvent(eventId: MatchEventId) {
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("match_events")
     .delete()
     .eq("id", eventId);
@@ -247,7 +252,7 @@ export async function castMatchVote(
   votedForPlayerId: PlayerId,
   voteType: VoteType
 ) {
-  const { error } = await supabase.from("match_votes").upsert(
+  const { error } = await supabase().from("match_votes").upsert(
     {
       match_id: matchId,
       voter_player_id: voterPlayerId,
@@ -264,7 +269,7 @@ export async function removeMatchVote(
   voterPlayerId: PlayerId,
   voteType: VoteType
 ) {
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("match_votes")
     .delete()
     .eq("match_id", matchId)
@@ -280,7 +285,7 @@ export async function linkPlayerToUser(
   userId: string
 ) {
   // Set user_id on the player — verify the row was actually updated
-  const { data: updatedPlayer, error: playerError } = await supabase
+  const { data: updatedPlayer, error: playerError } = await supabase()
     .from("players")
     .update({ user_id: userId })
     .eq("id", playerId)
@@ -291,7 +296,7 @@ export async function linkPlayerToUser(
   }
 
   // Set player_id on the profile
-  const { error: profileError } = await supabase
+  const { error: profileError } = await supabase()
     .from("profiles")
     .update({ player_id: playerId })
     .eq("id", userId);
@@ -303,14 +308,14 @@ export async function unlinkPlayerFromUser(
   userId: string
 ) {
   // Clear user_id on the player
-  const { error: playerError } = await supabase
+  const { error: playerError } = await supabase()
     .from("players")
     .update({ user_id: null })
     .eq("id", playerId);
   if (playerError) throw playerError;
 
   // Clear player_id on the profile
-  const { error: profileError } = await supabase
+  const { error: profileError } = await supabase()
     .from("profiles")
     .update({ player_id: null })
     .eq("id", userId);

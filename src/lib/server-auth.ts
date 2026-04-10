@@ -1,0 +1,35 @@
+import { cookies } from "next/headers";
+import { createServerSupabaseClient } from "./supabase-server";
+import { mapGroup } from "./mappers";
+import type { Group } from "./types";
+import type { User } from "@supabase/supabase-js";
+
+const ACTIVE_GROUP_COOKIE = "padelaso_active_group_id";
+
+interface ServerAuthResult {
+  user: User | null;
+  groups: Group[];
+  activeGroupId: string | null;
+}
+
+export async function getServerAuth(): Promise<ServerAuthResult> {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let groups: Group[] = [];
+  if (user) {
+    const { data } = await supabase
+      .from("groups")
+      .select("*")
+      .order("created_at");
+    if (data) groups = data.map(mapGroup);
+  }
+
+  const cookieStore = await cookies();
+  const activeGroupId =
+    cookieStore.get(ACTIVE_GROUP_COOKIE)?.value ?? null;
+
+  return { user, groups, activeGroupId };
+}
