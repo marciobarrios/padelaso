@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGroup } from "@/components/group/group-provider";
 import { GroupSwitcher } from "@/components/group/group-switcher";
+import { MobileShellSkeleton } from "./skeletons";
 
 const NAV_ITEMS = [
   { href: "/", label: "Inicio", icon: Home },
@@ -36,11 +37,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   }, [loading, groupLoading, user, groups, router]);
 
   if (loading || !user || groupLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-dvh">
-        <p className="text-muted-foreground">Cargando...</p>
-      </div>
-    );
+    return <MobileShellSkeleton />;
   }
 
   if (groups.length === 0) {
@@ -54,7 +51,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
         <GroupSwitcher />
       </div>
       <main className="flex-1 overflow-y-auto pb-20">{children}</main>
-      <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active =

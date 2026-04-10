@@ -16,9 +16,12 @@ export function MatchCard({ match, playerMap, highlightPlayerId }: MatchCardProp
   const team1Players = match.team1.map((id) => playerMap.get(id));
   const team2Players = match.team2.map((id) => playerMap.get(id));
 
-  const creatorName = match.createdBy
-    ? [...playerMap.values()].find((p) => p.userId === match.createdBy)?.name
-    : undefined;
+  let creatorName: string | undefined;
+  if (match.createdBy) {
+    for (const p of playerMap.values()) {
+      if (p.userId === match.createdBy) { creatorName = p.name; break; }
+    }
+  }
 
   const team1Total = match.sets.reduce((s, set) => s + set.team1Score, 0);
   const team2Total = match.sets.reduce((s, set) => s + set.team2Score, 0);

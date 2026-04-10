@@ -28,6 +28,7 @@ import { PlayerFilter } from "./_components/player-filter";
 import { GeneralTab } from "./_components/general-tab";
 import { ParejasTab } from "./_components/parejas-tab";
 import { EventosTab } from "./_components/eventos-tab";
+import { StatsPageSkeleton } from "@/components/layout/skeletons";
 
 export default function StatsPage() {
   const { activeGroup } = useGroup();
@@ -128,6 +129,7 @@ export default function StatsPage() {
     return (
       <MobileShell>
         <PageHeader title="Stats" />
+        <StatsPageSkeleton />
       </MobileShell>
     );
 

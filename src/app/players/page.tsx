@@ -6,6 +6,7 @@ import { PlayerList } from "@/components/players/player-list";
 import { CreatePlayerDialog } from "@/components/players/create-player-dialog";
 import { usePlayers } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
+import { PlayerListSkeleton } from "@/components/layout/skeletons";
 
 export default function PlayersPage() {
   const { activeGroup } = useGroup();
@@ -15,7 +16,7 @@ export default function PlayersPage() {
     <MobileShell>
       <PageHeader title="Jugadores" action={<CreatePlayerDialog />} />
       <div className="max-w-lg mx-auto">
-        <PlayerList players={players} loaded={loaded} />
+        {!loaded ? <PlayerListSkeleton /> : <PlayerList players={players} loaded={loaded} />}
       </div>
     </MobileShell>
   );
