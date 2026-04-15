@@ -31,8 +31,7 @@ export function AuthProvider({
 }: AuthProviderProps) {
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(initialUser);
-  // No loading state needed — server already provided the user
-  const [loading] = useState(false);
+  const loading = false;
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -72,6 +71,9 @@ export function AuthProvider({
   }
 
   async function signOut() {
+    // Clear active group cookie so stale IDs aren't sent on the next request
+    document.cookie =
+      "padelaso_active_group_id=;path=/;max-age=0;samesite=lax";
     await supabase.auth.signOut();
   }
 

@@ -36,8 +36,10 @@ export function useDataRefresh() {
 
 // ---------- Hooks ----------
 
+let _supabase: ReturnType<typeof createClient>;
 function getSupabase() {
-  return createClient();
+  if (!_supabase) _supabase = createClient();
+  return _supabase;
 }
 
 // ---------- Group hooks ----------

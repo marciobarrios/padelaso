@@ -13,6 +13,19 @@ interface ServerAuthResult {
 }
 
 export async function getServerAuth(): Promise<ServerAuthResult> {
+  const cookieStore = await cookies();
+  const activeGroupId =
+    cookieStore.get(ACTIVE_GROUP_COOKIE)?.value ?? null;
+
+  // Skip the network call entirely when no Supabase auth cookies exist.
+  // This keeps the login page and public routes fast.
+  const hasAuthCookies = cookieStore
+    .getAll()
+    .some((c) => c.name.startsWith("sb-"));
+  if (!hasAuthCookies) {
+    return { user: null, groups: [], activeGroupId };
+  }
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -26,10 +39,6 @@ export async function getServerAuth(): Promise<ServerAuthResult> {
       .order("created_at");
     if (data) groups = data.map(mapGroup);
   }
-
-  const cookieStore = await cookies();
-  const activeGroupId =
-    cookieStore.get(ACTIVE_GROUP_COOKIE)?.value ?? null;
 
   return { user, groups, activeGroupId };
 }
