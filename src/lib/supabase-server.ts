@@ -13,8 +13,15 @@ export async function createServerSupabaseClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
+          try {
+            for (const { name, value, options } of cookiesToSet) {
+              cookieStore.set(name, value, options);
+            }
+          } catch {
+            // setAll is called when Supabase refreshes the auth token.
+            // In Server Components (layouts, pages), cookies are read-only —
+            // the write fails safely here. Token refresh still works via the
+            // auth callback route handler where cookies ARE writable.
           }
         },
       },
