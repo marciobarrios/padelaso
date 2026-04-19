@@ -3,13 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Group } from "@/lib/types";
 import { useGroups } from "@/lib/db-hooks";
+import { ACTIVE_GROUP_COOKIE, setActiveGroupCookie } from "@/lib/active-group-cookie";
 
-const STORAGE_KEY = "padelaso_active_group_id";
-const COOKIE_NAME = "padelaso_active_group_id";
-
-function setActiveGroupCookie(id: string) {
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(id)};path=/;max-age=31536000;samesite=lax`;
-}
+const STORAGE_KEY = ACTIVE_GROUP_COOKIE;
 
 interface GroupContextValue {
   groups: Group[];

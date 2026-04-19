@@ -1,10 +1,9 @@
 import { cookies } from "next/headers";
 import { createServerSupabaseClient } from "./supabase-server";
 import { mapGroup } from "./mappers";
+import { ACTIVE_GROUP_COOKIE } from "./active-group-cookie";
 import type { Group } from "./types";
 import type { User } from "@supabase/supabase-js";
-
-const ACTIVE_GROUP_COOKIE = "padelaso_active_group_id";
 
 interface ServerAuthResult {
   user: User | null;

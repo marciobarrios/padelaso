@@ -1,7 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 
-/** Skeleton for the group switcher pill at top */
 function GroupSwitcherSkeleton() {
   return (
     <div className="flex items-center justify-center py-2 px-4">
@@ -10,7 +9,6 @@ function GroupSwitcherSkeleton() {
   );
 }
 
-/** Skeleton for the bottom nav bar */
 function NavSkeleton() {
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
@@ -26,7 +24,6 @@ function NavSkeleton() {
   );
 }
 
-/** Full-page skeleton matching the MobileShell layout */
 export function MobileShellSkeleton() {
   return (
     <div className="flex flex-col min-h-dvh">
@@ -39,7 +36,6 @@ export function MobileShellSkeleton() {
   );
 }
 
-/** Skeleton for a single match card */
 function MatchCardSkeleton() {
   return (
     <Card>
@@ -70,7 +66,6 @@ function MatchCardSkeleton() {
   );
 }
 
-/** Skeleton for the home page content */
 export function HomePageSkeleton() {
   return (
     <div className="max-w-lg mx-auto px-4 pt-6">
@@ -93,7 +88,6 @@ export function HomePageSkeleton() {
   );
 }
 
-/** Skeleton for the players list */
 export function PlayerListSkeleton() {
   return (
     <div className="divide-y divide-border">
@@ -107,28 +101,20 @@ export function PlayerListSkeleton() {
   );
 }
 
-/** Skeleton for stats page stat cards */
 export function StatsPageSkeleton() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-      {/* Tabs */}
       <Skeleton className="h-10 w-full rounded-lg" />
-      {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <CardContent className="p-4 flex flex-col items-center gap-1">
-            <Skeleton className="h-8 w-10" />
-            <Skeleton className="h-3 w-16" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex flex-col items-center gap-1">
-            <Skeleton className="h-8 w-10" />
-            <Skeleton className="h-3 w-16" />
-          </CardContent>
-        </Card>
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-4 flex flex-col items-center gap-1">
+              <Skeleton className="h-8 w-10" />
+              <Skeleton className="h-3 w-16" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
-      {/* Leaderboard rows */}
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3">

@@ -5,6 +5,7 @@ import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
 import { DataContext } from "@/lib/supabase-hooks";
 import { GroupProvider } from "@/components/group/group-provider";
+import { clearActiveGroupCookie } from "@/lib/active-group-cookie";
 import type { Group } from "@/lib/types";
 
 interface AuthContextValue {
@@ -71,9 +72,7 @@ export function AuthProvider({
   }
 
   async function signOut() {
-    // Clear active group cookie so stale IDs aren't sent on the next request
-    document.cookie =
-      "padelaso_active_group_id=;path=/;max-age=0;samesite=lax";
+    clearActiveGroupCookie();
     await supabase.auth.signOut();
   }
 
