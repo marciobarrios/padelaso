@@ -4,10 +4,19 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { createClient } from "./supabase";
 import { Player, Match, MatchEvent, MatchVote, MatchId, Group, GroupMember, GroupId } from "./types";
+import {
+  mapPlayer,
+  mapMatch,
+  mapMatchEvent,
+  mapGroup,
+  mapMatchVote,
+  mapGroupMember,
+} from "./mappers";
 
 // ---------- Data refresh context ----------
 
@@ -25,89 +34,28 @@ export function useDataRefresh() {
   return useContext(DataContext);
 }
 
-// ---------- Row mappers (snake_case → camelCase) ----------
-
-function mapPlayer(row: Record<string, unknown>): Player {
-  return {
-    id: row.id as string,
-    name: row.name as string,
-    emoji: row.emoji as string,
-    userId: (row.user_id as string) ?? null,
-    groupId: row.group_id as string,
-    createdBy: row.created_by as string,
-    createdAt: row.created_at as string,
-  };
-}
-
-function mapMatch(row: Record<string, unknown>): Match {
-  return {
-    id: row.id as string,
-    date: row.date as string,
-    courtNumber: (row.court_number as number) ?? null,
-    team1: row.team1 as string[],
-    team2: row.team2 as string[],
-    sets: row.sets as Match["sets"],
-    groupId: row.group_id as string,
-    createdBy: row.created_by as string,
-    createdAt: row.created_at as string,
-  };
-}
-
-function mapMatchEvent(row: Record<string, unknown>): MatchEvent {
-  return {
-    id: row.id as string,
-    matchId: row.match_id as string,
-    playerId: row.player_id as string,
-    type: row.type as string,
-    createdBy: row.created_by as string,
-    createdAt: row.created_at as string,
-  } as MatchEvent;
-}
-
-function mapGroup(row: Record<string, unknown>): Group {
-  return {
-    id: row.id as string,
-    name: row.name as string,
-    emoji: row.emoji as string,
-    inviteCode: row.invite_code as string,
-    createdBy: row.created_by as string,
-    createdAt: row.created_at as string,
-  };
-}
-
-function mapMatchVote(row: Record<string, unknown>): MatchVote {
-  return {
-    id: row.id as string,
-    matchId: row.match_id as string,
-    voterPlayerId: row.voter_player_id as string,
-    votedForPlayerId: row.voted_for_player_id as string,
-    voteType: row.vote_type as string,
-    createdAt: row.created_at as string,
-  } as MatchVote;
-}
-
-function mapGroupMember(row: Record<string, unknown>): GroupMember {
-  return {
-    groupId: row.group_id as string,
-    userId: row.user_id as string,
-    role: row.role as "admin" | "member",
-    joinedAt: row.joined_at as string,
-  };
-}
-
 // ---------- Hooks ----------
 
-const supabase = createClient();
+let _supabase: ReturnType<typeof createClient>;
+function getSupabase() {
+  if (!_supabase) _supabase = createClient();
+  return _supabase;
+}
 
 // ---------- Group hooks ----------
 
-export function useGroups(): { groups: Group[]; loaded: boolean } {
+export function useGroups(initialData?: Group[]): { groups: Group[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [groups, setGroups] = useState<Group[]>(initialData ?? []);
+  const [loaded, setLoaded] = useState(!!initialData);
+  const skipInitialFetch = useRef(!!initialData);
 
   useEffect(() => {
-    supabase
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
+    getSupabase()
       .from("groups")
       .select("*")
       .order("created_at")
@@ -126,7 +74,7 @@ export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
 
   useEffect(() => {
     if (!groupId) return;
-    supabase
+    getSupabase()
       .from("group_members")
       .select("*")
       .eq("group_id", groupId)
@@ -152,7 +100,7 @@ export function usePlayers(groupId?: GroupId): { players: Player[]; loaded: bool
       setLoaded(false);
       return;
     }
-    supabase
+    getSupabase()
       .from("players")
       .select("*")
       .eq("group_id", groupId)
@@ -177,7 +125,7 @@ export function useMatches(groupId?: GroupId): { matches: Match[]; loaded: boole
       setLoaded(false);
       return;
     }
-    supabase
+    getSupabase()
       .from("matches")
       .select("*")
       .eq("group_id", groupId)
@@ -197,7 +145,7 @@ export function useMatch(id: MatchId): { match: Match | undefined; loaded: boole
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    supabase
+    getSupabase()
       .from("matches")
       .select("*")
       .eq("id", id)
@@ -217,7 +165,7 @@ export function useMatchEvents(matchId: MatchId): { events: MatchEvent[]; loaded
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    supabase
+    getSupabase()
       .from("match_events")
       .select("*")
       .eq("match_id", matchId)
@@ -235,7 +183,7 @@ export function useMatchVotes(matchId: MatchId): MatchVote[] {
   const [votes, setVotes] = useState<MatchVote[]>([]);
 
   useEffect(() => {
-    supabase
+    getSupabase()
       .from("match_votes")
       .select("*")
       .eq("match_id", matchId)
@@ -258,7 +206,7 @@ export function useAllMatchEvents(groupId?: GroupId): { events: MatchEvent[]; lo
       setLoaded(false);
       return;
     }
-    supabase
+    getSupabase()
       .from("match_events")
       .select("id, match_id, player_id, type, created_by, created_at, matches!inner(group_id)")
       .eq("matches.group_id", groupId)
@@ -282,25 +230,13 @@ export function useAllMatchVotes(groupId?: GroupId): { votes: MatchVote[]; loade
       setLoaded(false);
       return;
     }
-    supabase
-      .from("matches")
-      .select("id")
-      .eq("group_id", groupId)
-      .then(({ data: matches }) => {
-        if (!matches || matches.length === 0) {
-          setVotes([]);
-          setLoaded(true);
-          return;
-        }
-        const matchIds = matches.map((m) => m.id);
-        supabase
-          .from("match_votes")
-          .select("*")
-          .in("match_id", matchIds)
-          .then(({ data }) => {
-            if (data) setVotes(data.map(mapMatchVote));
-            setLoaded(true);
-          });
+    getSupabase()
+      .from("match_votes")
+      .select("id, match_id, voter_player_id, voted_for_player_id, vote_type, created_at, matches!inner(group_id)")
+      .eq("matches.group_id", groupId)
+      .then(({ data }) => {
+        if (data) setVotes(data.map(mapMatchVote));
+        setLoaded(true);
       });
   }, [groupId, refreshKey]);
 
@@ -313,7 +249,7 @@ export function usePlayerMatches(playerId: string): { matches: Match[]; loaded: 
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    supabase
+    getSupabase()
       .from("matches")
       .select("*")
       .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`)
@@ -333,7 +269,7 @@ export function usePlayerEvents(playerId: string): { events: MatchEvent[]; loade
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    supabase
+    getSupabase()
       .from("match_events")
       .select("*")
       .eq("player_id", playerId)

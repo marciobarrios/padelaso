@@ -8,6 +8,7 @@ import { useMatches, usePlayers } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { MatchCard } from "@/components/match/match-card";
 import { buildPlayerMap } from "@/lib/utils";
+import { HomePageSkeleton } from "@/components/layout/skeletons";
 
 export default function HomePage() {
   const { activeGroup } = useGroup();
@@ -15,7 +16,7 @@ export default function HomePage() {
   const { players, loaded: playersLoaded } = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
 
-  if (!matchesLoaded || !playersLoaded) return <MobileShell>{null}</MobileShell>;
+  if (!matchesLoaded || !playersLoaded) return <MobileShell><HomePageSkeleton /></MobileShell>;
 
   return (
     <MobileShell>
