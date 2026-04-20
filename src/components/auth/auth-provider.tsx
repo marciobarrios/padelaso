@@ -11,7 +11,7 @@ import type { Group } from "@/lib/types";
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (next?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -62,11 +62,13 @@ export function AuthProvider({
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle(next?: string) {
+    const callback = new URL("/auth/callback", window.location.origin);
+    if (next) callback.searchParams.set("next", next);
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callback.toString(),
       },
     });
   }

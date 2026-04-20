@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, UserPlus, LogOut } from "lucide-react";
@@ -16,17 +16,31 @@ const GROUP_EMOJIS = [
   "🦁", "🐯", "🦊", "🐻", "🦄", "🎸", "💎", "🏆",
 ];
 
-export default function GroupOnboardingPage() {
+function GroupOnboardingContent() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const searchParams = useSearchParams();
+  const codeFromUrl = searchParams.get("code");
+  const { user, loading, signOut } = useAuth();
   const { setActiveGroup } = useGroup();
   const { refresh } = useDataRefresh();
-  const [mode, setMode] = useState<"choice" | "create" | "join">("choice");
+  const [mode, setMode] = useState<"choice" | "create" | "join">(
+    codeFromUrl ? "join" : "choice"
+  );
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🏸");
-  const [joinCode, setJoinCode] = useState("");
+  const [joinCode, setJoinCode] = useState(
+    codeFromUrl ? codeFromUrl.toUpperCase().slice(0, 6) : ""
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      const current =
+        window.location.pathname + window.location.search + window.location.hash;
+      router.replace(`/login?redirectTo=${encodeURIComponent(current)}`);
+    }
+  }, [loading, user, router]);
 
   async function handleCreate() {
     if (!name.trim() || !user) return;
@@ -56,6 +70,14 @@ export default function GroupOnboardingPage() {
       setError("Código no válido o grupo no encontrado");
       setSaving(false);
     }
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center">
+        <p className="text-muted-foreground">Cargando...</p>
+      </div>
+    );
   }
 
   return (
@@ -169,5 +191,19 @@ export default function GroupOnboardingPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function GroupOnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-dvh flex items-center justify-center">
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      }
+    >
+      <GroupOnboardingContent />
+    </Suspense>
   );
 }

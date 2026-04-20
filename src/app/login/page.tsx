@@ -1,19 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 
-export default function LoginPage() {
+function LoginContent() {
   const { user, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectToParam = searchParams.get("redirectTo");
+  const redirectTo =
+    redirectToParam && redirectToParam.startsWith("/") && !redirectToParam.startsWith("//")
+      ? redirectToParam
+      : "/";
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/");
+      router.replace(redirectTo);
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, redirectTo]);
 
   if (loading || user) {
     return (
@@ -31,9 +37,27 @@ export default function LoginPage() {
           Gamifica tus partidos de pádel con amigos
         </p>
       </div>
-      <Button onClick={signInWithGoogle} size="lg" className="w-full max-w-xs">
+      <Button
+        onClick={() => signInWithGoogle(redirectTo)}
+        size="lg"
+        className="w-full max-w-xs"
+      >
         Iniciar sesión con Google
       </Button>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center min-h-dvh">
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
