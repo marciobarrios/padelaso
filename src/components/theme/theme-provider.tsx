@@ -7,7 +7,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
 } from "react";
 import {
   DEFAULT_PREFERENCE,
@@ -26,31 +25,28 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-// --- External store: prefers-color-scheme -----------------------------------
-function subscribePrefersDark(onChange: () => void) {
-  const mql = window.matchMedia("(prefers-color-scheme: dark)");
-  mql.addEventListener("change", onChange);
-  return () => mql.removeEventListener("change", onChange);
-}
-function getPrefersDarkSnapshot(): boolean {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-const getPrefersDarkServerSnapshot = () => true;
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Preference is owned by React (writable), not an external store, so we keep
-  // useState for it but seed it via a lazy initializer — no effect-driven setState.
   const [preference, setPreferenceState] = useState<ThemePreference>(() => {
     if (typeof window === "undefined") return DEFAULT_PREFERENCE;
     const stored = window.localStorage.getItem(STORAGE_KEY);
     return isThemePreference(stored) ? stored : DEFAULT_PREFERENCE;
   });
 
-  const systemPrefersDark = useSyncExternalStore(
-    subscribePrefersDark,
-    getPrefersDarkSnapshot,
-    getPrefersDarkServerSnapshot,
-  );
+  // Lazy-init matchMedia so the very first client commit already has the real
+  // OS preference. Using useSyncExternalStore here would serve a fixed server
+  // snapshot on first render, causing a one-frame FOUC between the init
+  // script's correct data-theme and React's incorrect recomputation.
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
+
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
 
   const resolved = resolveTheme(preference, systemPrefersDark);
 
