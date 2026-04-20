@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, UserPlus, LogOut } from "lucide-react";
+import { Home, Plus, UserPlus, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGroup } from "@/components/group/group-provider";
+import { LoadingFallback } from "@/components/layout/loading-fallback";
 import { useDataRefresh } from "@/lib/supabase-hooks";
 import { createGroup, joinGroupByCode } from "@/lib/supabase-mutations";
 import { cn } from "@/lib/utils";
@@ -16,17 +18,35 @@ const GROUP_EMOJIS = [
   "🦁", "🐯", "🦊", "🐻", "🦄", "🎸", "💎", "🏆",
 ];
 
-export default function GroupOnboardingPage() {
+function GroupOnboardingContent() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
-  const { setActiveGroup } = useGroup();
+  const searchParams = useSearchParams();
+  const codeFromUrl = searchParams.get("code");
+  const { user, loading, signOut } = useAuth();
+  const { groups, loading: groupLoading, setActiveGroup } = useGroup();
   const { refresh } = useDataRefresh();
-  const [mode, setMode] = useState<"choice" | "create" | "join">("choice");
+  const [mode, setMode] = useState<"choice" | "create" | "join">(
+    codeFromUrl ? "join" : "choice"
+  );
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🏸");
-  const [joinCode, setJoinCode] = useState("");
+  const [joinCode, setJoinCode] = useState(
+    codeFromUrl ? codeFromUrl.toUpperCase().slice(0, 6) : ""
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      const current = window.location.pathname + window.location.search;
+      router.replace(`/login?redirectTo=${encodeURIComponent(current)}`);
+      return;
+    }
+    if (!groupLoading && groups.length > 0 && !codeFromUrl) {
+      router.replace("/");
+    }
+  }, [loading, groupLoading, user, groups.length, codeFromUrl, router]);
 
   async function handleCreate() {
     if (!name.trim() || !user) return;
@@ -56,6 +76,10 @@ export default function GroupOnboardingPage() {
       setError("Código no válido o grupo no encontrado");
       setSaving(false);
     }
+  }
+
+  if (loading || !user || groupLoading || (groups.length > 0 && !codeFromUrl)) {
+    return <LoadingFallback />;
   }
 
   return (
@@ -160,14 +184,33 @@ export default function GroupOnboardingPage() {
           </div>
         )}
 
-        <button
-          onClick={async () => { await signOut(); router.replace("/login"); }}
-          className="w-full flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors pt-4"
-        >
-          <LogOut className="size-3.5" />
-          Cerrar sesión
-        </button>
+        <div className="flex flex-col items-center gap-3 pt-4">
+          {groups.length > 0 && (
+            <Link
+              href="/"
+              className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Home className="size-3.5" />
+              Ir a Inicio
+            </Link>
+          )}
+          <button
+            onClick={async () => { await signOut(); router.replace("/login"); }}
+            className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LogOut className="size-3.5" />
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function GroupOnboardingPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <GroupOnboardingContent />
+    </Suspense>
   );
 }

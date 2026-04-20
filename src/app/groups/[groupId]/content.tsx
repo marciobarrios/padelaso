@@ -79,7 +79,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
 
   async function shareCode() {
     if (!group) return;
-    const url = `${window.location.origin}/groups/onboarding`;
+    const url = `${window.location.origin}/groups/onboarding?code=${group.inviteCode}`;
     if (navigator.share) {
       await navigator.share({
         title: `Únete a ${group.name} en Padelaso`,
