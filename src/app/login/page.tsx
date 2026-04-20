@@ -4,16 +4,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
+import { LoadingFallback } from "@/components/layout/loading-fallback";
+import { isSafeInternalPath } from "@/lib/safe-redirect";
 
 function LoginContent() {
   const { user, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectToParam = searchParams.get("redirectTo");
-  const redirectTo =
-    redirectToParam && redirectToParam.startsWith("/") && !redirectToParam.startsWith("//")
-      ? redirectToParam
-      : "/";
+  const redirectTo = isSafeInternalPath(redirectToParam) ? redirectToParam : "/";
 
   useEffect(() => {
     if (!loading && user) {
@@ -22,11 +21,7 @@ function LoginContent() {
   }, [loading, user, router, redirectTo]);
 
   if (loading || user) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-dvh">
-        <p className="text-muted-foreground">Cargando...</p>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   return (
@@ -50,13 +45,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex-1 flex items-center justify-center min-h-dvh">
-          <p className="text-muted-foreground">Cargando...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingFallback />}>
       <LoginContent />
     </Suspense>
   );

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Home, Plus, UserPlus, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGroup } from "@/components/group/group-provider";
+import { LoadingFallback } from "@/components/layout/loading-fallback";
 import { useDataRefresh } from "@/lib/supabase-hooks";
 import { createGroup, joinGroupByCode } from "@/lib/supabase-mutations";
 import { cn } from "@/lib/utils";
@@ -36,15 +37,13 @@ function GroupOnboardingContent() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      const current =
-        window.location.pathname + window.location.search + window.location.hash;
+    if (loading) return;
+    if (!user) {
+      const current = window.location.pathname + window.location.search;
       router.replace(`/login?redirectTo=${encodeURIComponent(current)}`);
+      return;
     }
-  }, [loading, user, router]);
-
-  useEffect(() => {
-    if (!loading && !groupLoading && user && groups.length > 0 && !codeFromUrl) {
+    if (!groupLoading && groups.length > 0 && !codeFromUrl) {
       router.replace("/");
     }
   }, [loading, groupLoading, user, groups.length, codeFromUrl, router]);
@@ -80,11 +79,7 @@ function GroupOnboardingContent() {
   }
 
   if (loading || !user || groupLoading || (groups.length > 0 && !codeFromUrl)) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center">
-        <p className="text-muted-foreground">Cargando...</p>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   return (
@@ -214,13 +209,7 @@ function GroupOnboardingContent() {
 
 export default function GroupOnboardingPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-dvh flex items-center justify-center">
-          <p className="text-muted-foreground">Cargando...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingFallback />}>
       <GroupOnboardingContent />
     </Suspense>
   );
