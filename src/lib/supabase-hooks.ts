@@ -46,9 +46,10 @@ function getSupabase() {
 
 export function useGroups(initialData?: Group[]): { groups: Group[]; loaded: boolean } {
   const { refreshKey } = useDataRefresh();
+  const hasInitialData = (initialData?.length ?? 0) > 0;
   const [groups, setGroups] = useState<Group[]>(initialData ?? []);
-  const [loaded, setLoaded] = useState(!!initialData);
-  const skipInitialFetch = useRef(!!initialData);
+  const [loaded, setLoaded] = useState(hasInitialData);
+  const skipInitialFetch = useRef(hasInitialData);
 
   useEffect(() => {
     if (skipInitialFetch.current) {
