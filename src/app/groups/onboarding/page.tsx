@@ -185,15 +185,13 @@ function GroupOnboardingContent() {
         )}
 
         <div className="flex flex-col items-center gap-3 pt-4">
-          {groups.length > 0 && (
-            <Link
-              href="/"
-              className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Home className="size-3.5" />
-              Ir a Inicio
-            </Link>
-          )}
+          <Link
+            href="/"
+            className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Home className="size-3.5" />
+            Ir a Inicio
+          </Link>
           <button
             onClick={async () => { await signOut(); router.replace("/login"); }}
             className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
