@@ -20,6 +20,19 @@ export function buildPlayerMap(players: Player[]): Map<PlayerId, Player> {
   return new Map(players.map((p) => [p.id, p]));
 }
 
+export function applyScoreDelta(
+  sets: MatchSet[],
+  team: 1 | 2,
+  delta: number
+): MatchSet[] {
+  const base = sets.length ? sets : [{ team1Score: 0, team2Score: 0 }];
+  const last = base.length - 1;
+  const field = team === 1 ? "team1Score" : "team2Score";
+  return base.map((s, i) =>
+    i === last ? { ...s, [field]: Math.max(0, s[field] + delta) } : s
+  );
+}
+
 export const dateFormatter = new Intl.DateTimeFormat("es-ES", {
   weekday: "long",
   day: "numeric",
