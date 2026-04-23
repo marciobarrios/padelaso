@@ -17,11 +17,12 @@ import {
   createMatchScoreToken,
   revokeMatchScoreToken,
   fetchActiveMatchScoreToken,
-  updateMatch,
+  incrementMatchScore,
   addMatchEvent,
   type MatchScoreToken,
 } from "@/lib/supabase-mutations";
-import { applyScoreDelta, buildPlayerMap } from "@/lib/utils";
+import { buildPlayerMap } from "@/lib/utils";
+import { createClient } from "@/lib/supabase";
 import { EVENT_CONFIGS } from "@/lib/event-config";
 import { MatchSet, MatchEventType } from "@/lib/types";
 
@@ -288,38 +289,89 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   const { players } = usePlayers(activeGroup?.id);
   const { refresh } = useDataRefresh();
   const [busy, setBusy] = useState(false);
+  // Optimistic override: seeded from RPC responses so the UI reflects the
+  // new score immediately. Cleared whenever the fetched match.sets changes,
+  // so the server stays source of truth after Realtime/refresh round-trips.
+  const [optimisticSets, setOptimisticSets] = useState<MatchSet[] | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
+  // Wake Lock: auto-released whenever the document hides (tab switch,
+  // incoming call, screen off). Re-request on visibilitychange so the
+  // screen stays on across interruptions.
   useEffect(() => {
     async function acquire() {
       try {
-        if ("wakeLock" in navigator) {
-          wakeLockRef.current = await navigator.wakeLock.request("screen");
+        if (
+          "wakeLock" in navigator &&
+          document.visibilityState === "visible" &&
+          !wakeLockRef.current
+        ) {
+          const lock = await navigator.wakeLock.request("screen");
+          wakeLockRef.current = lock;
+          lock.addEventListener("release", () => {
+            if (wakeLockRef.current === lock) wakeLockRef.current = null;
+          });
         }
       } catch {
-        // Screen stays on only as long as the OS agrees; not critical if it fails.
+        // Non-critical; OS / browser may deny under low battery etc.
       }
     }
     acquire();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") acquire();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
       wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
     };
   }, []);
+
+  // Realtime: score can change from another device (Siri Shortcut, another
+  // tab). Subscribe to UPDATE on this match row so the pinned view stays
+  // in sync without manual refresh.
+  useEffect(() => {
+    const client = createClient();
+    const channel = client
+      .channel(`pinned:${matchId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "matches",
+          filter: `id=eq.${matchId}`,
+        },
+        () => refresh()
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [matchId, refresh]);
+
+  // Reconcile optimistic state back to the server's view whenever the
+  // fetched match changes.
+  useEffect(() => {
+    if (match?.sets) setOptimisticSets(null);
+  }, [match?.sets]);
 
   const playerMap = useMemo(() => buildPlayerMap(players), [players]);
 
   if (!match) return null;
 
-  const sets: MatchSet[] = match.sets.length
-    ? match.sets
-    : [{ team1Score: 0, team2Score: 0 }];
-  const currentSet = sets[sets.length - 1];
+  const effectiveSets: MatchSet[] =
+    optimisticSets ??
+    (match.sets.length ? match.sets : [{ team1Score: 0, team2Score: 0 }]);
+  const currentSet = effectiveSets[effectiveSets.length - 1];
 
   async function adjust(team: 1 | 2, delta: number) {
-    if (!match) return;
+    if (!match || busy) return;
     setBusy(true);
     try {
-      await updateMatch(match.id, { sets: applyScoreDelta(sets, team, delta) });
+      const updated = await incrementMatchScore(match.id, team, delta);
+      setOptimisticSets(updated);
       refresh();
     } finally {
       setBusy(false);
@@ -327,12 +379,12 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   }
 
   async function addSet() {
-    if (!match) return;
+    if (!match || busy) return;
     setBusy(true);
     try {
-      await updateMatch(match.id, {
-        sets: [...sets, { team1Score: 0, team2Score: 0 }],
-      });
+      // Append an empty set by passing newSet=true with a no-op delta.
+      const updated = await incrementMatchScore(match.id, 1, 0, true);
+      setOptimisticSets(updated);
       refresh();
     } finally {
       setBusy(false);
@@ -346,7 +398,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
     <div className="fixed inset-0 bg-background flex flex-col select-none">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <span className="text-xs text-muted-foreground font-medium">
-          Set {sets.length}
+          Set {effectiveSets.length}
         </span>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={addSet} disabled={busy}>
@@ -387,7 +439,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
       </div>
 
       <div className="border-t border-border px-4 py-2 flex items-center justify-center gap-3 text-sm text-muted-foreground tabular-nums">
-        {sets.map((s, i) => (
+        {effectiveSets.map((s, i) => (
           <span key={i}>
             {s.team1Score}-{s.team2Score}
           </span>

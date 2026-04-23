@@ -210,6 +210,26 @@ export async function updateMatch(
   if (error) throw error;
 }
 
+// Atomic increment that row-locks the match in Postgres, so concurrent
+// writes (pinned scorer + Apple Watch Shortcut) never step on each other.
+// Returns the updated sets array from the server so callers can seed
+// optimistic state without another round-trip.
+export async function incrementMatchScore(
+  matchId: MatchId,
+  team: 1 | 2,
+  delta: number,
+  newSet = false
+): Promise<MatchSet[]> {
+  const { data, error } = await supabase().rpc("increment_match_score", {
+    p_match_id: matchId,
+    p_team: team,
+    p_delta: delta,
+    p_new_set: newSet,
+  });
+  if (error) throw error;
+  return data as MatchSet[];
+}
+
 export async function deleteMatch(matchId: MatchId) {
   // match_events will cascade delete via FK
   const { error } = await supabase()

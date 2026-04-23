@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { MatchSet } from "@/lib/types";
-import { applyScoreDelta } from "@/lib/utils";
 import { extractToken, verifyScoreToken } from "../_token";
 
 export const runtime = "nodejs";
@@ -41,29 +40,21 @@ export async function POST(
   }
 
   const admin = createAdminSupabaseClient();
-  const { data: match } = await admin
-    .from("matches")
-    .select("sets")
-    .eq("id", matchId)
-    .maybeSingle();
-  if (!match) {
-    return Response.json({ error: "Match not found" }, { status: 404 });
-  }
-
-  const currentSets: MatchSet[] = Array.isArray(match.sets) ? (match.sets as MatchSet[]) : [];
-  const withNewSet = body.newSet
-    ? [...currentSets, { team1Score: 0, team2Score: 0 }]
-    : currentSets;
-  const updatedSets = applyScoreDelta(withNewSet, team, delta);
-
-  const { error } = await admin
-    .from("matches")
-    .update({ sets: updatedSets })
-    .eq("id", matchId);
+  // Atomic increment via Postgres RPC with SELECT ... FOR UPDATE — the DB
+  // serializes concurrent writes (pinned scorer + Siri Shortcut), so we
+  // never lose a point to a read-modify-write race.
+  const { data, error } = await admin.rpc("increment_match_score", {
+    p_match_id: matchId,
+    p_team: team,
+    p_delta: delta,
+    p_new_set: body.newSet ?? false,
+  });
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    const status = error.code === "P0002" ? 404 : 500;
+    return Response.json({ error: error.message }, { status });
   }
 
+  const updatedSets = data as MatchSet[];
   const last = updatedSets[updatedSets.length - 1];
   return Response.json({
     sets: updatedSets,
