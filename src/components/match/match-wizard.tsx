@@ -9,11 +9,12 @@ import { TeamPicker } from "./team-picker";
 import { ScoreInput } from "./score-input";
 import { EventGrid } from "@/components/events/event-grid";
 import { PlayerEventPicker } from "@/components/events/player-event-picker";
+import { ShortcutHowTo } from "@/components/match/shortcut-how-to";
 import { createMatch } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useDataRefresh } from "@/lib/supabase-hooks";
 import { cn } from "@/lib/utils";
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Radio } from "lucide-react";
 import { getEventConfig } from "@/lib/event-config";
 
 const STEPS = [
@@ -118,6 +119,29 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
     );
     refresh();
     router.replace(`/matches/${matchId}`);
+  }
+
+  // Create the match with an empty scoreboard. The "pinned" variant jumps
+  // into the big-button scorer; the "watch" variant goes to the setup page
+  // so the user can mint a token and copy the Shortcut URLs before the
+  // first point.
+  const canStartLive = team1.length === 2 && team2.length === 2;
+  async function startLiveMatch(destination: "pinned" | "watch") {
+    if (!user || !canStartLive) return;
+    const matchId = await createMatch(
+      team1,
+      team2,
+      [{ team1Score: 0, team2Score: 0 }],
+      user.id,
+      pendingEvents,
+      groupId
+    );
+    refresh();
+    router.replace(
+      destination === "pinned"
+        ? `/matches/${matchId}/scorekeeper?pinned=1`
+        : `/matches/${matchId}/scorekeeper`
+    );
   }
 
   // Navigation
@@ -225,6 +249,34 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
               <span className="text-orange-500">Equipo 2</span>
             </div>
             <ScoreInput sets={sets} onChange={setSets} />
+            <div className="pt-2 space-y-2">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => startLiveMatch("pinned")}
+                disabled={!canStartLive}
+              >
+                <Radio className="size-4 mr-2" />
+                Empezar partido en vivo
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Salta directo al scorer en pantalla grande y mete los puntos mientras jugáis.
+              </p>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => startLiveMatch("watch")}
+                disabled={!canStartLive}
+              >
+                ⌚ Configurar Apple Watch y Siri
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Crea el partido y te lleva al scorekeeper donde podrás generar el token y copiar la URL para tu Shortcut.
+              </p>
+            </div>
+            <div className="pt-4">
+              <ShortcutHowTo />
+            </div>
           </div>
         )}
 

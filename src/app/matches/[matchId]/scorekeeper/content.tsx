@@ -9,8 +9,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ShortcutHowTo } from "@/components/match/shortcut-how-to";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useMatch, usePlayers, useDataRefresh } from "@/lib/db-hooks";
+import { useMatch, usePlayers, useDataRefresh, useAllMatchEvents } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import {
   createMatchScoreToken,
@@ -21,17 +22,8 @@ import {
   type MatchScoreToken,
 } from "@/lib/supabase-mutations";
 import { applyScoreDelta, buildPlayerMap } from "@/lib/utils";
-import { EVENT_MAP } from "@/lib/event-config";
+import { EVENT_CONFIGS } from "@/lib/event-config";
 import { MatchSet, MatchEventType } from "@/lib/types";
-
-const QUICK_EVENT_TYPES: MatchEventType[] = [
-  "ace",
-  "vibora",
-  "bandeja",
-  "bola_fuera",
-  "puntazo",
-  "doble_falta",
-];
 
 export function ScorekeeperContent({
   matchId,
@@ -199,40 +191,7 @@ function SetupView({ matchId }: { matchId: string }) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-5 space-y-3 text-sm">
-            <h2 className="font-heading text-lg font-bold">📋 Cómo montar la Shortcut</h2>
-            <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
-              <li>Abre la app <strong>Atajos</strong> en tu iPhone.</li>
-              <li>
-                Crea una nueva shortcut → acción{" "}
-                <strong>Obtener contenidos de URL</strong>.
-              </li>
-              <li>Pega la URL &ldquo;Sumar punto&rdquo; de arriba.</li>
-              <li>
-                Método: <strong>POST</strong>. Cabecera{" "}
-                <code>Content-Type: application/json</code>. Cuerpo (JSON):
-                <pre className="mt-1 p-2 rounded bg-muted text-xs overflow-x-auto">
-                  {`{"team":1}`}
-                </pre>
-                (usa <code>2</code> para el otro equipo).
-              </li>
-              <li>
-                Ponle nombre: <em>&ldquo;Punto equipo uno&rdquo;</em>. Activa{" "}
-                <strong>Añadir a Siri</strong>.
-              </li>
-              <li>
-                Desde tu Apple Watch di <em>&ldquo;Oye Siri, punto equipo
-                uno&rdquo;</em>. El resultado se actualiza en vivo para todos.
-              </li>
-            </ol>
-            <p className="text-xs text-muted-foreground pt-2">
-              Atajo extra: <code>{"{\"team\":1,\"newSet\":true}"}</code> abre un
-              nuevo set. <code>{"{\"team\":1,\"delta\":-1}"}</code> deshace un
-              punto.
-            </p>
-          </CardContent>
-        </Card>
+        <ShortcutHowTo />
       </div>
     </MobileShell>
   );
@@ -358,19 +317,20 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   return (
     <div className="fixed inset-0 bg-background flex flex-col select-none">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(`/matches/${matchId}/scorekeeper`)}
-        >
-          Salir
-        </Button>
         <span className="text-xs text-muted-foreground font-medium">
-          Set {sets.length} — pantalla activa
+          Set {sets.length}
         </span>
-        <Button variant="ghost" size="sm" onClick={addSet} disabled={busy}>
-          + Set
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={addSet} disabled={busy}>
+            + Set
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => router.replace(`/matches/${matchId}`)}
+          >
+            Listo
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 grid grid-cols-2 gap-1 p-1">
@@ -484,6 +444,7 @@ function QuickEventRow({ matchId }: { matchId: string }) {
   const { match } = useMatch(matchId);
   const { activeGroup } = useGroup();
   const { players } = usePlayers(activeGroup?.id);
+  const { events: groupEvents } = useAllMatchEvents(activeGroup?.id);
   const { refresh } = useDataRefresh();
   const [selecting, setSelecting] = useState<MatchEventType | null>(null);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
@@ -493,10 +454,22 @@ function QuickEventRow({ matchId }: { matchId: string }) {
     if (lastAddedTimerRef.current) clearTimeout(lastAddedTimerRef.current);
   }, []);
 
-  const quickEvents = useMemo(
-    () => QUICK_EVENT_TYPES.map((type) => EVENT_MAP.get(type)!),
-    []
-  );
+  // All events, sorted by global usage in this group. Never-used events
+  // keep their original config order as a stable tie-breaker, so the row
+  // stays predictable until real data accumulates.
+  const sortedEvents = useMemo(() => {
+    const count = new Map<MatchEventType, number>();
+    for (const e of groupEvents) {
+      count.set(e.type, (count.get(e.type) ?? 0) + 1);
+    }
+    return EVENT_CONFIGS.map((config, i) => ({
+      ...config,
+      count: count.get(config.type) ?? 0,
+      originalIndex: i,
+    })).sort((a, b) =>
+      b.count !== a.count ? b.count - a.count : a.originalIndex - b.originalIndex
+    );
+  }, [groupEvents]);
 
   const matchPlayers = useMemo(() => {
     if (!match) return [];
@@ -541,15 +514,16 @@ function QuickEventRow({ matchId }: { matchId: string }) {
         </div>
       ) : (
         <div className="flex items-center gap-1 overflow-x-auto">
-          {quickEvents.map((e) => (
+          {sortedEvents.map((e) => (
             <Button
               key={e.type}
               variant={lastAdded === e.type ? "default" : "outline"}
               size="sm"
               onClick={() => setSelecting(e.type)}
+              className="shrink-0"
             >
               <span className="mr-1">{e.emoji}</span>
-              <span className="text-xs">{e.label}</span>
+              <span className="text-xs whitespace-nowrap">{e.label}</span>
             </Button>
           ))}
         </div>
