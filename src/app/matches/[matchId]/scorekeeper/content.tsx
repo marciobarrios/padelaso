@@ -156,11 +156,17 @@ function SetupView({ matchId }: { matchId: string }) {
               </Button>
             ) : token ? (
               <div className="space-y-3">
-                <TokenBlock label="Sumar punto" url={scoreUrl} body='{"team":1}' />
                 <TokenBlock
-                  label="Registrar evento"
+                  label="Sumar punto — usa ésta para los Shortcuts"
+                  url={scoreUrl}
+                  body='{"team":1}'
+                  hint="Copia la URL y pégala en tu Shortcut. El método POST, la cabecera Content-Type y el cuerpo JSON se configuran dentro del Shortcut, no van en la URL."
+                />
+                <TokenBlock
+                  label="Registrar evento (opcional)"
                   url={eventsUrl}
                   body='{"playerId":"<UUID>","type":"vibora"}'
+                  hint="Sólo si quieres registrar eventos (víbora, bandeja, ace…) por voz. Necesitas el UUID del jugador — lo encuentras en la URL al abrir su perfil."
                 />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>
@@ -201,24 +207,26 @@ function TokenBlock({
   label,
   url,
   body,
+  hint,
 }: {
   label: string;
   url: string;
   body: string;
+  hint?: string;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"url" | "curl" | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sample = `curl -X POST '${url}' -H 'Content-Type: application/json' -d '${body}'`;
+  const curl = `curl -X POST '${url}' -H 'Content-Type: application/json' -d '${body}'`;
 
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
   }, []);
 
-  async function copy() {
-    await navigator.clipboard.writeText(sample);
-    setCopied(true);
+  async function copyText(value: string, which: "url" | "curl") {
+    await navigator.clipboard.writeText(value);
+    setCopied(which);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setCopied(false), 1500);
+    timerRef.current = setTimeout(() => setCopied(null), 1500);
   }
 
   return (
@@ -227,24 +235,44 @@ function TokenBlock({
         {label}
       </div>
       <pre className="p-2 rounded bg-muted text-xs overflow-x-auto whitespace-pre-wrap break-all">
-        {sample}
+        {curl}
       </pre>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={copy}
-        className="w-full"
-      >
-        {copied ? (
-          <>
-            <Check className="size-3.5 mr-1.5" /> Copiado
-          </>
-        ) : (
-          <>
-            <Copy className="size-3.5 mr-1.5" /> Copiar curl
-          </>
-        )}
-      </Button>
+      {hint && (
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      )}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={() => copyText(url, "url")}
+          className="flex-1"
+        >
+          {copied === "url" ? (
+            <>
+              <Check className="size-3.5 mr-1.5" /> Copiado
+            </>
+          ) : (
+            <>
+              <Copy className="size-3.5 mr-1.5" /> Copiar URL (Shortcut)
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => copyText(curl, "curl")}
+          className="flex-1"
+        >
+          {copied === "curl" ? (
+            <>
+              <Check className="size-3.5 mr-1.5" /> Copiado
+            </>
+          ) : (
+            <>
+              <Copy className="size-3.5 mr-1.5" /> Copiar curl (terminal)
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }
