@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
 import { DataContext } from "@/lib/supabase-hooks";
@@ -34,7 +34,8 @@ export function AuthProvider({
   const [user, setUser] = useState<User | null>(initialUser);
   const loading = false;
   const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = () => setRefreshKey((k) => k + 1);
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const dataValue = useMemo(() => ({ refreshKey, refresh }), [refreshKey, refresh]);
 
   async function ensureProfile(u: User) {
     await supabase.from("profiles").upsert(
@@ -80,7 +81,7 @@ export function AuthProvider({
 
   return (
     <AuthContext value={{ user, loading, signInWithGoogle, signOut }}>
-      <DataContext value={{ refreshKey, refresh }}>
+      <DataContext value={dataValue}>
         <GroupProvider
           initialGroups={initialGroups}
           initialActiveGroupId={initialActiveGroupId}

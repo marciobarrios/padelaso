@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Monitor, Palette } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Drawer,
   DrawerClose,
@@ -15,6 +16,15 @@ import { THEME_OPTIONS, type ThemeOption } from "./themes";
 
 export function ThemeSwitcher() {
   const { preference, setPreference } = useTheme();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Hide the floating trigger while the pinned scorer is active — it
+  // overlays the full-screen scoreboard and distracts during a live match.
+  const inPinnedScorer =
+    pathname?.endsWith("/scorekeeper") === true &&
+    searchParams.get("pinned") === "1";
+  if (inPinnedScorer) return null;
 
   return (
     <Drawer>

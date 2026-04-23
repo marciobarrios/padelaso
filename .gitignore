@@ -42,3 +42,8 @@ supabase/.temp/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code (per-machine runtime state; leave shared config trackable)
+.claude/*.lock
+.claude/.session.json
+.claude/settings.local.json

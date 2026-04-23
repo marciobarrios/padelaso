@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Radio } from "lucide-react";
 import { EventFeed } from "@/components/events/event-feed";
 import { useMatch, useMatchEvents, useMatchVotes, usePlayers, useDataRefresh } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { addMatchEvent, removeMatchEvent, deleteMatch } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
+import { createClient } from "@/lib/supabase";
 import { MatchEventType, MatchEventId } from "@/lib/types";
 import { buildPlayerMap, getSetWins } from "@/lib/utils";
 import { MatchVoting } from "@/components/match/match-voting";
@@ -50,6 +52,27 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   const [deleteMounted, setDeleteMounted] = useState(false);
   const [addingEvents, setAddingEvents] = useState(false);
   const [pickerEventType, setPickerEventType] = useState<MatchEventType | null>(null);
+
+  useEffect(() => {
+    const client = createClient();
+    const channel = client
+      .channel(`match-live:${matchId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
+        () => refresh()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "match_events", filter: `match_id=eq.${matchId}` },
+        () => refresh()
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [matchId, refresh]);
 
   async function handleAddEvent(playerId: string) {
     if (!pickerEventType || !user) return;
@@ -97,6 +120,13 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
         back
         action={
           <div className="flex gap-1">
+            {user?.id === match.createdBy && (
+              <Link href={`/matches/${matchId}/scorekeeper`}>
+                <Button variant="ghost" size="icon" aria-label="Scorekeeper">
+                  <Radio className="size-4" />
+                </Button>
+              </Link>
+            )}
             <Button
               variant="ghost"
               size="icon"
