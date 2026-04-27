@@ -5,147 +5,116 @@ import { Card, CardContent } from "@/components/ui/card";
 export function ShortcutHowTo() {
   return (
     <Card>
-      <CardContent className="p-5 space-y-3 text-sm">
-        <h2 className="font-heading text-lg font-bold">
-          📋 Cómo montar la Shortcut
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Necesitas <strong>2 Shortcuts</strong>: una por equipo. Configúralos
-          una vez y se reutilizan en todos tus partidos (basta con pegar la
-          URL nueva cada vez).
-        </p>
-
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
-            1. Shortcut &ldquo;Punto equipo uno&rdquo;
+      <CardContent className="p-5 space-y-4 text-sm">
+        <div className="space-y-1">
+          <h2 className="font-heading text-lg font-bold">
+            📋 Cómo montar la Shortcut
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Una vez la primera vez. Después, sólo pegas la URL nueva al
+            regenerar el token de cada partido.
           </p>
-          <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
+        </div>
+
+        <section className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            1 · Atajo &ldquo;Punto equipo uno&rdquo;
+          </p>
+          <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground marker:text-foreground/60">
             <li>
-              Abre <strong>Atajos</strong> en tu iPhone → nueva shortcut →
+              iPhone → <strong>Atajos</strong> → <strong>+</strong> nuevo →
               acción <strong>Obtener contenidos de URL</strong>.
             </li>
             <li>
-              <strong>URL</strong>: pega la URL del botón{" "}
-              <em>&ldquo;Copiar URL (Shortcut)&rdquo;</em> de arriba (ya
-              incluye el token como query param).
+              <strong>URL</strong>: pega lo que copiaste con{" "}
+              <em>Copiar URL (Shortcut)</em>.
             </li>
             <li>
-              Abre <strong>Mostrar más</strong> en la acción:
-              <ul className="list-disc list-inside ml-4 mt-1 space-y-0.5">
+              Toca <strong>Mostrar más</strong> y deja la acción así:
+              <ul className="mt-1.5 ml-4 space-y-1 text-xs">
                 <li>
-                  <strong>Método</strong>: <code>POST</code>
+                  <code className="text-foreground">Método</code> ·{" "}
+                  <code>POST</code>
                 </li>
                 <li>
-                  <strong>Cabeceras</strong>:{" "}
-                  <code>Content-Type: application/json</code>
+                  <code className="text-foreground">Cabeceras</code> ·{" "}
+                  <code>Content-Type</code> = <code>application/json</code>
                 </li>
                 <li>
-                  <strong>Cuerpo de la solicitud</strong>: selecciona{" "}
-                  <em>JSON</em> y añade el campo{" "}
-                  <code>team</code> con el valor numérico <code>1</code>.
+                  <code className="text-foreground">Cuerpo</code> · tipo{" "}
+                  <em>JSON</em>, campo <code>team</code> con valor{" "}
+                  <code>1</code> (Número).
                 </li>
               </ul>
             </li>
             <li>
-              Arriba del todo ponle el nombre{" "}
-              <em>&ldquo;Punto equipo uno&rdquo;</em> y activa{" "}
-              <strong>Añadir a Siri</strong> con esa frase.
+              Arriba ponle el nombre <em>&ldquo;Punto equipo uno&rdquo;</em> y
+              activa <strong>Añadir a Siri</strong> con esa misma frase.
             </li>
           </ol>
-        </div>
+        </section>
 
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
-            2. Shortcut &ldquo;Punto equipo dos&rdquo;
-          </p>
-          <ol
-            className="list-decimal list-inside space-y-1.5 text-muted-foreground"
-            start={5}
-          >
-            <li>
-              Desde la lista de Shortcuts, mantén pulsada la del equipo 1 →{" "}
-              <strong>Duplicar</strong>.
-            </li>
-            <li>
-              Abre la copia y cambia sólo el cuerpo:{" "}
-              <code>team</code> = <code>2</code>. Renómbrala a{" "}
-              <em>&ldquo;Punto equipo dos&rdquo;</em> y actualiza la frase de
-              Siri.
-            </li>
-          </ol>
-        </div>
-
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
-            3. Úsala desde el Apple Watch
+        <section className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            2 · Atajo &ldquo;Punto equipo dos&rdquo;
           </p>
           <p className="text-muted-foreground">
-            Di <em>&ldquo;Oye Siri, punto equipo uno&rdquo;</em>. El resultado
-            se actualiza en vivo para todos los que miran el partido.
+            Mantén pulsado el atajo anterior → <strong>Duplicar</strong>. En la
+            copia cambia <code>team</code> a <code>2</code>, renómbralo{" "}
+            <em>&ldquo;Punto equipo dos&rdquo;</em> y vuelve a activar Siri.
           </p>
-        </div>
+        </section>
 
-        <p className="text-xs text-muted-foreground pt-2">
-          <strong>Extras opcionales</strong> (duplica más Shortcuts): para
-          abrir un set nuevo añade <code>newSet = true</code> al cuerpo; para
-          deshacer un punto usa <code>delta = -1</code>.
-        </p>
+        <section className="space-y-1.5 pt-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            3 · Úsalo
+          </p>
+          <p className="text-muted-foreground">
+            Di <em>&ldquo;Oye Siri, punto equipo uno&rdquo;</em> desde iPhone,
+            Watch o AirPods. El marcador se actualiza en vivo para todos.
+          </p>
+        </section>
 
-        <div className="pt-3 border-t border-border">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
-            4. Shortcut para eventos (opcional)
+        <section className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+          <p className="font-medium text-foreground">Extras opcionales</p>
+          <p>
+            En el cuerpo JSON de cualquier copia: <code>delta</code> ={" "}
+            <code>-1</code> deshace un punto, <code>newSet</code> ={" "}
+            <code>true</code> abre un set nuevo.
           </p>
-          <p className="text-xs text-muted-foreground mb-2">
-            Si quieres gritarle a Siri <em>&ldquo;víbora Marcio&rdquo;</em>{" "}
-            mientras juegas, puedes montar una Shortcut por cada combinación
-            habitual de jugador + evento. La URL de eventos y el UUID del
-            jugador los encuentras en el scorekeeper.
-          </p>
-          <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
-            <li>
-              Copia la URL del bloque{" "}
-              <em>&ldquo;Registrar evento&rdquo;</em> de arriba.
-            </li>
-            <li>
-              Consigue el <strong>UUID</strong> del jugador: en la app, abre
-              su perfil — el UUID está en la URL después de{" "}
-              <code>/players/</code>.
-            </li>
-            <li>
-              Nueva shortcut → <strong>Obtener contenidos de URL</strong> →
-              pega la URL. En <strong>Mostrar más</strong>:
-              <ul className="list-disc list-inside ml-4 mt-1 space-y-0.5">
-                <li>
-                  <strong>Método</strong>: <code>POST</code>
-                </li>
-                <li>
-                  <strong>Cabeceras</strong>:{" "}
-                  <code>Content-Type: application/json</code>
-                </li>
-                <li>
-                  <strong>Cuerpo</strong> (JSON): campo{" "}
-                  <code>playerId</code> con el UUID del jugador y campo{" "}
-                  <code>type</code> con el nombre del evento (por ejemplo{" "}
-                  <code>vibora</code>, <code>ace</code>,{" "}
-                  <code>bandeja</code>, <code>bola_fuera</code>…).
-                </li>
-              </ul>
-            </li>
-            <li>
-              Renómbrala (p. ej. <em>&ldquo;Víbora Marcio&rdquo;</em>) y
-              actívala con <strong>Añadir a Siri</strong>.
-            </li>
-            <li>
-              Para más combinaciones: duplica la shortcut y cambia sólo el{" "}
-              <code>playerId</code> o el <code>type</code>.
-            </li>
-          </ol>
-          <p className="text-xs text-muted-foreground pt-2">
-            <strong>Alternativa más rápida</strong>: registra los eventos
-            desde el scorer en pantalla grande — la fila inferior tiene los
-            26 eventos ordenados por los más usados por tu grupo.
-          </p>
-        </div>
+        </section>
+
+        <details className="group border-t border-border pt-3">
+          <summary className="cursor-pointer text-xs font-medium uppercase tracking-wider text-muted-foreground select-none">
+            Atajo para eventos por voz (avanzado)
+          </summary>
+          <div className="space-y-2 pt-2 text-muted-foreground">
+            <p>
+              Para gritarle <em>&ldquo;víbora Marcio&rdquo;</em> a Siri,
+              necesitas un atajo por combinación habitual de jugador + evento.
+              Misma receta que arriba con dos diferencias:
+            </p>
+            <ul className="ml-4 space-y-1 text-xs">
+              <li>
+                <strong>URL</strong>: la del bloque{" "}
+                <em>Registrar evento</em>.
+              </li>
+              <li>
+                <strong>Cuerpo</strong> (JSON):{" "}
+                <code>playerId</code> con el UUID del jugador (lo ves en la URL
+                al abrir su perfil, después de <code>/players/</code>) y{" "}
+                <code>type</code> con el nombre del evento (
+                <code>vibora</code>, <code>ace</code>, <code>bandeja</code>,{" "}
+                <code>bola_fuera</code>…).
+              </li>
+            </ul>
+            <p className="text-xs">
+              Duplica el atajo para cada combinación. Si prefieres no montar
+              tantos, registra los eventos desde el scorer en pantalla grande:
+              la fila inferior tiene los 26 eventos ordenados por uso.
+            </p>
+          </div>
+        </details>
       </CardContent>
     </Card>
   );
