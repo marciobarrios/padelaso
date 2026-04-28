@@ -136,7 +136,7 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
       groupId
     );
     refresh();
-    router.replace(
+    router.push(
       destination === "pinned"
         ? `/matches/${matchId}/scorekeeper?pinned=1`
         : `/matches/${matchId}/scorekeeper`
