@@ -1,21 +1,15 @@
 import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { MatchSet } from "@/lib/types";
-import { extractToken, verifyScoreToken } from "../_token";
+import { requireActiveMatch } from "../_token";
+import { resolvePlayerNames } from "../_match";
 
 export const runtime = "nodejs";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ matchId: string }> }
-) {
-  const { matchId } = await params;
-
-  const token = extractToken(request);
-  const verified = await verifyScoreToken(matchId, token);
-  if (!verified) {
-    return Response.json({ error: "Invalid or expired token" }, { status: 401 });
-  }
+export async function GET(request: NextRequest) {
+  const auth = await requireActiveMatch(request);
+  if (auth instanceof Response) return auth;
+  const { matchId } = auth;
 
   const admin = createAdminSupabaseClient();
   const { data: match } = await admin
@@ -32,17 +26,11 @@ export async function GET(
   const team1Ids = match.team1 as string[];
   const team2Ids = match.team2 as string[];
 
-  const { data: players } = await admin
-    .from("players")
-    .select("id, name")
-    .in("id", [...team1Ids, ...team2Ids]);
-
-  const nameById = new Map<string, string>(
-    (players ?? []).map((p) => [p.id as string, p.name as string])
-  );
+  const nameById = await resolvePlayerNames(admin, [...team1Ids, ...team2Ids]);
   const resolveNames = (ids: string[]) => ids.map((id) => nameById.get(id) ?? "?");
 
   return Response.json({
+    match: { id: matchId },
     sets,
     score: lastSet ? `${lastSet.team1Score}-${lastSet.team2Score}` : "0-0",
     setsSpoken: sets.map((s) => `${s.team1Score}-${s.team2Score}`).join(", "),

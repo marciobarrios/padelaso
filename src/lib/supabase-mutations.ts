@@ -1,5 +1,5 @@
 import { createClient } from "./supabase";
-import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group, VoteType } from "./types";
+import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group, VoteType, ScoreToken } from "./types";
 
 // Lazy-initialized client — avoids creation at module-evaluation time
 let _supabase: ReturnType<typeof createClient>;
@@ -298,59 +298,102 @@ export async function removeMatchVote(
   if (error) throw error;
 }
 
-// ---------- Match Score Tokens ----------
+// ---------- Score Tokens ----------
 
-export interface MatchScoreToken {
+const TOKEN_VALIDITY_DAYS = 30;
+const TOKEN_COLUMNS =
+  "token, current_match_id, expires_at, created_at, rotated_at";
+
+interface ScoreTokenRow {
   token: string;
-  matchId: MatchId;
-  expiresAt: string;
+  current_match_id: string | null;
+  expires_at: string;
+  created_at: string;
+  rotated_at: string | null;
 }
 
-export async function createMatchScoreToken(
-  matchId: MatchId,
+function newExpiry(): string {
+  return new Date(
+    Date.now() + TOKEN_VALIDITY_DAYS * 24 * 3600_000
+  ).toISOString();
+}
+
+function mapScoreToken(row: ScoreTokenRow): ScoreToken {
+  return {
+    token: row.token,
+    currentMatchId: row.current_match_id,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+    rotatedAt: row.rotated_at,
+  };
+}
+
+export async function createScoreToken(
   userId: string,
-  hoursValid = 4
-): Promise<MatchScoreToken> {
+  matchId: MatchId
+): Promise<ScoreToken> {
   const token = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + hoursValid * 3600_000).toISOString();
-  const { error } = await supabase()
-    .from("match_score_tokens")
+  const { data, error } = await supabase()
+    .from("score_tokens")
     .insert({
       token,
-      match_id: matchId,
       created_by: userId,
-      expires_at: expiresAt,
-    });
+      current_match_id: matchId,
+      expires_at: newExpiry(),
+    })
+    .select(TOKEN_COLUMNS)
+    .single();
   if (error) throw error;
-  return { token, matchId, expiresAt };
+  return mapScoreToken(data);
 }
 
-export async function revokeMatchScoreToken(token: string) {
+export async function rotateScoreToken(userId: string): Promise<ScoreToken> {
+  const newToken = crypto.randomUUID();
+  const { data, error } = await supabase()
+    .from("score_tokens")
+    .update({
+      token: newToken,
+      expires_at: newExpiry(),
+      rotated_at: new Date().toISOString(),
+    })
+    .eq("created_by", userId)
+    .select(TOKEN_COLUMNS)
+    .single();
+  if (error) throw error;
+  return mapScoreToken(data);
+}
+
+export async function revokeScoreToken(userId: string) {
   const { error } = await supabase()
-    .from("match_score_tokens")
+    .from("score_tokens")
     .delete()
-    .eq("token", token);
+    .eq("created_by", userId);
   if (error) throw error;
 }
 
-export async function fetchActiveMatchScoreToken(
+export async function repointScoreToken(
+  userId: string,
   matchId: MatchId
-): Promise<MatchScoreToken | null> {
-  const nowIso = new Date().toISOString();
-  const { data } = await supabase()
-    .from("match_score_tokens")
-    .select("token, match_id, expires_at")
-    .eq("match_id", matchId)
-    .gt("expires_at", nowIso)
-    .order("expires_at", { ascending: false })
-    .limit(1)
+): Promise<ScoreToken | null> {
+  const { data, error } = await supabase()
+    .from("score_tokens")
+    .update({ current_match_id: matchId })
+    .eq("created_by", userId)
+    .select(TOKEN_COLUMNS)
     .maybeSingle();
-  if (!data) return null;
-  return {
-    token: data.token as string,
-    matchId: data.match_id as string,
-    expiresAt: data.expires_at as string,
-  };
+  if (error) throw error;
+  return data ? mapScoreToken(data) : null;
+}
+
+export async function fetchUserScoreToken(
+  userId: string
+): Promise<ScoreToken | null> {
+  const { data } = await supabase()
+    .from("score_tokens")
+    .select(TOKEN_COLUMNS)
+    .eq("created_by", userId)
+    .maybeSingle();
+  return data ? mapScoreToken(data) : null;
 }
 
 // ---------- Player-Account Linking ----------

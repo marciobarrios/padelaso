@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { EVENT_CONFIGS } from "@/lib/event-config";
 import { MatchEventType } from "@/lib/types";
-import { extractToken, verifyScoreToken } from "../_token";
+import { requireActiveMatch } from "../_token";
+import { fetchMatchTeams } from "../_match";
 
 export const runtime = "nodejs";
 
@@ -13,17 +14,10 @@ interface EventRequestBody {
   type?: MatchEventType;
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ matchId: string }> }
-) {
-  const { matchId } = await params;
-
-  const token = extractToken(request);
-  const verified = await verifyScoreToken(matchId, token);
-  if (!verified) {
-    return Response.json({ error: "Invalid or expired token" }, { status: 401 });
-  }
+export async function POST(request: NextRequest) {
+  const auth = await requireActiveMatch(request);
+  if (auth instanceof Response) return auth;
+  const { verified, matchId } = auth;
 
   let body: EventRequestBody;
   try {
@@ -44,20 +38,11 @@ export async function POST(
   }
 
   const admin = createAdminSupabaseClient();
-
-  // Verify the player belongs to the match (one of the 4 team members)
-  const { data: match } = await admin
-    .from("matches")
-    .select("team1, team2")
-    .eq("id", matchId)
-    .maybeSingle();
-  if (!match) {
+  const teams = await fetchMatchTeams(admin, matchId);
+  if (!teams) {
     return Response.json({ error: "Match not found" }, { status: 404 });
   }
-  const matchPlayers = new Set<string>([
-    ...(match.team1 as string[]),
-    ...(match.team2 as string[]),
-  ]);
+  const matchPlayers = new Set<string>([...teams.team1Ids, ...teams.team2Ids]);
   if (!matchPlayers.has(playerId)) {
     return Response.json(
       { error: "playerId is not part of this match" },
@@ -79,5 +64,10 @@ export async function POST(
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ id: inserted.id, type, playerId });
+  return Response.json({
+    match: { id: matchId },
+    id: inserted.id,
+    type,
+    playerId,
+  });
 }
