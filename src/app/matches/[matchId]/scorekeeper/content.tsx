@@ -9,7 +9,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShortcutHowTo } from "@/components/match/shortcut-how-to";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useMatch, usePlayers, useDataRefresh, useAllMatchEvents } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
@@ -143,35 +142,39 @@ function SetupView({ matchId }: { matchId: string }) {
         </Card>
 
         <Card>
-          <CardContent className="p-5 space-y-3">
-            <h2 className="font-heading text-lg font-bold">⌚ Apple Watch (vía Siri)</h2>
-            <p className="text-sm text-muted-foreground">
-              Crea un token efímero (4h) y pégalo en una{" "}
-              <em>Shortcut</em> de iOS. Luego di <em>&ldquo;Oye Siri, punto
-              equipo uno&rdquo;</em> desde el Watch.
-            </p>
+          <CardContent className="p-5 space-y-4 text-sm">
+            <div className="space-y-1">
+              <h2 className="font-heading text-lg font-bold">
+                ⌚ Atajos de Siri (Apple Watch)
+              </h2>
+              <p className="text-muted-foreground">
+                Monta 3 atajos en iOS una sola vez. Luego di{" "}
+                <em>&ldquo;Oye Siri, punto equipo uno&rdquo;</em> desde
+                iPhone, Watch o AirPods — el marcador se actualiza en vivo
+                para todos.
+              </p>
+            </div>
 
             {loading ? (
               <Button disabled className="w-full">
                 <Loader2 className="size-4 animate-spin mr-2" /> Cargando…
               </Button>
-            ) : token ? (
-              <div className="space-y-3">
-                <TokenBlock
-                  label="Sumar punto — usa ésta para los Shortcuts"
-                  url={scoreUrl}
-                  body='{"team":1}'
-                  hint="Copia la URL y pégala en tu Shortcut. El método POST, la cabecera Content-Type y el cuerpo JSON se configuran dentro del Shortcut, no van en la URL."
-                />
-                <TokenBlock
-                  label="Registrar evento (opcional)"
-                  url={eventsUrl}
-                  body='{"playerId":"<UUID>","type":"vibora"}'
-                  hint="Sólo si quieres registrar eventos (víbora, bandeja, ace…) por voz. Necesitas el UUID del jugador — lo encuentras en la URL al abrir su perfil."
-                />
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+            ) : !token ? (
+              <Button
+                onClick={createToken}
+                disabled={busy}
+                className="w-full"
+              >
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : null}
+                Crear token (4 horas)
+              </Button>
+            ) : (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
                   <span>
-                    Caduca:{" "}
+                    Token caduca:{" "}
                     {new Date(token.expiresAt).toLocaleString("es-ES", {
                       dateStyle: "short",
                       timeStyle: "short",
@@ -186,94 +189,128 @@ function SetupView({ matchId }: { matchId: string }) {
                     <Trash2 className="size-3.5 mr-1" /> Revocar
                   </Button>
                 </div>
+
+                <section className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Receta base (sólo la primera vez)
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground marker:text-foreground/60">
+                    <li>
+                      iPhone → <strong>Atajos</strong> →{" "}
+                      <strong>+</strong> nuevo → acción{" "}
+                      <strong>Obtener contenidos de URL</strong>.
+                    </li>
+                    <li>Pega la URL del atajo correspondiente (abajo).</li>
+                    <li>
+                      Toca <strong>Mostrar más</strong> y deja:{" "}
+                      <code>Método</code> = <code>POST</code>;{" "}
+                      <code>Cabeceras</code> →{" "}
+                      <code>Content-Type</code> ={" "}
+                      <code>application/json</code>;{" "}
+                      <code>Cuerpo de la solicitud</code> tipo{" "}
+                      <em>JSON</em>, con los campos que indica cada atajo.
+                    </li>
+                    <li>
+                      Renómbralo y activa <strong>Añadir a Siri</strong> con
+                      esa misma frase.
+                    </li>
+                  </ol>
+                </section>
+
+                <section className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    1 · Punto equipo uno
+                  </p>
+                  <UrlBlock url={scoreUrl} />
+                  <p className="text-xs text-muted-foreground">
+                    Cuerpo JSON: <code>team</code> = <code>1</code> (Número).
+                    Frase Siri: <em>&ldquo;Punto equipo uno&rdquo;</em>.
+                  </p>
+                </section>
+
+                <section className="space-y-1.5">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    2 · Punto equipo dos
+                  </p>
+                  <p className="text-muted-foreground">
+                    Mantén pulsado el atajo 1 → <strong>Duplicar</strong>. En
+                    la copia cambia <code>team</code> a <code>2</code>,
+                    renómbralo <em>&ldquo;Punto equipo dos&rdquo;</em> y
+                    vuelve a activar Siri.
+                  </p>
+                </section>
+
+                <details className="group">
+                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-wider text-muted-foreground select-none">
+                    3 · Registrar evento (opcional)
+                  </summary>
+                  <div className="space-y-2 pt-3">
+                    <p className="text-xs text-muted-foreground">
+                      Para gritarle <em>&ldquo;víbora Marcio&rdquo;</em> a
+                      Siri. Misma receta, otra URL y dos campos en el cuerpo:
+                    </p>
+                    <UrlBlock url={eventsUrl} />
+                    <p className="text-xs text-muted-foreground">
+                      Cuerpo JSON: <code>playerId</code> = UUID del jugador
+                      (en su URL al abrir el perfil, después de{" "}
+                      <code>/players/</code>); <code>type</code> = nombre del
+                      evento (<code>vibora</code>, <code>ace</code>,{" "}
+                      <code>bandeja</code>, <code>bola_fuera</code>…). Duplica
+                      el atajo para cada combinación habitual o usa el scorer
+                      en pantalla grande — la fila inferior tiene los 26
+                      eventos ordenados por uso.
+                    </p>
+                  </div>
+                </details>
+
+                <p className="text-xs text-muted-foreground border-t border-border pt-3">
+                  <strong>Extras opcionales</strong>: en el cuerpo JSON,{" "}
+                  <code>delta = -1</code> deshace un punto y{" "}
+                  <code>newSet = true</code> abre un set nuevo.
+                </p>
               </div>
-            ) : (
-              <Button onClick={createToken} disabled={busy} className="w-full">
-                {busy ? (
-                  <Loader2 className="size-4 animate-spin mr-2" />
-                ) : null}
-                Crear token (4 horas)
-              </Button>
             )}
           </CardContent>
         </Card>
-
-        <ShortcutHowTo />
       </div>
     </MobileShell>
   );
 }
 
-function TokenBlock({
-  label,
-  url,
-  body,
-  hint,
-}: {
-  label: string;
-  url: string;
-  body: string;
-  hint?: string;
-}) {
-  const [copied, setCopied] = useState<"url" | "curl" | null>(null);
+function UrlBlock({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const curl = `curl -X POST '${url}' -H 'Content-Type: application/json' -d '${body}'`;
 
-  useEffect(() => () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
+  );
 
-  async function copyText(value: string, which: "url" | "curl") {
-    await navigator.clipboard.writeText(value);
-    setCopied(which);
+  async function copy() {
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setCopied(null), 1500);
+    timerRef.current = setTimeout(() => setCopied(false), 1500);
   }
 
   return (
     <div className="space-y-1.5">
-      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-        {label}
-      </div>
       <pre className="p-2 rounded bg-muted text-xs overflow-x-auto whitespace-pre-wrap break-all">
-        {curl}
+        {url}
       </pre>
-      {hint && (
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      )}
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          onClick={() => copyText(url, "url")}
-          className="flex-1"
-        >
-          {copied === "url" ? (
-            <>
-              <Check className="size-3.5 mr-1.5" /> Copiado
-            </>
-          ) : (
-            <>
-              <Copy className="size-3.5 mr-1.5" /> Copiar URL (Shortcut)
-            </>
-          )}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => copyText(curl, "curl")}
-          className="flex-1"
-        >
-          {copied === "curl" ? (
-            <>
-              <Check className="size-3.5 mr-1.5" /> Copiado
-            </>
-          ) : (
-            <>
-              <Copy className="size-3.5 mr-1.5" /> Copiar curl (terminal)
-            </>
-          )}
-        </Button>
-      </div>
+      <Button size="sm" onClick={copy} className="w-full">
+        {copied ? (
+          <>
+            <Check className="size-3.5 mr-1.5" /> Copiado
+          </>
+        ) : (
+          <>
+            <Copy className="size-3.5 mr-1.5" /> Copiar URL
+          </>
+        )}
+      </Button>
     </div>
   );
 }

@@ -9,7 +9,6 @@ import { TeamPicker } from "./team-picker";
 import { ScoreInput } from "./score-input";
 import { EventGrid } from "@/components/events/event-grid";
 import { PlayerEventPicker } from "@/components/events/player-event-picker";
-import { ShortcutHowTo } from "@/components/match/shortcut-how-to";
 import { createMatch } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useDataRefresh } from "@/lib/supabase-hooks";
@@ -273,9 +272,6 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
               <p className="text-xs text-muted-foreground text-center">
                 Crea el partido y te lleva al scorekeeper donde podrás generar el token y copiar la URL para tu Shortcut.
               </p>
-            </div>
-            <div className="pt-4">
-              <ShortcutHowTo />
             </div>
           </div>
         )}
