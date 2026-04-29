@@ -10,6 +10,25 @@ export const runtime = "nodejs";
 
 const VALID_EVENT_TYPES = new Set<string>(EVENT_CONFIGS.map((e) => e.type));
 
+type ResolveErrorCode =
+  | "no_event"
+  | "no_player"
+  | "ambiguous_event"
+  | "ambiguous_player";
+
+function spokenForResolveError(code: ResolveErrorCode): string {
+  switch (code) {
+    case "no_event":
+      return "No reconocí ningún evento. Repite la frase.";
+    case "no_player":
+      return "No encontré al jugador en este partido.";
+    case "ambiguous_event":
+      return "Hay varios eventos posibles, sé más específico.";
+    case "ambiguous_player":
+      return "Hay varios jugadores posibles, dilo con apellido.";
+  }
+}
+
 interface EventRequestBody {
   playerId?: string;
   type?: MatchEventType;
@@ -25,7 +44,10 @@ export async function POST(request: NextRequest) {
   try {
     body = (await request.json()) as EventRequestBody;
   } catch {
-    return Response.json({ error: "Body must be JSON" }, { status: 400 });
+    return Response.json(
+      { error: "Body must be JSON", spoken: "Cuerpo de la petición no válido." },
+      { status: 400 }
+    );
   }
 
   const { playerId, type, query } = body;
@@ -35,12 +57,19 @@ export async function POST(request: NextRequest) {
   if (typeof query === "string" && query.trim() !== "" && (!playerId || !type)) {
     const roster = await fetchMatchRoster(admin, matchId);
     if (!roster) {
-      return Response.json({ error: "Match not found" }, { status: 404 });
+      return Response.json(
+        { error: "Match not found", spoken: "Partido no encontrado." },
+        { status: 404 }
+      );
     }
     const result = resolveEventQuery(query, roster.players, verified.createdBy);
     if (!result.ok) {
       return Response.json(
-        { error: result.error, understood: result.understood },
+        {
+          error: result.error,
+          understood: result.understood,
+          spoken: spokenForResolveError(result.error),
+        },
         { status: 400 }
       );
     }
@@ -56,7 +85,10 @@ export async function POST(request: NextRequest) {
       .select("id")
       .single();
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json(
+        { error: error.message, spoken: "Error al guardar el evento." },
+        { status: 500 }
+      );
     }
 
     return Response.json({
@@ -73,22 +105,37 @@ export async function POST(request: NextRequest) {
   // Legacy path: explicit playerId + type.
   if (!playerId || !type) {
     return Response.json(
-      { error: "playerId and type are required" },
+      {
+        error: "playerId and type are required",
+        spoken: "Faltan datos del evento.",
+      },
       { status: 400 }
     );
   }
   if (!VALID_EVENT_TYPES.has(type)) {
-    return Response.json({ error: `Unknown event type: ${type}` }, { status: 400 });
+    return Response.json(
+      {
+        error: `Unknown event type: ${type}`,
+        spoken: "Tipo de evento desconocido.",
+      },
+      { status: 400 }
+    );
   }
 
   const teams = await fetchMatchTeams(admin, matchId);
   if (!teams) {
-    return Response.json({ error: "Match not found" }, { status: 404 });
+    return Response.json(
+      { error: "Match not found", spoken: "Partido no encontrado." },
+      { status: 404 }
+    );
   }
   const matchPlayers = new Set<string>([...teams.team1Ids, ...teams.team2Ids]);
   if (!matchPlayers.has(playerId)) {
     return Response.json(
-      { error: "playerId is not part of this match" },
+      {
+        error: "playerId is not part of this match",
+        spoken: "El jugador no está en este partido.",
+      },
       { status: 400 }
     );
   }
@@ -104,7 +151,10 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json(
+      { error: error.message, spoken: "Error al guardar el evento." },
+      { status: 500 }
+    );
   }
 
   return Response.json({
@@ -112,5 +162,6 @@ export async function POST(request: NextRequest) {
     id: inserted.id,
     type,
     playerId,
+    spoken: "Evento registrado.",
   });
 }

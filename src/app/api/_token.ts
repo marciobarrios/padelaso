@@ -45,10 +45,22 @@ export async function requireActiveMatch(
   const token = extractToken(request);
   const verified = await verifyTokenAndGetMatch(token);
   if (!verified) {
-    return Response.json({ error: "Invalid or expired token" }, { status: 401 });
+    return Response.json(
+      {
+        error: "Invalid or expired token",
+        spoken: "Token inválido o caducado.",
+      },
+      { status: 401 }
+    );
   }
   if (!verified.currentMatchId) {
-    return Response.json({ error: "No hay partido activo" }, { status: 409 });
+    return Response.json(
+      {
+        error: "No hay partido activo",
+        spoken: "No hay ningún partido activo.",
+      },
+      { status: 409 }
+    );
   }
   return { verified, matchId: verified.currentMatchId };
 }

@@ -322,18 +322,55 @@ function SetupView({ matchId }: { matchId: string }) {
                     3 · Registrar evento por voz
                   </p>
                   <p className="text-muted-foreground">
-                    Dile a Siri <em>&ldquo;Registrar evento&rdquo;</em>; te
-                    pide la frase y la dictas (p.ej.{" "}
-                    <em>&ldquo;víbora Marcio&rdquo;</em>). El servidor
-                    reconoce jugador y evento del partido activo.
+                    Frase Siri: <em>&ldquo;Registrar evento&rdquo;</em>. Crea
+                    un atajo nuevo y encadena estas{" "}
+                    <strong>4 acciones en orden</strong>:
                   </p>
+                  <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
+                    <li>
+                      <strong>Dictar texto</strong> — recoge la frase (p.ej.{" "}
+                      <em>&ldquo;víbora Marcio&rdquo;</em>).
+                    </li>
+                    <li>
+                      <strong>Obtener contenidos de URL</strong> — pega la URL
+                      de abajo. Toca <strong>Mostrar más</strong>:
+                      <ul className="list-disc list-outside pl-5 mt-1 space-y-0.5">
+                        <li>
+                          <code>Método</code> = <code>POST</code>.
+                        </li>
+                        <li>
+                          <code>Cabeceras</code> →{" "}
+                          <code>Content-Type</code> ={" "}
+                          <code>application/json</code>.
+                        </li>
+                        <li>
+                          <code>Cuerpo de la solicitud</code> tipo{" "}
+                          <em>JSON</em>, con un campo:{" "}
+                          <code>Clave</code> = <code>query</code>; en{" "}
+                          <code>Valor</code>, toca el campo, abre el panel
+                          de variables y elige{" "}
+                          <strong>Texto dictado</strong> (la salida del paso
+                          1).
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <strong>Obtener valor del diccionario</strong> →{" "}
+                      <code>Clave</code> = <code>spoken</code>. Extrae la
+                      frase de confirmación del JSON de respuesta.
+                    </li>
+                    <li>
+                      <strong>Reproducir voz</strong> con la salida del paso
+                      3. <em>Sin este paso el atajo se ejecuta en silencio
+                      aunque haya éxito.</em>
+                    </li>
+                  </ol>
                   <UrlBlock url={eventsUrl} />
                   <p className="text-xs text-muted-foreground">
-                    Cuerpo JSON:{" "}
-                    <code>{`{"query": "<<Texto dictado>>"}`}</code>. Usa la
-                    Magic Variable <em>&ldquo;Pedir cada vez&rdquo;</em> en el
-                    cuerpo, o encadena la acción{" "}
-                    <strong>Dictar texto</strong> antes del bloque URL.
+                    Pista: si dices <em>&ldquo;yo&rdquo;</em>,{" "}
+                    <em>&ldquo;me&rdquo;</em> o <em>&ldquo;mí&rdquo;</em>, el
+                    atajo registra el evento contra tu propio jugador del
+                    partido.
                   </p>
                   <VoiceReferencePanel
                     roster={matchRoster}
