@@ -151,6 +151,12 @@ function SetupView({ matchId }: { matchId: string }) {
       ids.map((id) => playerMap.get(id)?.name ?? "?").join("·");
     return `${join(match.team1)} vs ${join(match.team2)}`;
   }, [match, playerMap]);
+  const matchRoster = useMemo(() => {
+    if (!match) return [];
+    return [...match.team1, ...match.team2]
+      .map((id) => playerMap.get(id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p));
+  }, [match, playerMap]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const scoreUrl = token ? `${origin}/api/score?token=${token.token}` : "";
@@ -311,25 +317,29 @@ function SetupView({ matchId }: { matchId: string }) {
                   </p>
                 </section>
 
-                <details className="group">
-                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-wider text-muted-foreground select-none">
-                    3 · Registrar evento (opcional)
-                  </summary>
-                  <div className="space-y-2 pt-3">
-                    <p className="text-xs text-muted-foreground">
-                      Para gritarle <em>&ldquo;víbora Marcio&rdquo;</em> a
-                      Siri. Misma receta, otra URL y dos campos en el cuerpo:
-                    </p>
-                    <UrlBlock url={eventsUrl} />
-                    <p className="text-xs text-muted-foreground">
-                      Cuerpo JSON: <code>playerId</code> = UUID del jugador
-                      (en su URL al abrir el perfil, después de{" "}
-                      <code>/players/</code>); <code>type</code> = nombre del
-                      evento (<code>vibora</code>, <code>ace</code>,{" "}
-                      <code>bandeja</code>, <code>bola_fuera</code>…).
-                    </p>
-                  </div>
-                </details>
+                <section className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    3 · Registrar evento por voz
+                  </p>
+                  <p className="text-muted-foreground">
+                    Dile a Siri <em>&ldquo;Registrar evento&rdquo;</em>; te
+                    pide la frase y la dictas (p.ej.{" "}
+                    <em>&ldquo;víbora Marcio&rdquo;</em>). El servidor
+                    reconoce jugador y evento del partido activo.
+                  </p>
+                  <UrlBlock url={eventsUrl} />
+                  <p className="text-xs text-muted-foreground">
+                    Cuerpo JSON:{" "}
+                    <code>{`{"query": "<<Texto dictado>>"}`}</code>. Usa la
+                    Magic Variable <em>&ldquo;Pedir cada vez&rdquo;</em> en el
+                    cuerpo, o encadena la acción{" "}
+                    <strong>Dictar texto</strong> antes del bloque URL.
+                  </p>
+                  <VoiceReferencePanel
+                    roster={matchRoster}
+                    selfUserId={user?.id}
+                  />
+                </section>
 
                 <p className="text-xs text-muted-foreground border-t border-border pt-3">
                   <strong>Extras opcionales</strong>: en el cuerpo JSON,{" "}
@@ -421,6 +431,53 @@ function UrlBlock({ url }: { url: string }) {
           </>
         )}
       </Button>
+    </div>
+  );
+}
+
+function VoiceReferencePanel({
+  roster,
+  selfUserId,
+}: {
+  roster: { id: string; name: string; emoji: string; userId?: string | null }[];
+  selfUserId: string | undefined;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 pt-1">
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          Jugadores
+        </p>
+        <ul className="space-y-1 text-xs">
+          {roster.map((p) => (
+            <li key={p.id} className="flex items-center gap-1.5">
+              <span aria-hidden>{p.emoji}</span>
+              <span className="truncate">{p.name}</span>
+              {p.userId && p.userId === selfUserId && (
+                <span className="ml-auto text-[9px] uppercase font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-1 rounded">
+                  yo
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          Vocabulario
+        </p>
+        <ul className="space-y-0.5 text-xs max-h-44 overflow-y-auto pr-1">
+          {EVENT_CONFIGS.map((e) => (
+            <li key={e.type} className="flex items-center gap-1.5">
+              <span aria-hidden>{e.emoji}</span>
+              <span className="truncate">{e.label}</span>
+              <code className="ml-auto text-[9px] text-muted-foreground/70 shrink-0">
+                {e.type.replace(/_/g, " ")}
+              </code>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
