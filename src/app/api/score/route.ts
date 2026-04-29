@@ -59,12 +59,7 @@ export async function POST(request: NextRequest) {
   }
 
   const score = `${last.team1Score}-${last.team2Score}`;
-  const teamWord = team === 1 ? "uno" : "dos";
-  const spoken = body.newSet
-    ? `Nuevo set. Marcador ${score}.`
-    : delta > 0
-      ? `Punto equipo ${teamWord}. Marcador ${score}.`
-      : `Punto retirado equipo ${teamWord}. Marcador ${score}.`;
+  const spoken = score;
 
   return Response.json({
     match: { id: matchId, label },
