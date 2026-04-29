@@ -102,3 +102,11 @@ export interface Profile {
   avatarUrl?: string | null;
   createdAt: string;
 }
+
+export interface ScoreToken {
+  token: string;
+  currentMatchId: MatchId | null;
+  expiresAt: string;
+  createdAt: string;
+  rotatedAt: string | null;
+}

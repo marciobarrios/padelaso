@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Loader2, Plus, Minus, Trash2, Check } from "lucide-react";
+import { Copy, Loader2, Plus, Minus, Trash2, Check, RefreshCw } from "lucide-react";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
@@ -13,17 +13,18 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useMatch, usePlayers, useDataRefresh, useAllMatchEvents } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import {
-  createMatchScoreToken,
-  revokeMatchScoreToken,
-  fetchActiveMatchScoreToken,
+  createScoreToken,
+  rotateScoreToken,
+  revokeScoreToken,
+  repointScoreToken,
+  fetchUserScoreToken,
   incrementMatchScore,
   addMatchEvent,
-  type MatchScoreToken,
 } from "@/lib/supabase-mutations";
-import { buildPlayerMap } from "@/lib/utils";
+import { buildPlayerMap, dateFormatter } from "@/lib/utils";
 import { createClient } from "@/lib/supabase";
 import { EVENT_CONFIGS } from "@/lib/event-config";
-import { MatchSet, MatchEventType } from "@/lib/types";
+import { MatchSet, MatchEventType, ScoreToken } from "@/lib/types";
 
 export function ScorekeeperContent({
   matchId,
@@ -76,13 +77,18 @@ export function ScorekeeperContent({
 
 function SetupView({ matchId }: { matchId: string }) {
   const { user } = useAuth();
-  const [token, setToken] = useState<MatchScoreToken | null>(null);
+  const userId = user?.id;
+  const { match } = useMatch(matchId);
+  const { activeGroup } = useGroup();
+  const { players } = usePlayers(activeGroup?.id);
+  const [token, setToken] = useState<ScoreToken | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
     let ignore = false;
-    fetchActiveMatchScoreToken(matchId)
+    fetchUserScoreToken(userId)
       .then((t) => {
         if (!ignore) setToken(t);
       })
@@ -92,42 +98,92 @@ function SetupView({ matchId }: { matchId: string }) {
     return () => {
       ignore = true;
     };
-  }, [matchId]);
+  }, [userId]);
 
   async function createToken() {
-    if (!user) return;
+    if (!userId) return;
     setBusy(true);
     try {
-      const t = await createMatchScoreToken(matchId, user.id);
+      const t = await createScoreToken(userId, matchId);
       setToken(t);
     } finally {
       setBusy(false);
     }
   }
 
-  async function revokeToken() {
-    if (!token) return;
+  async function rotate() {
+    if (!userId) return;
     setBusy(true);
     try {
-      await revokeMatchScoreToken(token.token);
+      const t = await rotateScoreToken(userId);
+      setToken(t);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revoke() {
+    if (!userId) return;
+    setBusy(true);
+    try {
+      await revokeScoreToken(userId);
       setToken(null);
     } finally {
       setBusy(false);
     }
   }
 
+  async function pointAtThisMatch() {
+    if (!userId) return;
+    setBusy(true);
+    try {
+      const t = await repointScoreToken(userId, matchId);
+      if (t) setToken(t);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const playerMap = useMemo(() => buildPlayerMap(players), [players]);
+  const matchLabel = useMemo(() => {
+    if (!match) return "";
+    const join = (ids: string[]) =>
+      ids.map((id) => playerMap.get(id)?.name ?? "?").join("·");
+    return `${join(match.team1)} vs ${join(match.team2)}`;
+  }, [match, playerMap]);
+
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const scoreUrl = token
-    ? `${origin}/api/matches/${matchId}/score?token=${token.token}`
-    : "";
-  const eventsUrl = token
-    ? `${origin}/api/matches/${matchId}/events?token=${token.token}`
-    : "";
+  const scoreUrl = token ? `${origin}/api/score?token=${token.token}` : "";
+  const eventsUrl = token ? `${origin}/api/events?token=${token.token}` : "";
+
+  const tokenStatus: TokenStatus | null = !token
+    ? null
+    : token.currentMatchId === matchId
+      ? "here"
+      : token.currentMatchId
+        ? "elsewhere"
+        : "none";
 
   return (
     <MobileShell>
-      <PageHeader title="Scorekeeper" back />
+      <PageHeader title="Scorekeeper" backHref={`/matches/${matchId}`} />
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {match && (
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Este partido
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-sm truncate">{matchLabel}</span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {dateFormatter.format(new Date(match.date))}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardContent className="p-5 space-y-3">
             <h2 className="font-heading text-lg font-bold">📟 Modo pinned</h2>
@@ -148,10 +204,9 @@ function SetupView({ matchId }: { matchId: string }) {
                 ⌚ Atajos de Siri (Apple Watch)
               </h2>
               <p className="text-muted-foreground">
-                Monta 3 atajos en iOS una sola vez. Luego di{" "}
-                <em>&ldquo;Oye Siri, punto equipo uno&rdquo;</em> desde
-                iPhone, Watch o AirPods — el marcador se actualiza en vivo
-                para todos.
+                Monta los atajos en iOS una sola vez. La URL no cambia entre
+                partidos: cada nuevo partido en vivo apunta el atajo
+                automáticamente al marcador correcto.
               </p>
             </div>
 
@@ -160,35 +215,52 @@ function SetupView({ matchId }: { matchId: string }) {
                 <Loader2 className="size-4 animate-spin mr-2" /> Cargando…
               </Button>
             ) : !token ? (
-              <Button
-                onClick={createToken}
-                disabled={busy}
-                className="w-full"
-              >
-                {busy ? (
-                  <Loader2 className="size-4 animate-spin mr-2" />
-                ) : null}
-                Crear token (4 horas)
+              <Button onClick={createToken} disabled={busy} className="w-full">
+                {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                Crear token (válido 30 días)
               </Button>
             ) : (
               <div className="space-y-5">
+                {tokenStatus && <TokenStatusBanner status={tokenStatus} />}
+
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
                   <span>
-                    Token caduca:{" "}
+                    Caduca:{" "}
                     {new Date(token.expiresAt).toLocaleString("es-ES", {
                       dateStyle: "short",
                       timeStyle: "short",
                     })}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={revokeToken}
-                    disabled={busy}
-                  >
-                    <Trash2 className="size-3.5 mr-1" /> Revocar
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={rotate}
+                      disabled={busy}
+                    >
+                      <RefreshCw className="size-3.5 mr-1" /> Rotar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={revoke}
+                      disabled={busy}
+                    >
+                      <Trash2 className="size-3.5 mr-1" /> Revocar
+                    </Button>
+                  </div>
                 </div>
+
+                {tokenStatus !== "here" && (
+                  <Button
+                    variant="outline"
+                    onClick={pointAtThisMatch}
+                    disabled={busy}
+                    className="w-full"
+                  >
+                    Apuntar a este partido
+                  </Button>
+                )}
 
                 <section className="space-y-2">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -196,19 +268,18 @@ function SetupView({ matchId }: { matchId: string }) {
                   </p>
                   <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground marker:text-foreground/60">
                     <li>
-                      iPhone → <strong>Atajos</strong> →{" "}
-                      <strong>+</strong> nuevo → acción{" "}
+                      iPhone → <strong>Atajos</strong> → <strong>+</strong>{" "}
+                      nuevo → acción{" "}
                       <strong>Obtener contenidos de URL</strong>.
                     </li>
                     <li>Pega la URL del atajo correspondiente (abajo).</li>
                     <li>
                       Toca <strong>Mostrar más</strong> y deja:{" "}
                       <code>Método</code> = <code>POST</code>;{" "}
-                      <code>Cabeceras</code> →{" "}
-                      <code>Content-Type</code> ={" "}
+                      <code>Cabeceras</code> → <code>Content-Type</code> ={" "}
                       <code>application/json</code>;{" "}
-                      <code>Cuerpo de la solicitud</code> tipo{" "}
-                      <em>JSON</em>, con los campos que indica cada atajo.
+                      <code>Cuerpo de la solicitud</code> tipo <em>JSON</em>,
+                      con los campos que indica cada atajo.
                     </li>
                     <li>
                       Renómbralo y activa <strong>Añadir a Siri</strong> con
@@ -255,10 +326,7 @@ function SetupView({ matchId }: { matchId: string }) {
                       (en su URL al abrir el perfil, después de{" "}
                       <code>/players/</code>); <code>type</code> = nombre del
                       evento (<code>vibora</code>, <code>ace</code>,{" "}
-                      <code>bandeja</code>, <code>bola_fuera</code>…). Duplica
-                      el atajo para cada combinación habitual o usa el scorer
-                      en pantalla grande — la fila inferior tiene los 26
-                      eventos ordenados por uso.
+                      <code>bandeja</code>, <code>bola_fuera</code>…).
                     </p>
                   </div>
                 </details>
@@ -275,6 +343,48 @@ function SetupView({ matchId }: { matchId: string }) {
       </div>
     </MobileShell>
   );
+}
+
+type TokenStatus = "here" | "elsewhere" | "none";
+
+const TOKEN_BANNERS: Record<
+  TokenStatus,
+  { className: string; content: React.ReactNode }
+> = {
+  here: {
+    className:
+      "flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300",
+    content: (
+      <>
+        <Check className="size-3.5 shrink-0" />
+        Apuntando a este partido
+      </>
+    ),
+  },
+  elsewhere: {
+    className:
+      "rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200",
+    content: (
+      <>
+        Tu shortcut apunta ahora a otro partido. Pulsa{" "}
+        <em>&ldquo;Apuntar a este partido&rdquo;</em> para redirigirlo.
+      </>
+    ),
+  },
+  none: {
+    className: "rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground",
+    content: (
+      <>
+        Tu shortcut no apunta a ningún partido. Empieza un partido en vivo
+        desde el asistente o pulsa <em>&ldquo;Apuntar a este partido&rdquo;</em>.
+      </>
+    ),
+  },
+};
+
+function TokenStatusBanner({ status }: { status: TokenStatus }) {
+  const { className, content } = TOKEN_BANNERS[status];
+  return <div className={className}>{content}</div>;
 }
 
 function UrlBlock({ url }: { url: string }) {

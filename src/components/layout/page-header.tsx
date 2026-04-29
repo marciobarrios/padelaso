@@ -7,21 +7,23 @@ import { Button } from "@/components/ui/button";
 interface PageHeaderProps {
   title: string;
   back?: boolean;
+  backHref?: string;
   action?: React.ReactNode;
 }
 
-export function PageHeader({ title, back, action }: PageHeaderProps) {
+export function PageHeader({ title, back, backHref, action }: PageHeaderProps) {
   const router = useRouter();
+  const showBack = back || Boolean(backHref);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95">
       <div className="flex items-center h-14 px-4 max-w-lg mx-auto">
-        {back && (
+        {showBack && (
           <Button
             variant="ghost"
             size="icon"
             className="mr-2 -ml-2"
-            onClick={() => router.back()}
+            onClick={() => (backHref ? router.push(backHref) : router.back())}
           >
             <ArrowLeft className="size-5" />
           </Button>

@@ -9,7 +9,7 @@ import { TeamPicker } from "./team-picker";
 import { ScoreInput } from "./score-input";
 import { EventGrid } from "@/components/events/event-grid";
 import { PlayerEventPicker } from "@/components/events/player-event-picker";
-import { createMatch } from "@/lib/supabase-mutations";
+import { createMatch, repointScoreToken } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useDataRefresh } from "@/lib/supabase-hooks";
 import { cn } from "@/lib/utils";
@@ -135,8 +135,13 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
       pendingEvents,
       groupId
     );
+    // If the user already has a Shortcut token, repoint it at this fresh
+    // live match so Siri/Watch flows automatically target it. No-op when
+    // no token row exists — minting stays an explicit decision in the
+    // scorekeeper SetupView.
+    await repointScoreToken(user.id, matchId);
     refresh();
-    router.push(
+    router.replace(
       destination === "pinned"
         ? `/matches/${matchId}/scorekeeper?pinned=1`
         : `/matches/${matchId}/scorekeeper`

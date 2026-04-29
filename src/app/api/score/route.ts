@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { MatchSet } from "@/lib/types";
-import { extractToken, verifyScoreToken } from "../_token";
+import { requireActiveMatch } from "../_token";
+import { fetchMatchTeams, joinTeamNames, resolvePlayerNames } from "../_match";
 
 export const runtime = "nodejs";
 
@@ -11,17 +12,10 @@ interface ScoreRequestBody {
   newSet?: boolean;
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ matchId: string }> }
-) {
-  const { matchId } = await params;
-
-  const token = extractToken(request);
-  const verified = await verifyScoreToken(matchId, token);
-  if (!verified) {
-    return Response.json({ error: "Invalid or expired token" }, { status: 401 });
-  }
+export async function POST(request: NextRequest) {
+  const auth = await requireActiveMatch(request);
+  if (auth instanceof Response) return auth;
+  const { matchId } = auth;
 
   let body: ScoreRequestBody;
   try {
@@ -40,9 +34,6 @@ export async function POST(
   }
 
   const admin = createAdminSupabaseClient();
-  // Atomic increment via Postgres RPC with SELECT ... FOR UPDATE — the DB
-  // serializes concurrent writes (pinned scorer + Siri Shortcut), so we
-  // never lose a point to a read-modify-write race.
   const { data, error } = await admin.rpc("increment_match_score", {
     p_match_id: matchId,
     p_team: team,
@@ -56,7 +47,19 @@ export async function POST(
 
   const updatedSets = data as MatchSet[];
   const last = updatedSets[updatedSets.length - 1];
+
+  const teams = await fetchMatchTeams(admin, matchId);
+  let label = "";
+  if (teams) {
+    const nameById = await resolvePlayerNames(admin, [
+      ...teams.team1Ids,
+      ...teams.team2Ids,
+    ]);
+    label = `${joinTeamNames(teams.team1Ids, nameById)} vs ${joinTeamNames(teams.team2Ids, nameById)}`;
+  }
+
   return Response.json({
+    match: { id: matchId, label },
     sets: updatedSets,
     score: `${last.team1Score}-${last.team2Score}`,
     setsSpoken: updatedSets
