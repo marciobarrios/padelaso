@@ -58,12 +58,21 @@ export async function POST(request: NextRequest) {
     label = `${joinTeamNames(teams.team1Ids, nameById)} vs ${joinTeamNames(teams.team2Ids, nameById)}`;
   }
 
+  const score = `${last.team1Score}-${last.team2Score}`;
+  const teamWord = team === 1 ? "uno" : "dos";
+  const spoken = body.newSet
+    ? `Nuevo set. Marcador ${score}.`
+    : delta > 0
+      ? `Punto equipo ${teamWord}. Marcador ${score}.`
+      : `Punto retirado equipo ${teamWord}. Marcador ${score}.`;
+
   return Response.json({
     match: { id: matchId, label },
     sets: updatedSets,
-    score: `${last.team1Score}-${last.team2Score}`,
+    score,
     setsSpoken: updatedSets
       .map((s) => `${s.team1Score}-${s.team2Score}`)
       .join(", "),
+    spoken,
   });
 }
