@@ -298,11 +298,47 @@ function SetupView({ matchId }: { matchId: string }) {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     1 · Punto equipo uno
                   </p>
-                  <UrlBlock url={scoreUrl} />
-                  <p className="text-xs text-muted-foreground">
-                    Cuerpo JSON: <code>team</code> = <code>1</code> (Número).
-                    Frase Siri: <em>&ldquo;Punto equipo uno&rdquo;</em>.
+                  <p className="text-muted-foreground">
+                    Frase Siri: <em>&ldquo;Punto equipo uno&rdquo;</em>. Crea
+                    un atajo nuevo y encadena estas{" "}
+                    <strong>3 acciones en orden</strong>:
                   </p>
+                  <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
+                    <li>
+                      <strong>Obtener contenidos de URL</strong> — pega la URL
+                      de abajo. Toca <strong>Mostrar más</strong>:
+                      <ul className="list-disc list-outside pl-5 mt-1 space-y-0.5">
+                        <li>
+                          <code>Método</code> = <code>POST</code>.
+                        </li>
+                        <li>
+                          <code>Cabeceras</code> →{" "}
+                          <code>Content-Type</code> ={" "}
+                          <code>application/json</code>.
+                        </li>
+                        <li>
+                          <code>Cuerpo de la solicitud</code> tipo{" "}
+                          <em>JSON</em>, con un campo:{" "}
+                          <code>Clave</code> = <code>team</code>;{" "}
+                          <code>Valor</code> = <code>1</code> (Número).
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <strong>Obtener valor del diccionario</strong> →{" "}
+                      <code>Clave</code> = <code>spoken</code>; en{" "}
+                      <code>Diccionario</code>, abre el panel de variables y
+                      elige <strong>Contenido de URL</strong> (la salida del
+                      paso 1). Extrae la frase de confirmación del JSON de
+                      respuesta.
+                    </li>
+                    <li>
+                      <strong>Leer texto con voz</strong> con la salida del
+                      paso 2. <em>Sin este paso el atajo se ejecuta en
+                      silencio aunque haya éxito.</em>
+                    </li>
+                  </ol>
+                  <UrlBlock url={scoreUrl} />
                 </section>
 
                 <section className="space-y-1.5">
@@ -310,10 +346,11 @@ function SetupView({ matchId }: { matchId: string }) {
                     2 · Punto equipo dos
                   </p>
                   <p className="text-muted-foreground">
-                    Mantén pulsado el atajo 1 → <strong>Duplicar</strong>. En
-                    la copia cambia <code>team</code> a <code>2</code>,
-                    renómbralo <em>&ldquo;Punto equipo dos&rdquo;</em> y
-                    vuelve a activar Siri.
+                    Mantén pulsado el atajo 1 → <strong>Duplicar</strong>{" "}
+                    (las 3 acciones se copian). En la copia cambia{" "}
+                    <code>team</code> a <code>2</code>, renómbralo{" "}
+                    <em>&ldquo;Punto equipo dos&rdquo;</em> y vuelve a
+                    activar Siri.
                   </p>
                 </section>
 
@@ -356,13 +393,16 @@ function SetupView({ matchId }: { matchId: string }) {
                     </li>
                     <li>
                       <strong>Obtener valor del diccionario</strong> →{" "}
-                      <code>Clave</code> = <code>spoken</code>. Extrae la
-                      frase de confirmación del JSON de respuesta.
+                      <code>Clave</code> = <code>spoken</code>; en{" "}
+                      <code>Diccionario</code>, abre el panel de variables y
+                      elige <strong>Contenido de URL</strong> (la salida del
+                      paso 2). Extrae la frase de confirmación del JSON de
+                      respuesta.
                     </li>
                     <li>
-                      <strong>Reproducir voz</strong> con la salida del paso
-                      3. <em>Sin este paso el atajo se ejecuta en silencio
-                      aunque haya éxito.</em>
+                      <strong>Leer texto con voz</strong> con la salida del
+                      paso 3. <em>Sin este paso el atajo se ejecuta en
+                      silencio aunque haya éxito.</em>
                     </li>
                   </ol>
                   <UrlBlock url={eventsUrl} />
