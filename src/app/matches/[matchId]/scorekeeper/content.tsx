@@ -480,21 +480,48 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   // in sync without manual refresh.
   useEffect(() => {
     const client = createClient();
-    const channel = client
-      .channel(`pinned:${matchId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "matches",
-          filter: `id=eq.${matchId}`,
-        },
-        () => refresh()
-      )
-      .subscribe();
-    return () => {
+    let channel: ReturnType<typeof client.channel> | null = null;
+
+    function open() {
+      if (channel) return;
+      channel = client
+        .channel(`pinned:${matchId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "matches",
+            filter: `id=eq.${matchId}`,
+          },
+          () => refresh()
+        )
+        .subscribe((status, err) => {
+          if (status === "SUBSCRIBED") return;
+          console.warn("[pinned realtime]", status, err);
+        });
+    }
+    function close() {
+      if (!channel) return;
       channel.unsubscribe();
+      channel = null;
+    }
+
+    open();
+    // iOS Safari suspends websockets when the page is backgrounded (Siri
+    // activation, screen lock). Tear down + reopen on visible so a dead
+    // socket gets replaced; refresh() makes the data current immediately.
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      close();
+      open();
+      refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      close();
     };
   }, [matchId, refresh]);
 

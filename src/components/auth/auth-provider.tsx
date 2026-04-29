@@ -54,6 +54,12 @@ export function AuthProvider({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Re-key the realtime websocket on every auth event. supabase-js
+      // skips INITIAL_SESSION internally, leaving the socket bound to the
+      // anon key on a hydrated load — RLS then silently drops postgres_changes.
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token);
+      }
       setUser(session?.user ?? null);
       if (session?.user) {
         ensureProfile(session.user);

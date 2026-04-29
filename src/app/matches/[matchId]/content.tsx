@@ -55,22 +55,47 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
 
   useEffect(() => {
     const client = createClient();
-    const channel = client
-      .channel(`match-live:${matchId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
-        () => refresh()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "match_events", filter: `match_id=eq.${matchId}` },
-        () => refresh()
-      )
-      .subscribe();
+    let channel: ReturnType<typeof client.channel> | null = null;
+
+    function open() {
+      if (channel) return;
+      channel = client
+        .channel(`match-live:${matchId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
+          () => refresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "match_events", filter: `match_id=eq.${matchId}` },
+          () => refresh()
+        )
+        .subscribe((status, err) => {
+          if (status === "SUBSCRIBED") return;
+          console.warn("[match-live realtime]", status, err);
+        });
+    }
+    function close() {
+      if (!channel) return;
+      channel.unsubscribe();
+      channel = null;
+    }
+
+    open();
+    // iOS Safari suspends websockets when the page is backgrounded. Replace
+    // the channel on visibility return so we don't sit on a dead socket.
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      close();
+      open();
+      refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      channel.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisibility);
+      close();
     };
   }, [matchId, refresh]);
 
