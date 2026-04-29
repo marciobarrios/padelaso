@@ -538,9 +538,18 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   useEffect(() => {
     const client = createClient();
     let channel: ReturnType<typeof client.channel> | null = null;
+    let cancelled = false;
 
-    function open() {
+    async function open() {
       if (channel) return;
+      // postgres_changes filters are RLS-evaluated at JOIN time. Joining
+      // before the realtime client is bound to the user's JWT silently
+      // mutes the channel; a later setAuth does not re-evaluate the filter.
+      const { data } = await client.auth.getSession();
+      if (cancelled || channel) return;
+      if (data.session?.access_token) {
+        client.realtime.setAuth(data.session.access_token);
+      }
       channel = client
         .channel(`pinned:${matchId}`)
         .on(
@@ -577,6 +586,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       close();
     };
