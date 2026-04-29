@@ -538,21 +538,9 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   useEffect(() => {
     const client = createClient();
     let channel: ReturnType<typeof client.channel> | null = null;
-    let cancelled = false;
 
-    async function open() {
+    function open() {
       if (channel) return;
-      // postgres_changes filters are RLS-evaluated at JOIN time. Joining
-      // before the realtime client is bound to the user's JWT silently
-      // mutes the channel; a later setAuth does not re-evaluate the filter.
-      const { data } = await client.auth.getSession();
-      console.log(
-        `[realtime pinned] open() at ${new Date().toISOString()}, visibilityState=${document.visibilityState}, hasSession=${!!data.session?.access_token}`
-      );
-      if (cancelled || channel) return;
-      if (data.session?.access_token) {
-        client.realtime.setAuth(data.session.access_token);
-      }
       channel = client
         .channel(`pinned:${matchId}`)
         .on(
@@ -563,23 +551,14 @@ function PinnedScorer({ matchId }: { matchId: string }) {
             table: "matches",
             filter: `id=eq.${matchId}`,
           },
-          (payload) => {
-            console.log(
-              `[realtime pinned] event received at ${new Date().toISOString()}, table=${payload.table}, eventType=${payload.eventType}, visibilityState=${document.visibilityState}`
-            );
-            refresh();
-          }
+          () => refresh()
         )
         .subscribe((status, err) => {
-          console.log(
-            `[realtime pinned] subscribe status=${status} at ${new Date().toISOString()}, channel=pinned:${matchId}, err=${err ? String(err) : "null"}`
-          );
           if (status === "SUBSCRIBED") return;
           console.warn("[pinned realtime]", status, err);
         });
     }
     function close() {
-      console.log(`[realtime pinned] close() at ${new Date().toISOString()}`);
       if (!channel) return;
       channel.unsubscribe();
       channel = null;
@@ -590,9 +569,6 @@ function PinnedScorer({ matchId }: { matchId: string }) {
     // activation, screen lock). Tear down + reopen on visible so a dead
     // socket gets replaced; refresh() makes the data current immediately.
     const onVisibility = () => {
-      console.log(
-        `[realtime pinned] visibilitychange → ${document.visibilityState} at ${new Date().toISOString()}`
-      );
       if (document.visibilityState !== "visible") return;
       close();
       open();
@@ -601,7 +577,6 @@ function PinnedScorer({ matchId }: { matchId: string }) {
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       close();
     };
