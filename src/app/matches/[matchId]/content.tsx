@@ -64,6 +64,9 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
       // before the realtime client is bound to the user's JWT silently
       // mutes the channel; a later setAuth does not re-evaluate the filter.
       const { data } = await client.auth.getSession();
+      console.log(
+        `[realtime match-live] open() at ${new Date().toISOString()}, visibilityState=${document.visibilityState}, hasSession=${!!data.session?.access_token}`
+      );
       if (cancelled || channel) return;
       if (data.session?.access_token) {
         client.realtime.setAuth(data.session.access_token);
@@ -73,19 +76,33 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
-          () => refresh()
+          (payload) => {
+            console.log(
+              `[realtime match-live] event received at ${new Date().toISOString()}, table=${payload.table}, eventType=${payload.eventType}, visibilityState=${document.visibilityState}`
+            );
+            refresh();
+          }
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "match_events", filter: `match_id=eq.${matchId}` },
-          () => refresh()
+          (payload) => {
+            console.log(
+              `[realtime match-live] event received at ${new Date().toISOString()}, table=${payload.table}, eventType=${payload.eventType}, visibilityState=${document.visibilityState}`
+            );
+            refresh();
+          }
         )
         .subscribe((status, err) => {
+          console.log(
+            `[realtime match-live] subscribe status=${status} at ${new Date().toISOString()}, channel=match-live:${matchId}, err=${err ? String(err) : "null"}`
+          );
           if (status === "SUBSCRIBED") return;
           console.warn("[match-live realtime]", status, err);
         });
     }
     function close() {
+      console.log(`[realtime match-live] close() at ${new Date().toISOString()}`);
       if (!channel) return;
       channel.unsubscribe();
       channel = null;
@@ -95,6 +112,9 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
     // iOS Safari suspends websockets when the page is backgrounded. Replace
     // the channel on visibility return so we don't sit on a dead socket.
     const onVisibility = () => {
+      console.log(
+        `[realtime match-live] visibilitychange → ${document.visibilityState} at ${new Date().toISOString()}`
+      );
       if (document.visibilityState !== "visible") return;
       close();
       open();
