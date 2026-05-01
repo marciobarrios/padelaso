@@ -51,7 +51,14 @@ export const EVENT_CONFIGS: EventConfig[] = [
 export const EVENT_MAP = new Map(EVENT_CONFIGS.map((e) => [e.type, e]));
 
 export function getEventConfig(type: MatchEventType): EventConfig {
-  return EVENT_MAP.get(type)!;
+  return (
+    EVENT_MAP.get(type) ?? {
+      type,
+      emoji: "❓",
+      label: type,
+      sentiment: "fun",
+    }
+  );
 }
 
 export interface FunAwardConfig {
