@@ -62,11 +62,9 @@ export type MatchEventType =
   | "bola_perdida"
   | "ace"
   | "vibora"
-  | "bandeja"
   | "globo"
   | "bajada_muro"
   | "doble_falta"
-  | "puntazo"
   | "caida_epica"
   | "grito_guerra"
   | "raquetazo_cristal"
@@ -79,10 +77,13 @@ export type MatchEventType =
   | "dejada_imposible"
   | "cinta"
   | "chiquita"
-  | "golpe_tapia"
   | "salvada_top"
   | "raquetazo_companero"
-  | "por_debajo_piernas";
+  | "por_debajo_piernas"
+  | "remontada"
+  | "set_perfecto"
+  | "remate"
+  | "magic";
 
 export type VoteType = "mvp" | "jugada_del_partido";
 
