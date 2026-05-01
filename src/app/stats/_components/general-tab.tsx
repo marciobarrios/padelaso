@@ -10,7 +10,16 @@ import { getRecentForm, type PlayerStats, type FunAwardResult } from "@/lib/stat
 import type { Player, PlayerId, Match, MatchEventType } from "@/lib/types";
 
 function getAwardDescription(events: MatchEventType[]): string {
-  return events.map((e) => getEventConfig(e).label).join(" + ");
+  const counts = new Map<MatchEventType, number>();
+  for (const e of events) {
+    counts.set(e, (counts.get(e) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([type, n]) => {
+      const label = getEventConfig(type).label;
+      return n > 1 ? `${n}× ${label}` : label;
+    })
+    .join(" + ");
 }
 
 interface GeneralTabProps {
