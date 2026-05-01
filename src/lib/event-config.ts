@@ -45,6 +45,10 @@ export const EVENT_CONFIGS: EventConfig[] = [
   { type: "salvada_top", emoji: "🦸", label: "Salvada top", sentiment: "positive" },
   { type: "raquetazo_companero", emoji: "🏓", label: "Raquetazo al compañero", sentiment: "fun" },
   { type: "por_debajo_piernas", emoji: "🦵🏽", label: "Por debajo de las piernas", sentiment: "positive" },
+  { type: "remontada", emoji: "🔄", label: "Remontada épica", sentiment: "positive" },
+  { type: "set_perfecto", emoji: "💎", label: "Set perfecto", sentiment: "positive" },
+  { type: "remate", emoji: "💣", label: "Remate imparable", sentiment: "positive" },
+  { type: "magic", emoji: "✨", label: "Punto mágico", sentiment: "fun" },
 ];
 
 export const EVENT_MAP = new Map(EVENT_CONFIGS.map((e) => [e.type, e]));
@@ -69,4 +73,18 @@ export const FUN_AWARD_CONFIGS: FunAwardConfig[] = [
   { emoji: "🤞🏽", title: "El Suertudo", events: ["cinta", "ace"] },
   { emoji: "⚽", title: "Ronaldinho", events: ["por_debajo_piernas", "cano"] },
   { emoji: "🪓", title: "El Killer", events: ["raquetazo_companero", "tomahawk"] },
+  { emoji: "🔫", title: "El Francotirador", events: ["ace", "ace"] },
+  { emoji: "🚫", title: "El Faltón", events: ["doble_falta", "doble_falta"] },
+  { emoji: "🦎", title: "El Acróbata", events: ["caida_epica", "salvada_top"] },
+  { emoji: "🧨", title: "El Destructivo", events: ["tomahawk", "raquetazo_cristal"] },
+  { emoji: "🎩", title: "El Mago", events: ["cano", "dejada_imposible"] },
+  { emoji: "🤕", title: "El Suicida", events: ["remate_red", "caida_epica"] },
+  { emoji: "🏗️", title: "La Pared Humana", events: ["bajada_muro", "bajada_muro"] },
+  { emoji: "🐍", title: "La Víbora", events: ["vibora", "chiquita"] },
+  { emoji: "🔨", title: "El Cañonero", events: ["pelotazo", "por_la_puerta"] },
+  { emoji: "🎱", title: "La Ruleta", events: ["cano", "cinta", "tocaste_techo"] },
+  { emoji: "👑", title: "El Perfecto", events: ["ace", "puntazo", "bandeja"] },
+  { emoji: "💀", title: "El Desastre", events: ["bola_fuera", "bola_perdida", "remate_red"] },
+  { emoji: "🏠", title: "El Techo", events: ["tocaste_techo", "tocaste_techo"] },
+  { emoji: "📢", title: "El Gritón", events: ["grito_guerra", "grito_guerra"] },
 ];

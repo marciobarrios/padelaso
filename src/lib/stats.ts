@@ -286,39 +286,47 @@ export function getMvpRankings(
 // ---------- Fun awards ----------
 
 export interface FunAwardResult extends FunAwardConfig {
-  leaderId: PlayerId | null;
-  leaderCount: number;
+  leaders: { playerId: PlayerId; count: number }[];
 }
 
 export function computeFunAwards(
   events: MatchEvent[],
   awards: FunAwardConfig[],
 ): FunAwardResult[] {
-  // Group events by matchId+playerId → set of event types
-  const byMatchPlayer = new Map<string, Set<MatchEventType>>();
+  // Group events by matchId+playerId → count of each event type
+  const byMatchPlayer = new Map<string, Map<MatchEventType, number>>();
   for (const e of events) {
     const key = `${e.matchId}:${e.playerId}`;
-    const set = byMatchPlayer.get(key) ?? new Set();
-    set.add(e.type);
-    byMatchPlayer.set(key, set);
+    const counts = byMatchPlayer.get(key) ?? new Map<MatchEventType, number>();
+    counts.set(e.type, (counts.get(e.type) ?? 0) + 1);
+    byMatchPlayer.set(key, counts);
   }
 
   return awards.map((award) => {
-    const counts = new Map<PlayerId, number>();
-    for (const [key, types] of byMatchPlayer) {
-      if (award.events.every((t) => types.has(t))) {
+    // How many times each event type is required for this award
+    const required = new Map<MatchEventType, number>();
+    for (const t of award.events) {
+      required.set(t, (required.get(t) ?? 0) + 1);
+    }
+
+    const playerCounts = new Map<PlayerId, number>();
+    for (const [key, typeCounts] of byMatchPlayer) {
+      let qualifies = true;
+      for (const [type, minCount] of required) {
+        if ((typeCounts.get(type) ?? 0) < minCount) {
+          qualifies = false;
+          break;
+        }
+      }
+      if (qualifies) {
         const playerId = key.split(":")[1];
-        counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+        playerCounts.set(playerId, (playerCounts.get(playerId) ?? 0) + 1);
       }
     }
-    let leaderId: PlayerId | null = null;
-    let leaderCount = 0;
-    for (const [pid, count] of counts) {
-      if (count > leaderCount) {
-        leaderId = pid;
-        leaderCount = count;
-      }
-    }
-    return { ...award, leaderId, leaderCount };
+
+    const leaders = [...playerCounts.entries()]
+      .map(([playerId, count]) => ({ playerId, count }))
+      .sort((a, b) => b.count - a.count);
+    return { ...award, leaders };
   });
 }

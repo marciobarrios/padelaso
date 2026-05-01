@@ -80,44 +80,52 @@ export function GeneralTab({
       )}
 
       {/* Logros */}
-      {funAwards.some((a) => a.leaderId) && (
+      {funAwards.some((a) => a.leaders.length > 0) && (
         <div>
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Logros
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {funAwards.map((award) => {
-              const leader = award.leaderId
-                ? playerMap.get(award.leaderId)
-                : null;
-              if (!leader) return null;
+              if (award.leaders.length === 0) return null;
               return (
                 <Card key={award.title}>
                   <CardContent className="p-3 text-center space-y-1.5">
                     <p className="text-2xl">{award.emoji}</p>
                     <p className="text-xs font-medium">{award.title}</p>
-                    <p className="text-xs text-muted-foreground mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">
                       {getAwardDescription(award.events)}
                     </p>
-                    <div className="flex items-center justify-between">
-                      {!selectedPlayer ? (
-                        <div className="flex items-center gap-1.5">
-                          <PlayerAvatar
-                            emoji={leader.emoji}
-                            size="sm"
-                            className="size-5 text-xs"
-                          />
-                          <span className="text-xs truncate">
-                            {leader.name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span />
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {award.leaderCount}{" "}
-                        {award.leaderCount === 1 ? "vez" : "veces"}
-                      </span>
+                    <div className="space-y-1">
+                      {award.leaders.map((leader) => {
+                        const player = playerMap.get(leader.playerId);
+                        if (!player) return null;
+                        return (
+                          <div
+                            key={leader.playerId}
+                            className="flex items-center justify-between"
+                          >
+                            {!selectedPlayer ? (
+                              <div className="flex items-center gap-1.5">
+                                <PlayerAvatar
+                                  emoji={player.emoji}
+                                  size="sm"
+                                  className="size-5 text-xs"
+                                />
+                                <span className="text-xs truncate">
+                                  {player.name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span />
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {leader.count}{" "}
+                              {leader.count === 1 ? "vez" : "veces"}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>

@@ -82,7 +82,11 @@ export type MatchEventType =
   | "golpe_tapia"
   | "salvada_top"
   | "raquetazo_companero"
-  | "por_debajo_piernas";
+  | "por_debajo_piernas"
+  | "remontada"
+  | "set_perfecto"
+  | "remate"
+  | "magic";
 
 export type VoteType = "mvp" | "jugada_del_partido";
 
