@@ -20,21 +20,9 @@ export function MatchesPageContent({
   initialPlayers,
 }: MatchesPageContentProps) {
   const { activeGroup } = useGroup();
-  const { matches, loaded: matchesLoaded } = useMatches(
-    activeGroup?.id,
-    initialMatches
-  );
+  const { matches } = useMatches(activeGroup?.id, initialMatches);
   const { players } = usePlayers(activeGroup?.id, initialPlayers);
   const playerMap = buildPlayerMap(players);
-
-  if (!matchesLoaded) {
-    return (
-      <>
-        <PageHeader title="Partidos" />
-        <div className="max-w-lg mx-auto px-4 py-4 space-y-3" />
-      </>
-    );
-  }
 
   return (
     <>

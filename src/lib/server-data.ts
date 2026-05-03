@@ -1,8 +1,21 @@
-import { cookies } from "next/headers";
+import { cache } from "react";
+import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "./supabase-server";
 import { mapMatch, mapPlayer, mapMatchEvent, mapMatchVote } from "./mappers";
-import { ACTIVE_GROUP_COOKIE } from "./active-group-cookie";
-import type { GroupId, Match, Player, MatchEvent, MatchVote } from "./types";
+import { getServerAuth } from "./server-auth";
+import {
+  MATCH_EVENTS_GROUP_SELECT,
+  MATCH_VOTES_GROUP_SELECT,
+} from "./supabase-selects";
+import type {
+  GroupId,
+  Match,
+  Player,
+  MatchEvent,
+  MatchVote,
+  Group,
+} from "./types";
+import type { User } from "@supabase/supabase-js";
 
 export interface GroupListData {
   groupId: GroupId;
@@ -12,18 +25,16 @@ export interface GroupListData {
   votes: MatchVote[];
 }
 
-export async function getActiveGroupId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get(ACTIVE_GROUP_COOKIE)?.value ?? null;
-}
+export const fetchGroupListData = cache(
+  async (groupId: GroupId): Promise<GroupListData> => {
+    const supabase = await createServerSupabaseClient();
 
-export async function fetchGroupListData(
-  groupId: GroupId
-): Promise<GroupListData> {
-  const supabase = await createServerSupabaseClient();
-
-  const [{ data: matchesData }, { data: playersData }, { data: eventsData }, { data: votesData }] =
-    await Promise.all([
+    const [
+      { data: matchesData },
+      { data: playersData },
+      { data: eventsData },
+      { data: votesData },
+    ] = await Promise.all([
       supabase
         .from("matches")
         .select("*")
@@ -36,23 +47,41 @@ export async function fetchGroupListData(
         .order("name"),
       supabase
         .from("match_events")
-        .select(
-          "id, match_id, player_id, type, created_by, created_at, matches!inner(group_id)"
-        )
+        .select(MATCH_EVENTS_GROUP_SELECT)
         .eq("matches.group_id", groupId),
       supabase
         .from("match_votes")
-        .select(
-          "id, match_id, voter_player_id, voted_for_player_id, vote_type, created_at, matches!inner(group_id)"
-        )
+        .select(MATCH_VOTES_GROUP_SELECT)
         .eq("matches.group_id", groupId),
     ]);
 
-  return {
-    groupId,
-    matches: matchesData?.map(mapMatch) ?? [],
-    players: playersData?.map(mapPlayer) ?? [],
-    events: eventsData?.map(mapMatchEvent) ?? [],
-    votes: votesData?.map(mapMatchVote) ?? [],
-  };
+    return {
+      groupId,
+      matches: matchesData?.map(mapMatch) ?? [],
+      players: playersData?.map(mapPlayer) ?? [],
+      events: eventsData?.map(mapMatchEvent) ?? [],
+      votes: votesData?.map(mapMatchVote) ?? [],
+    };
+  }
+);
+
+export interface GroupContext {
+  user: User;
+  activeGroup: Group;
+  data: GroupListData;
+}
+
+/**
+ * Resolves the auth/active-group context for an authenticated page.
+ * Redirects to /login or /groups/onboarding when the user can't see this page.
+ */
+export async function requireGroupContext(): Promise<GroupContext> {
+  const { user, groups, activeGroupId } = await getServerAuth();
+  if (!user) redirect("/login");
+  if (groups.length === 0) redirect("/groups/onboarding");
+
+  const activeGroup =
+    groups.find((g) => g.id === activeGroupId) ?? groups[0];
+  const data = await fetchGroupListData(activeGroup.id);
+  return { user, activeGroup, data };
 }

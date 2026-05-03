@@ -34,10 +34,9 @@ export function AuthProvider({
   const loading = false;
 
   useEffect(() => {
-    // Listen for auth state changes (sign out, token refresh, etc.)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       // Re-key the realtime websocket on every auth event. supabase-js
       // skips INITIAL_SESSION internally, leaving the socket bound to the
       // anon key on a hydrated load — RLS then silently drops postgres_changes.
@@ -45,14 +44,14 @@ export function AuthProvider({
         supabase.realtime.setAuth(session.access_token);
       }
       setUser(session?.user ?? null);
-      if (session?.user) {
-        // ensureProfile is defined inside the component and captured by closure;
-        // omitting it from deps avoids a stale reference on re-render.
+      if (event === "SIGNED_IN" && session?.user) {
         supabase.from("profiles").upsert(
           {
             id: session.user.id,
             display_name:
-              session.user.user_metadata?.full_name ?? session.user.email?.split("@")[0] ?? "",
+              session.user.user_metadata?.full_name ??
+              session.user.email?.split("@")[0] ??
+              "",
             avatar_url: session.user.user_metadata?.avatar_url ?? null,
           },
           { onConflict: "id" }

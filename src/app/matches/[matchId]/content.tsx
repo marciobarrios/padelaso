@@ -333,7 +333,6 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
 
           <EventFeed
             events={events}
-            players={players}
             playerMap={playerMap}
             loaded={eventsLoaded}
             onRemove={handleRemoveEvent}

@@ -20,28 +20,61 @@ import {
   mapMatchVote,
   mapGroupMember,
 } from "./mappers";
+import {
+  MATCH_EVENTS_GROUP_SELECT,
+  MATCH_VOTES_GROUP_SELECT,
+} from "./supabase-selects";
 
-// ---------- SWR key factory ----------
+const KEY_PREFIXES = {
+  groups: "groups",
+  groupMembers: "group-members",
+  players: "players",
+  matches: "matches",
+  match: "match",
+  matchEvents: "match-events",
+  matchVotes: "match-votes",
+  allMatchEvents: "all-match-events",
+  allMatchVotes: "all-match-votes",
+  playerMatches: "player-matches",
+  playerEvents: "player-events",
+} as const;
+
+type KeyName = keyof typeof KEY_PREFIXES;
+
+const matchesPrefix =
+  (name: KeyName) =>
+  (key: unknown): boolean =>
+    Array.isArray(key) && key[0] === KEY_PREFIXES[name];
 
 export const keys = {
-  groups: () => ["groups"] as const,
+  groups: () => [KEY_PREFIXES.groups] as const,
   groupMembers: (groupId?: GroupId) =>
-    ["group-members", groupId] as const,
-  players: (groupId?: GroupId) => ["players", groupId] as const,
-  matches: (groupId?: GroupId) => ["matches", groupId] as const,
-  match: (matchId: MatchId) => ["match", matchId] as const,
+    [KEY_PREFIXES.groupMembers, groupId] as const,
+  players: (groupId?: GroupId) => [KEY_PREFIXES.players, groupId] as const,
+  matches: (groupId?: GroupId) => [KEY_PREFIXES.matches, groupId] as const,
+  match: (matchId: MatchId) => [KEY_PREFIXES.match, matchId] as const,
   matchEvents: (matchId: MatchId) =>
-    ["match-events", matchId] as const,
+    [KEY_PREFIXES.matchEvents, matchId] as const,
   matchVotes: (matchId: MatchId) =>
-    ["match-votes", matchId] as const,
+    [KEY_PREFIXES.matchVotes, matchId] as const,
   allMatchEvents: (groupId?: GroupId) =>
-    ["all-match-events", groupId] as const,
+    [KEY_PREFIXES.allMatchEvents, groupId] as const,
   allMatchVotes: (groupId?: GroupId) =>
-    ["all-match-votes", groupId] as const,
+    [KEY_PREFIXES.allMatchVotes, groupId] as const,
   playerMatches: (playerId: string) =>
-    ["player-matches", playerId] as const,
+    [KEY_PREFIXES.playerMatches, playerId] as const,
   playerEvents: (playerId: string) =>
-    ["player-events", playerId] as const,
+    [KEY_PREFIXES.playerEvents, playerId] as const,
+};
+
+/** Predicates for `invalidate()` that match every key in a family. */
+export const matchAll = {
+  players: matchesPrefix("players"),
+  matches: matchesPrefix("matches"),
+  matchEvents: matchesPrefix("matchEvents"),
+  matchVotes: matchesPrefix("matchVotes"),
+  allMatchEvents: matchesPrefix("allMatchEvents"),
+  allMatchVotes: matchesPrefix("allMatchVotes"),
 };
 
 type SWRKey = readonly (string | undefined)[];
@@ -59,13 +92,9 @@ export function invalidate(
   }
 }
 
-// ---------- Fetch helpers ----------
-
 function getSupabase() {
   return getBrowserClient();
 }
-
-// ---------- Group hooks ----------
 
 export function useGroups(initialData?: Group[]): {
   groups: Group[];
@@ -88,13 +117,12 @@ export function useGroups(initialData?: Group[]): {
 
 export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
   const { data } = useSWR(
-    keys.groupMembers(groupId),
+    groupId ? keys.groupMembers(groupId) : null,
     async () => {
-      if (!groupId) return [];
       const { data } = await getSupabase()
         .from("group_members")
         .select("*")
-        .eq("group_id", groupId)
+        .eq("group_id", groupId!)
         .order("joined_at");
       return data?.map(mapGroupMember) ?? [];
     }
@@ -103,20 +131,17 @@ export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
   return data ?? [];
 }
 
-// ---------- Player/Match hooks (group-scoped) ----------
-
 export function usePlayers(
   groupId?: GroupId,
   initialData?: Player[]
 ): { players: Player[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
-    keys.players(groupId),
+    groupId ? keys.players(groupId) : null,
     async () => {
-      if (!groupId) return [];
       const { data } = await getSupabase()
         .from("players")
         .select("*")
-        .eq("group_id", groupId)
+        .eq("group_id", groupId!)
         .order("name");
       return data?.map(mapPlayer) ?? [];
     },
@@ -131,13 +156,12 @@ export function useMatches(
   initialData?: Match[]
 ): { matches: Match[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
-    keys.matches(groupId),
+    groupId ? keys.matches(groupId) : null,
     async () => {
-      if (!groupId) return [];
       const { data } = await getSupabase()
         .from("matches")
         .select("*")
-        .eq("group_id", groupId)
+        .eq("group_id", groupId!)
         .order("created_at", { ascending: false });
       return data?.map(mapMatch) ?? [];
     },
@@ -216,15 +240,12 @@ export function useAllMatchEvents(
   initialData?: MatchEvent[]
 ): { events: MatchEvent[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
-    keys.allMatchEvents(groupId),
+    groupId ? keys.allMatchEvents(groupId) : null,
     async () => {
-      if (!groupId) return [];
       const { data } = await getSupabase()
         .from("match_events")
-        .select(
-          "id, match_id, player_id, type, created_by, created_at, matches!inner(group_id)"
-        )
-        .eq("matches.group_id", groupId);
+        .select(MATCH_EVENTS_GROUP_SELECT)
+        .eq("matches.group_id", groupId!);
       return data?.map(mapMatchEvent) ?? [];
     },
     { fallbackData: initialData }
@@ -238,15 +259,12 @@ export function useAllMatchVotes(
   initialData?: MatchVote[]
 ): { votes: MatchVote[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
-    keys.allMatchVotes(groupId),
+    groupId ? keys.allMatchVotes(groupId) : null,
     async () => {
-      if (!groupId) return [];
       const { data } = await getSupabase()
         .from("match_votes")
-        .select(
-          "id, match_id, voter_player_id, voted_for_player_id, vote_type, created_at, matches!inner(group_id)"
-        )
-        .eq("matches.group_id", groupId);
+        .select(MATCH_VOTES_GROUP_SELECT)
+        .eq("matches.group_id", groupId!);
       return data?.map(mapMatchVote) ?? [];
     },
     { fallbackData: initialData }
@@ -294,14 +312,3 @@ export function usePlayerEvents(
   return { events: data ?? [], loaded: !isLoading };
 }
 
-// ---------- Legacy compatibility ----------
-
-/** @deprecated Use `invalidate(...)` with explicit keys instead. */
-export function useDataRefresh() {
-  return {
-    refreshKey: 0,
-    refresh: () => {
-      // No-op: global refresh is replaced by targeted invalidation.
-    },
-  };
-}

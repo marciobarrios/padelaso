@@ -22,11 +22,7 @@ export function PlayersPageContent({
     <>
       <PageHeader title="Jugadores" action={<CreatePlayerDialog />} />
       <div className="max-w-lg mx-auto">
-        {!loaded ? (
-          <PlayerListSkeleton />
-        ) : (
-          <PlayerList players={players} loaded={loaded} />
-        )}
+        {loaded ? <PlayerList players={players} /> : <PlayerListSkeleton />}
       </div>
     </>
   );

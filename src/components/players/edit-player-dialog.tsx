@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmojiPicker } from "./emoji-picker";
 import { updatePlayer } from "@/lib/supabase-mutations";
-import { invalidate } from "@/lib/supabase-hooks";
+import { invalidate, matchAll } from "@/lib/supabase-hooks";
 import { Player } from "@/lib/types";
 
 interface EditPlayerDialogProps {
@@ -34,7 +34,7 @@ export function EditPlayerDialog({
       name: name.trim(),
       emoji,
     });
-    invalidate((key) => Array.isArray(key) && key[0] === "players");
+    invalidate(matchAll.players);
     onOpenChange(false);
   }
 

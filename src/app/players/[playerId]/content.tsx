@@ -16,6 +16,7 @@ import {
   usePlayerEvents,
   invalidate,
   keys,
+  matchAll,
 } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { deletePlayer, linkPlayerToUser, unlinkPlayerFromUser } from "@/lib/supabase-mutations";
@@ -81,7 +82,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     setLinkError(null);
     try {
       await linkPlayerToUser(playerId, user.id);
-      invalidate((key) => Array.isArray(key) && key[0] === "players");
+      invalidate(matchAll.players);
     } catch {
       setLinkError("No se pudo vincular la cuenta. Inténtalo de nuevo.");
     }
@@ -92,7 +93,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     setLinkError(null);
     try {
       await unlinkPlayerFromUser(playerId, user.id);
-      invalidate((key) => Array.isArray(key) && key[0] === "players");
+      invalidate(matchAll.players);
     } catch {
       setLinkError("No se pudo desvincular la cuenta. Inténtalo de nuevo.");
     }

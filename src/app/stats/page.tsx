@@ -1,24 +1,12 @@
-import { redirect } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
-
-import { getServerAuth } from "@/lib/server-auth";
-import { fetchGroupListData, getActiveGroupId } from "@/lib/server-data";
+import { requireGroupContext } from "@/lib/server-data";
 import { StatsPageContent } from "@/app/_components/stats-page-content";
 
 export default async function StatsPage() {
-  const { user, groups } = await getServerAuth();
-  if (!user) redirect("/login");
-  if (groups.length === 0) redirect("/groups/onboarding");
+  const { data } = await requireGroupContext();
 
-  const activeGroupId = (await getActiveGroupId()) ?? groups[0].id;
-  const activeGroup = groups.find((g) => g.id === activeGroupId) ?? groups[0];
-
-  const { matches, players, events, votes } = await fetchGroupListData(
-    activeGroup.id
-  );
-
-  if (matches.length === 0) {
+  if (data.matches.length === 0) {
     return (
       <MobileShell>
         <PageHeader title="Stats" />
@@ -37,10 +25,10 @@ export default async function StatsPage() {
   return (
     <MobileShell>
       <StatsPageContent
-        initialMatches={matches}
-        initialPlayers={players}
-        initialEvents={events}
-        initialVotes={votes}
+        initialMatches={data.matches}
+        initialPlayers={data.players}
+        initialEvents={data.events}
+        initialVotes={data.votes}
       />
     </MobileShell>
   );
