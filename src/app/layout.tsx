@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { GeistPixelSquare } from "geist/font/pixel";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/components/theme/theme-provider";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
@@ -44,6 +45,7 @@ export default async function RootLayout({
           </AuthProvider>
           <ThemeSwitcher />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
