@@ -2,10 +2,8 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import {
@@ -54,7 +52,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset.theme = resolved;
   }, [resolved]);
 
-  const setPreference = useCallback((next: ThemePreference) => {
+  function setPreference(next: ThemePreference) {
     setPreferenceState(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
@@ -62,12 +60,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // localStorage may be unavailable (private mode, quotas). In-memory state
       // still applies the theme for this session.
     }
-  }, []);
+  }
 
-  const value = useMemo(
-    () => ({ preference, resolved, setPreference }),
-    [preference, resolved, setPreference],
-  );
+  const value = { preference, resolved, setPreference };
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

@@ -1,50 +1,22 @@
-"use client";
-
-import Link from "next/link";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { redirect } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
-import { PageHeader } from "@/components/layout/page-header";
-import { MatchCard } from "@/components/match/match-card";
-import { useMatches, usePlayers } from "@/lib/db-hooks";
-import { useGroup } from "@/components/group/group-provider";
-import { buildPlayerMap } from "@/lib/utils";
+import { getServerAuth } from "@/lib/server-auth";
+import { fetchGroupListData, getActiveGroupId } from "@/lib/server-data";
+import { MatchesPageContent } from "@/app/_components/matches-page-content";
 
-export default function MatchesPage() {
-  const { activeGroup } = useGroup();
-  const { matches, loaded: matchesLoaded } = useMatches(activeGroup?.id);
-  const { players } = usePlayers(activeGroup?.id);
-  const playerMap = buildPlayerMap(players);
+export default async function MatchesPage() {
+  const { user, groups } = await getServerAuth();
+  if (!user) redirect("/login");
+  if (groups.length === 0) redirect("/groups/onboarding");
 
-  if (!matchesLoaded) return (
-    <MobileShell>
-      <PageHeader title="Partidos" />
-    </MobileShell>
-  );
+  const activeGroupId = (await getActiveGroupId()) ?? groups[0].id;
+  const activeGroup = groups.find((g) => g.id === activeGroupId) ?? groups[0];
+
+  const { matches, players } = await fetchGroupListData(activeGroup.id);
 
   return (
     <MobileShell>
-      <PageHeader
-        title="Partidos"
-        action={
-          <Link href="/matches/new">
-            <Button size="icon" variant="ghost">
-              <Plus className="size-5" />
-            </Button>
-          </Link>
-        }
-      />
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
-        {matches.length === 0 ? (
-          <p className="text-center text-muted-foreground py-12">
-            No hay partidos todavía
-          </p>
-        ) : (
-          matches.map((match) => (
-            <MatchCard key={match.id} match={match} playerMap={playerMap} />
-          ))
-        )}
-      </div>
+      <MatchesPageContent initialMatches={matches} initialPlayers={players} />
     </MobileShell>
   );
 }

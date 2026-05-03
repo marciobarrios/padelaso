@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmojiPicker } from "./emoji-picker";
 import { updatePlayer } from "@/lib/supabase-mutations";
-import { useDataRefresh } from "@/lib/supabase-hooks";
+import { invalidate } from "@/lib/supabase-hooks";
 import { Player } from "@/lib/types";
 
 interface EditPlayerDialogProps {
@@ -25,16 +25,8 @@ export function EditPlayerDialog({
   open,
   onOpenChange,
 }: EditPlayerDialogProps) {
-  const { refresh } = useDataRefresh();
   const [name, setName] = useState(player.name);
   const [emoji, setEmoji] = useState(player.emoji);
-
-  useEffect(() => {
-    if (open) {
-      setName(player.name);
-      setEmoji(player.emoji);
-    }
-  }, [open, player.name, player.emoji]);
 
   async function handleSave() {
     if (!name.trim()) return;
@@ -42,7 +34,7 @@ export function EditPlayerDialog({
       name: name.trim(),
       emoji,
     });
-    refresh();
+    invalidate((key) => Array.isArray(key) && key[0] === "players");
     onOpenChange(false);
   }
 

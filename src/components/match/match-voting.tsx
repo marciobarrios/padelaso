@@ -5,9 +5,9 @@ import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import { useDataRefresh } from "@/lib/db-hooks";
+import { invalidate, keys } from "@/lib/db-hooks";
 import { castMatchVote, removeMatchVote } from "@/lib/supabase-mutations";
-import { Match, MatchVote, Player, PlayerId, VoteType } from "@/lib/types";
+import { Match, MatchVote, Player, PlayerId } from "@/lib/types";
 import { VoteConfig } from "@/lib/event-config";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function MatchVoting({
   currentUserPlayerId,
   config,
 }: MatchVotingProps) {
-  const { refresh } = useDataRefresh();
+
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [isChangingVote, setIsChangingVote] = useState(false);
@@ -82,7 +82,7 @@ export function MatchVoting({
           config.type,
         );
       }
-      refresh();
+      invalidate(keys.matchVotes(match.id));
       setIsChangingVote(false);
     } finally {
       setLoading(false);

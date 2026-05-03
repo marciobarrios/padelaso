@@ -1,14 +1,17 @@
 "use client";
 
+import useSWR, { mutate } from "swr";
+import { getBrowserClient } from "./supabase";
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { createClient } from "./supabase";
-import { Player, Match, MatchEvent, MatchVote, MatchId, Group, GroupMember, GroupId } from "./types";
+  Player,
+  Match,
+  MatchEvent,
+  MatchVote,
+  MatchId,
+  Group,
+  GroupMember,
+  GroupId,
+} from "./types";
 import {
   mapPlayer,
   mapMatch,
@@ -18,267 +21,287 @@ import {
   mapGroupMember,
 } from "./mappers";
 
-// ---------- Data refresh context ----------
+// ---------- SWR key factory ----------
 
-interface DataContextValue {
-  refreshKey: number;
-  refresh: () => void;
+export const keys = {
+  groups: () => ["groups"] as const,
+  groupMembers: (groupId?: GroupId) =>
+    ["group-members", groupId] as const,
+  players: (groupId?: GroupId) => ["players", groupId] as const,
+  matches: (groupId?: GroupId) => ["matches", groupId] as const,
+  match: (matchId: MatchId) => ["match", matchId] as const,
+  matchEvents: (matchId: MatchId) =>
+    ["match-events", matchId] as const,
+  matchVotes: (matchId: MatchId) =>
+    ["match-votes", matchId] as const,
+  allMatchEvents: (groupId?: GroupId) =>
+    ["all-match-events", groupId] as const,
+  allMatchVotes: (groupId?: GroupId) =>
+    ["all-match-votes", groupId] as const,
+  playerMatches: (playerId: string) =>
+    ["player-matches", playerId] as const,
+  playerEvents: (playerId: string) =>
+    ["player-events", playerId] as const,
+};
+
+type SWRKey = readonly (string | undefined)[];
+
+/** Revalidate one or more SWR keys. Pass exact keys or a predicate function. */
+export function invalidate(
+  ...keyPatterns: (SWRKey | ((key: unknown) => boolean))[]
+) {
+  for (const pattern of keyPatterns) {
+    if (typeof pattern === "function") {
+      mutate(pattern, undefined, { revalidate: true });
+    } else {
+      mutate(pattern);
+    }
+  }
 }
 
-export const DataContext = createContext<DataContextValue>({
-  refreshKey: 0,
-  refresh: () => {},
-});
+// ---------- Fetch helpers ----------
 
-export function useDataRefresh() {
-  return useContext(DataContext);
-}
-
-// ---------- Hooks ----------
-
-let _supabase: ReturnType<typeof createClient>;
 function getSupabase() {
-  if (!_supabase) _supabase = createClient();
-  return _supabase;
+  return getBrowserClient();
 }
 
 // ---------- Group hooks ----------
 
-export function useGroups(initialData?: Group[]): { groups: Group[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const hasInitialData = (initialData?.length ?? 0) > 0;
-  const [groups, setGroups] = useState<Group[]>(initialData ?? []);
-  const [loaded, setLoaded] = useState(hasInitialData);
-  const skipInitialFetch = useRef(hasInitialData);
+export function useGroups(initialData?: Group[]): {
+  groups: Group[];
+  loaded: boolean;
+} {
+  const { data, isLoading } = useSWR(
+    keys.groups(),
+    async () => {
+      const { data } = await getSupabase()
+        .from("groups")
+        .select("*")
+        .order("created_at");
+      return data?.map(mapGroup) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    if (skipInitialFetch.current) {
-      skipInitialFetch.current = false;
-      return;
-    }
-    getSupabase()
-      .from("groups")
-      .select("*")
-      .order("created_at")
-      .then(({ data }) => {
-        if (data) setGroups(data.map(mapGroup));
-        setLoaded(true);
-      });
-  }, [refreshKey]);
-
-  return { groups, loaded };
+  return { groups: data ?? [], loaded: !isLoading };
 }
 
 export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
-  const { refreshKey } = useDataRefresh();
-  const [members, setMembers] = useState<GroupMember[]>([]);
+  const { data } = useSWR(
+    keys.groupMembers(groupId),
+    async () => {
+      if (!groupId) return [];
+      const { data } = await getSupabase()
+        .from("group_members")
+        .select("*")
+        .eq("group_id", groupId)
+        .order("joined_at");
+      return data?.map(mapGroupMember) ?? [];
+    }
+  );
 
-  useEffect(() => {
-    if (!groupId) return;
-    getSupabase()
-      .from("group_members")
-      .select("*")
-      .eq("group_id", groupId)
-      .order("joined_at")
-      .then(({ data }) => {
-        if (data) setMembers(data.map(mapGroupMember));
-      });
-  }, [groupId, refreshKey]);
-
-  return members;
+  return data ?? [];
 }
 
 // ---------- Player/Match hooks (group-scoped) ----------
 
-export function usePlayers(groupId?: GroupId): { players: Player[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function usePlayers(
+  groupId?: GroupId,
+  initialData?: Player[]
+): { players: Player[]; loaded: boolean } {
+  const { data, isLoading } = useSWR(
+    keys.players(groupId),
+    async () => {
+      if (!groupId) return [];
+      const { data } = await getSupabase()
+        .from("players")
+        .select("*")
+        .eq("group_id", groupId)
+        .order("name");
+      return data?.map(mapPlayer) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    if (!groupId) {
-      setPlayers([]);
-      setLoaded(false);
-      return;
-    }
-    getSupabase()
-      .from("players")
-      .select("*")
-      .eq("group_id", groupId)
-      .order("name")
-      .then(({ data }) => {
-        if (data) setPlayers(data.map(mapPlayer));
-        setLoaded(true);
-      });
-  }, [groupId, refreshKey]);
-
-  return { players, loaded };
+  return { players: data ?? [], loaded: !isLoading };
 }
 
-export function useMatches(groupId?: GroupId): { matches: Match[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function useMatches(
+  groupId?: GroupId,
+  initialData?: Match[]
+): { matches: Match[]; loaded: boolean } {
+  const { data, isLoading } = useSWR(
+    keys.matches(groupId),
+    async () => {
+      if (!groupId) return [];
+      const { data } = await getSupabase()
+        .from("matches")
+        .select("*")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: false });
+      return data?.map(mapMatch) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    if (!groupId) {
-      setMatches([]);
-      setLoaded(false);
-      return;
-    }
-    getSupabase()
-      .from("matches")
-      .select("*")
-      .eq("group_id", groupId)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (data) setMatches(data.map(mapMatch));
-        setLoaded(true);
-      });
-  }, [groupId, refreshKey]);
-
-  return { matches, loaded };
+  return { matches: data ?? [], loaded: !isLoading };
 }
 
-export function useMatch(id: MatchId): { match: Match | undefined; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [match, setMatch] = useState<Match | undefined>();
-  const [loaded, setLoaded] = useState(false);
+export function useMatch(
+  id: MatchId,
+  initialData?: Match
+): {
+  match: Match | undefined;
+  loaded: boolean;
+} {
+  const { data, isLoading } = useSWR(
+    keys.match(id),
+    async () => {
+      const { data } = await getSupabase()
+        .from("matches")
+        .select("*")
+        .eq("id", id)
+        .single();
+      return data ? mapMatch(data) : undefined;
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    getSupabase()
-      .from("matches")
-      .select("*")
-      .eq("id", id)
-      .single()
-      .then(({ data }) => {
-        setMatch(data ? mapMatch(data) : undefined);
-        setLoaded(true);
-      });
-  }, [id, refreshKey]);
-
-  return { match, loaded };
+  return { match: data, loaded: !isLoading };
 }
 
-export function useMatchEvents(matchId: MatchId): { events: MatchEvent[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [events, setEvents] = useState<MatchEvent[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function useMatchEvents(
+  matchId: MatchId,
+  initialData?: MatchEvent[]
+): {
+  events: MatchEvent[];
+  loaded: boolean;
+} {
+  const { data, isLoading } = useSWR(
+    keys.matchEvents(matchId),
+    async () => {
+      const { data } = await getSupabase()
+        .from("match_events")
+        .select("*")
+        .eq("match_id", matchId);
+      return data?.map(mapMatchEvent) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    getSupabase()
-      .from("match_events")
-      .select("*")
-      .eq("match_id", matchId)
-      .then(({ data }) => {
-        if (data) setEvents(data.map(mapMatchEvent));
-        setLoaded(true);
-      });
-  }, [matchId, refreshKey]);
-
-  return { events, loaded };
+  return { events: data ?? [], loaded: !isLoading };
 }
 
-export function useMatchVotes(matchId: MatchId): MatchVote[] {
-  const { refreshKey } = useDataRefresh();
-  const [votes, setVotes] = useState<MatchVote[]>([]);
+export function useMatchVotes(
+  matchId: MatchId,
+  initialData?: MatchVote[]
+): MatchVote[] {
+  const { data } = useSWR(
+    keys.matchVotes(matchId),
+    async () => {
+      const { data } = await getSupabase()
+        .from("match_votes")
+        .select("*")
+        .eq("match_id", matchId);
+      return data?.map(mapMatchVote) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    getSupabase()
-      .from("match_votes")
-      .select("*")
-      .eq("match_id", matchId)
-      .then(({ data }) => {
-        if (data) setVotes(data.map(mapMatchVote));
-      });
-  }, [matchId, refreshKey]);
-
-  return votes;
+  return data ?? [];
 }
 
-export function useAllMatchEvents(groupId?: GroupId): { events: MatchEvent[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [events, setEvents] = useState<MatchEvent[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function useAllMatchEvents(
+  groupId?: GroupId,
+  initialData?: MatchEvent[]
+): { events: MatchEvent[]; loaded: boolean } {
+  const { data, isLoading } = useSWR(
+    keys.allMatchEvents(groupId),
+    async () => {
+      if (!groupId) return [];
+      const { data } = await getSupabase()
+        .from("match_events")
+        .select(
+          "id, match_id, player_id, type, created_by, created_at, matches!inner(group_id)"
+        )
+        .eq("matches.group_id", groupId);
+      return data?.map(mapMatchEvent) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    if (!groupId) {
-      setEvents([]);
-      setLoaded(false);
-      return;
-    }
-    getSupabase()
-      .from("match_events")
-      .select("id, match_id, player_id, type, created_by, created_at, matches!inner(group_id)")
-      .eq("matches.group_id", groupId)
-      .then(({ data }) => {
-        if (data) setEvents(data.map(mapMatchEvent));
-        setLoaded(true);
-      });
-  }, [groupId, refreshKey]);
-
-  return { events, loaded };
+  return { events: data ?? [], loaded: !isLoading };
 }
 
-export function useAllMatchVotes(groupId?: GroupId): { votes: MatchVote[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [votes, setVotes] = useState<MatchVote[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function useAllMatchVotes(
+  groupId?: GroupId,
+  initialData?: MatchVote[]
+): { votes: MatchVote[]; loaded: boolean } {
+  const { data, isLoading } = useSWR(
+    keys.allMatchVotes(groupId),
+    async () => {
+      if (!groupId) return [];
+      const { data } = await getSupabase()
+        .from("match_votes")
+        .select(
+          "id, match_id, voter_player_id, voted_for_player_id, vote_type, created_at, matches!inner(group_id)"
+        )
+        .eq("matches.group_id", groupId);
+      return data?.map(mapMatchVote) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    if (!groupId) {
-      setVotes([]);
-      setLoaded(false);
-      return;
-    }
-    getSupabase()
-      .from("match_votes")
-      .select("id, match_id, voter_player_id, voted_for_player_id, vote_type, created_at, matches!inner(group_id)")
-      .eq("matches.group_id", groupId)
-      .then(({ data }) => {
-        if (data) setVotes(data.map(mapMatchVote));
-        setLoaded(true);
-      });
-  }, [groupId, refreshKey]);
-
-  return { votes, loaded };
+  return { votes: data ?? [], loaded: !isLoading };
 }
 
-export function usePlayerMatches(playerId: string): { matches: Match[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function usePlayerMatches(
+  playerId: string,
+  initialData?: Match[]
+): { matches: Match[]; loaded: boolean } {
+  const { data, isLoading } = useSWR(
+    keys.playerMatches(playerId),
+    async () => {
+      const { data } = await getSupabase()
+        .from("matches")
+        .select("*")
+        .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`)
+        .order("created_at", { ascending: false });
+      return data?.map(mapMatch) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    getSupabase()
-      .from("matches")
-      .select("*")
-      .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (data) setMatches(data.map(mapMatch));
-        setLoaded(true);
-      });
-  }, [playerId, refreshKey]);
-
-  return { matches, loaded };
+  return { matches: data ?? [], loaded: !isLoading };
 }
 
-export function usePlayerEvents(playerId: string): { events: MatchEvent[]; loaded: boolean } {
-  const { refreshKey } = useDataRefresh();
-  const [events, setEvents] = useState<MatchEvent[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function usePlayerEvents(
+  playerId: string,
+  initialData?: MatchEvent[]
+): { events: MatchEvent[]; loaded: boolean } {
+  const { data, isLoading } = useSWR(
+    keys.playerEvents(playerId),
+    async () => {
+      const { data } = await getSupabase()
+        .from("match_events")
+        .select("*")
+        .eq("player_id", playerId);
+      return data?.map(mapMatchEvent) ?? [];
+    },
+    { fallbackData: initialData }
+  );
 
-  useEffect(() => {
-    getSupabase()
-      .from("match_events")
-      .select("*")
-      .eq("player_id", playerId)
-      .then(({ data }) => {
-        if (data) setEvents(data.map(mapMatchEvent));
-        setLoaded(true);
-      });
-  }, [playerId, refreshKey]);
+  return { events: data ?? [], loaded: !isLoading };
+}
 
-  return { events, loaded };
+// ---------- Legacy compatibility ----------
+
+/** @deprecated Use `invalidate(...)` with explicit keys instead. */
+export function useDataRefresh() {
+  return {
+    refreshKey: 0,
+    refresh: () => {
+      // No-op: global refresh is replaced by targeted invalidation.
+    },
+  };
 }

@@ -11,11 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pencil, Plus, Trash2, Radio } from "lucide-react";
 import { EventFeed } from "@/components/events/event-feed";
-import { useMatch, useMatchEvents, useMatchVotes, usePlayers, useDataRefresh } from "@/lib/db-hooks";
+import { useMatch, useMatchEvents, useMatchVotes, usePlayers, invalidate, keys } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { addMatchEvent, removeMatchEvent, deleteMatch } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
-import { createClient } from "@/lib/supabase";
+import { getBrowserClient } from "@/lib/supabase";
 import { MatchEventType, MatchEventId } from "@/lib/types";
 import { buildPlayerMap, getSetWins } from "@/lib/utils";
 import { MatchVoting } from "@/components/match/match-voting";
@@ -39,7 +39,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const { activeGroup } = useGroup();
-  const { refresh } = useDataRefresh();
+
   const { match, loaded: matchLoaded } = useMatch(matchId);
   const { events, loaded: eventsLoaded } = useMatchEvents(matchId);
   const votes = useMatchVotes(matchId);
@@ -48,13 +48,14 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
     players.find((p) => p.userId === user?.id)?.id ?? null;
   const [editOpen, setEditOpen] = useState(false);
   const [editMounted, setEditMounted] = useState(false);
+  const [editKey, setEditKey] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteMounted, setDeleteMounted] = useState(false);
   const [addingEvents, setAddingEvents] = useState(false);
   const [pickerEventType, setPickerEventType] = useState<MatchEventType | null>(null);
 
   useEffect(() => {
-    const client = createClient();
+    const client = getBrowserClient();
     let channel: ReturnType<typeof client.channel> | null = null;
 
     function open() {
@@ -64,12 +65,17 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
-          () => refresh()
+          () => invalidate(keys.match(matchId))
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "match_events", filter: `match_id=eq.${matchId}` },
-          () => refresh()
+          () => {
+            invalidate(keys.matchEvents(matchId));
+            if (activeGroup?.id) {
+              invalidate(keys.allMatchEvents(activeGroup.id));
+            }
+          }
         )
         .subscribe((status, err) => {
           if (status === "SUBSCRIBED") return;
@@ -89,7 +95,11 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
       if (document.visibilityState !== "visible") return;
       close();
       open();
-      refresh();
+      invalidate(keys.match(matchId));
+      invalidate(keys.matchEvents(matchId));
+      if (activeGroup?.id) {
+        invalidate(keys.allMatchEvents(activeGroup.id));
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -97,23 +107,26 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
       document.removeEventListener("visibilitychange", onVisibility);
       close();
     };
-  }, [matchId, refresh]);
+  }, [matchId, activeGroup?.id]);
 
   async function handleAddEvent(playerId: string) {
     if (!pickerEventType || !user) return;
     await addMatchEvent(matchId, playerId, pickerEventType, user.id);
-    refresh();
+    invalidate(keys.matchEvents(matchId));
+    if (activeGroup?.id) invalidate(keys.allMatchEvents(activeGroup.id));
     setPickerEventType(null);
   }
 
   async function handleRemoveEvent(eventId: MatchEventId) {
     await removeMatchEvent(eventId);
-    refresh();
+    invalidate(keys.matchEvents(matchId));
+    if (activeGroup?.id) invalidate(keys.allMatchEvents(activeGroup.id));
   }
 
   async function handleDelete() {
     await deleteMatch(matchId);
-    refresh();
+    invalidate(keys.match(matchId));
+    if (activeGroup?.id) invalidate(keys.matches(activeGroup.id));
     router.replace("/");
   }
 
@@ -155,7 +168,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => { setEditMounted(true); setEditOpen(true); }}
+              onClick={() => { setEditKey((k) => k + 1); setEditMounted(true); setEditOpen(true); }}
             >
               <Pencil className="size-4" />
             </Button>
@@ -321,6 +334,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
           <EventFeed
             events={events}
             players={players}
+            playerMap={playerMap}
             loaded={eventsLoaded}
             onRemove={handleRemoveEvent}
           />
@@ -329,6 +343,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
 
       {editMounted && (
         <EditMatchDialog
+          key={editKey}
           match={match}
           open={editOpen}
           onOpenChange={setEditOpen}

@@ -35,7 +35,6 @@ interface GeneralTabProps {
 }
 
 export function GeneralTab({
-  players,
   matches,
   playerMap,
   allStats,

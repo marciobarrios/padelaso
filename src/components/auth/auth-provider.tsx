@@ -1,9 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase";
-import { DataContext } from "@/lib/supabase-hooks";
+import { getBrowserClient } from "@/lib/supabase";
 import { GroupProvider } from "@/components/group/group-provider";
 import { clearActiveGroupCookie } from "@/lib/active-group-cookie";
 import type { Group } from "@/lib/types";
@@ -30,24 +29,9 @@ export function AuthProvider({
   initialGroups,
   initialActiveGroupId,
 }: AuthProviderProps) {
-  const supabase = createClient();
+  const supabase = getBrowserClient();
   const [user, setUser] = useState<User | null>(initialUser);
   const loading = false;
-  const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
-  const dataValue = useMemo(() => ({ refreshKey, refresh }), [refreshKey, refresh]);
-
-  async function ensureProfile(u: User) {
-    await supabase.from("profiles").upsert(
-      {
-        id: u.id,
-        display_name:
-          u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? "",
-        avatar_url: u.user_metadata?.avatar_url ?? null,
-      },
-      { onConflict: "id" }
-    );
-  }
 
   useEffect(() => {
     // Listen for auth state changes (sign out, token refresh, etc.)
@@ -62,7 +46,17 @@ export function AuthProvider({
       }
       setUser(session?.user ?? null);
       if (session?.user) {
-        ensureProfile(session.user);
+        // ensureProfile is defined inside the component and captured by closure;
+        // omitting it from deps avoids a stale reference on re-render.
+        supabase.from("profiles").upsert(
+          {
+            id: session.user.id,
+            display_name:
+              session.user.user_metadata?.full_name ?? session.user.email?.split("@")[0] ?? "",
+            avatar_url: session.user.user_metadata?.avatar_url ?? null,
+          },
+          { onConflict: "id" }
+        );
       }
     });
 
@@ -87,14 +81,12 @@ export function AuthProvider({
 
   return (
     <AuthContext value={{ user, loading, signInWithGoogle, signOut }}>
-      <DataContext value={dataValue}>
-        <GroupProvider
-          initialGroups={initialGroups}
-          initialActiveGroupId={initialActiveGroupId}
-        >
-          {children}
-        </GroupProvider>
-      </DataContext>
+      <GroupProvider
+        initialGroups={initialGroups}
+        initialActiveGroupId={initialActiveGroupId}
+      >
+        {children}
+      </GroupProvider>
     </AuthContext>
   );
 }
