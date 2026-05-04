@@ -1,6 +1,5 @@
 "use client";
 
-// Re-export everything from the Supabase hooks layer
 export {
   usePlayers,
   useMatches,
@@ -11,7 +10,9 @@ export {
   useAllMatchVotes,
   usePlayerMatches,
   usePlayerEvents,
-  useDataRefresh,
   useGroups,
   useGroupMembers,
+  invalidate,
+  keys,
+  matchAll,
 } from "./supabase-hooks";

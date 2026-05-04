@@ -14,7 +14,9 @@ import {
   usePlayers,
   usePlayerMatches,
   usePlayerEvents,
-  useDataRefresh,
+  invalidate,
+  keys,
+  matchAll,
 } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { deletePlayer, linkPlayerToUser, unlinkPlayerFromUser } from "@/lib/supabase-mutations";
@@ -35,9 +37,10 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const { activeGroup } = useGroup();
-  const { refresh } = useDataRefresh();
+
   const [editOpen, setEditOpen] = useState(false);
   const [editMounted, setEditMounted] = useState(false);
+  const [editKey, setEditKey] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteMounted, setDeleteMounted] = useState(false);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
@@ -63,7 +66,14 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
 
   async function handleDelete() {
     await deletePlayer(playerId);
-    refresh();
+    if (activeGroup?.id) {
+      invalidate(
+        keys.players(activeGroup.id),
+        keys.matches(activeGroup.id),
+        keys.playerMatches(playerId),
+        keys.playerEvents(playerId)
+      );
+    }
     router.replace("/players");
   }
 
@@ -72,7 +82,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     setLinkError(null);
     try {
       await linkPlayerToUser(playerId, user.id);
-      refresh();
+      invalidate(matchAll.players);
     } catch {
       setLinkError("No se pudo vincular la cuenta. Inténtalo de nuevo.");
     }
@@ -83,7 +93,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     setLinkError(null);
     try {
       await unlinkPlayerFromUser(playerId, user.id);
-      refresh();
+      invalidate(matchAll.players);
     } catch {
       setLinkError("No se pudo desvincular la cuenta. Inténtalo de nuevo.");
     }
@@ -125,7 +135,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => { setEditMounted(true); setEditOpen(true); }}
+              onClick={() => { setEditKey((k) => k + 1); setEditMounted(true); setEditOpen(true); }}
             >
               <Pencil className="size-4" />
             </Button>
@@ -280,6 +290,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
 
       {editMounted && (
         <EditPlayerDialog
+          key={editKey}
           player={player}
           open={editOpen}
           onOpenChange={setEditOpen}

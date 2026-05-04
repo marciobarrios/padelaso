@@ -21,7 +21,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
-  const { groups, activeGroup, loading: groupLoading } = useGroup();
+  const { groups, loading: groupLoading } = useGroup();
 
   useEffect(() => {
     if (!loading && !user) {

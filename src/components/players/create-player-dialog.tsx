@@ -15,12 +15,12 @@ import { EmojiPicker } from "./emoji-picker";
 import { createPlayer } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGroup } from "@/components/group/group-provider";
-import { useDataRefresh } from "@/lib/supabase-hooks";
+import { invalidate, keys } from "@/lib/supabase-hooks";
 
 export function CreatePlayerDialog() {
   const { user } = useAuth();
   const { activeGroup } = useGroup();
-  const { refresh } = useDataRefresh();
+
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("😎");
@@ -28,7 +28,7 @@ export function CreatePlayerDialog() {
   async function handleCreate() {
     if (!name.trim() || !user || !activeGroup) return;
     await createPlayer(name.trim(), emoji, user.id, activeGroup.id);
-    refresh();
+    invalidate(keys.players(activeGroup.id));
     setName("");
     setEmoji("😎");
     setOpen(false);

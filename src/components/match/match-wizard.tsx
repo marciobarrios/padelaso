@@ -11,7 +11,7 @@ import { EventGrid } from "@/components/events/event-grid";
 import { PlayerEventPicker } from "@/components/events/player-event-picker";
 import { createMatch, repointScoreToken } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useDataRefresh } from "@/lib/supabase-hooks";
+import { invalidate, keys } from "@/lib/supabase-hooks";
 import { cn } from "@/lib/utils";
 import { Check, ChevronLeft, ChevronRight, Radio } from "lucide-react";
 import { getEventConfig } from "@/lib/event-config";
@@ -37,7 +37,7 @@ interface MatchWizardProps {
 export function MatchWizard({ players, groupId }: MatchWizardProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { refresh } = useDataRefresh();
+
   const [step, setStep] = useState(0);
 
   // Step 1: Selected players
@@ -116,7 +116,9 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
       pendingEvents,
       groupId
     );
-    refresh();
+    if (groupId) {
+      invalidate(keys.matches(groupId), keys.allMatchEvents(groupId), keys.allMatchVotes(groupId));
+    }
     router.replace(`/matches/${matchId}`);
   }
 
@@ -140,7 +142,9 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
     // no token row exists — minting stays an explicit decision in the
     // scorekeeper SetupView.
     await repointScoreToken(user.id, matchId);
-    refresh();
+    if (groupId) {
+      invalidate(keys.matches(groupId), keys.allMatchEvents(groupId), keys.allMatchVotes(groupId));
+    }
     router.replace(
       destination === "pinned"
         ? `/matches/${matchId}/scorekeeper?pinned=1`

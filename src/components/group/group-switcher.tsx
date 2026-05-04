@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useGroup } from "./group-provider";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useDataRefresh } from "@/lib/supabase-hooks";
+import { invalidate, keys } from "@/lib/supabase-hooks";
 import { createGroup, joinGroupByCode } from "@/lib/supabase-mutations";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export function GroupSwitcher() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
-  const { refresh } = useDataRefresh();
+
   const router = useRouter();
 
   function resetAndClose() {
@@ -51,8 +51,8 @@ export function GroupSwitcher() {
     setSaving(true);
     setError(null);
     try {
-      const group = await createGroup(name.trim(), emoji, user.id);
-      refresh();
+      const group = await createGroup(name.trim(), emoji);
+      invalidate(keys.groups());
       setActiveGroup(group);
       resetAndClose();
     } catch {
@@ -68,7 +68,7 @@ export function GroupSwitcher() {
     setError(null);
     try {
       const group = await joinGroupByCode(joinCode);
-      refresh();
+      invalidate(keys.groups());
       setActiveGroup(group);
       resetAndClose();
     } catch {
