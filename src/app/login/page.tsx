@@ -13,6 +13,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const redirectToParam = searchParams.get("redirectTo");
   const redirectTo = isSafeInternalPath(redirectToParam) ? redirectToParam : "/";
+  const error = searchParams.get("error");
 
   useEffect(() => {
     if (!loading && user) {
@@ -32,6 +33,14 @@ function LoginContent() {
           Gamifica tus partidos de pádel con amigos
         </p>
       </div>
+      {error && (
+        <p
+          role="alert"
+          className="text-sm text-destructive max-w-xs text-center"
+        >
+          {error}
+        </p>
+      )}
       <Button
         onClick={() => signInWithGoogle(redirectTo)}
         size="lg"
