@@ -6,7 +6,15 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next");
+  const oauthError =
+    searchParams.get("error_description") ?? searchParams.get("error");
   const safeNext = isSafeInternalPath(next) ? next : "/";
+
+  if (oauthError) {
+    return NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(oauthError)}`, origin)
+    );
+  }
 
   // Construct the redirect response up front so the cookie adapter has a
   // concrete response object to write Set-Cookie headers onto. Writes via
