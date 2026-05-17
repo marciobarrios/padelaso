@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { getBrowserClient } from "@/lib/supabase";
 import { GroupProvider } from "@/components/group/group-provider";
@@ -30,6 +31,7 @@ export function AuthProvider({
   initialActiveGroupId,
 }: AuthProviderProps) {
   const supabase = getBrowserClient();
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(initialUser);
   const loading = false;
 
@@ -76,6 +78,7 @@ export function AuthProvider({
   async function signOut() {
     clearActiveGroupCookie();
     await supabase.auth.signOut();
+    router.push("/login");
   }
 
   return (
