@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { getBrowserClient } from "@/lib/supabase";
 import { GroupProvider } from "@/components/group/group-provider";
@@ -30,6 +31,7 @@ export function AuthProvider({
   initialActiveGroupId,
 }: AuthProviderProps) {
   const supabase = getBrowserClient();
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(initialUser);
   const loading = false;
 
@@ -57,10 +59,16 @@ export function AuthProvider({
           { onConflict: "id" }
         );
       }
+      // Covers explicit signOut, refresh-token failure, and cross-tab signout.
+      // INITIAL_SESSION with a null session does NOT fire SIGNED_OUT, so this
+      // can't re-introduce the SSR/client hydration loop the mobile-shell fix targeted.
+      if (event === "SIGNED_OUT") {
+        router.replace("/login");
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, router]);
 
   async function signInWithGoogle(next?: string) {
     const callback = new URL("/auth/callback", window.location.origin);

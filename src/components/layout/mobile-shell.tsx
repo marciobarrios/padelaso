@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Home, Users, BarChart3, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -19,29 +18,12 @@ const NAV_ITEMS = [
 
 export function MobileShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { groups, loading: groupLoading } = useGroup();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
-  }, [loading, user, router]);
-
-  // Redirect to onboarding if user has no groups
-  useEffect(() => {
-    if (!loading && !groupLoading && user && groups.length === 0) {
-      router.replace("/groups/onboarding");
-    }
-  }, [loading, groupLoading, user, groups, router]);
-
-  if (loading || !user || groupLoading) {
+  // SSR's requireGroupContext is the auth gate; a duplicate client redirect here once produced a loop on SSR/client state mismatch.
+  if (!user || groupLoading || groups.length === 0) {
     return <MobileShellSkeleton />;
-  }
-
-  if (groups.length === 0) {
-    return null; // Will redirect to onboarding
   }
 
   return (
