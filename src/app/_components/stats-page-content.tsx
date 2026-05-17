@@ -14,6 +14,7 @@ import { useGroup } from "@/components/group/group-provider";
 import {
   calculatePlayerStats,
   getEventLeaderboards,
+  getEventRecords,
   getPairStats,
   getHeadToHeadStats,
   getMvpRankings,
@@ -24,6 +25,10 @@ import { buildPlayerMap } from "@/lib/utils";
 import type { PlayerId } from "@/lib/types";
 
 import { PlayerFilter } from "@/app/stats/_components/player-filter";
+import {
+  TimeRangeFilter,
+  type TimeRange,
+} from "@/app/stats/_components/time-range-filter";
 import { GeneralTab } from "@/app/stats/_components/general-tab";
 import { ParejasTab } from "@/app/stats/_components/parejas-tab";
 import { EventosTab } from "@/app/stats/_components/eventos-tab";
@@ -37,6 +42,18 @@ export function StatsPageContent() {
   const { votes } = useAllMatchVotes(activeGroup?.id);
 
   const [rawSelectedPlayer, setSelectedPlayer] = useState<PlayerId | null>(null);
+  const [timeRange, setTimeRange] = useState<TimeRange>("all");
+  const [cutoffMs, setCutoffMs] = useState<number | null>(null);
+
+  const onTimeRangeChange = (value: TimeRange) => {
+    setTimeRange(value);
+    if (value === "all") {
+      setCutoffMs(null);
+    } else {
+      const days = value === "30d" ? 30 : 90;
+      setCutoffMs(Date.now() - days * 86_400_000);
+    }
+  };
 
   const selectedPlayer =
     rawSelectedPlayer && players.some((p) => p.id === rawSelectedPlayer)
@@ -45,22 +62,36 @@ export function StatsPageContent() {
 
   const playerMap = buildPlayerMap(players);
 
+  const timeFilteredMatches =
+    cutoffMs == null
+      ? matches
+      : matches.filter((m) => new Date(m.date).getTime() >= cutoffMs);
+
+  const timeFilteredEvents =
+    cutoffMs == null
+      ? events
+      : (() => {
+          const ids = new Set(timeFilteredMatches.map((m) => m.id));
+          return events.filter((e) => ids.has(e.matchId));
+        })();
+
   const filteredEvents = selectedPlayer
-    ? events.filter((e) => e.playerId === selectedPlayer)
-    : events;
+    ? timeFilteredEvents.filter((e) => e.playerId === selectedPlayer)
+    : timeFilteredEvents;
 
   const allStats = players
     .map((p) => ({
       player: p,
-      stats: calculatePlayerStats(p.id, matches),
+      stats: calculatePlayerStats(p.id, timeFilteredMatches),
     }))
     .filter((s) => s.stats.matches > 0)
     .sort((a, b) => b.stats.winRate - a.stats.winRate);
 
-  const leaderboards = getEventLeaderboards(filteredEvents);
+  const leaderboards = getEventLeaderboards(filteredEvents, timeFilteredMatches);
+  const eventRecords = getEventRecords(timeFilteredEvents, timeFilteredMatches);
 
-  const pairStats = getPairStats(matches);
-  const h2hStats = getHeadToHeadStats(matches);
+  const pairStats = getPairStats(timeFilteredMatches);
+  const h2hStats = getHeadToHeadStats(timeFilteredMatches);
   const mvpRankings = getMvpRankings(votes);
   const funAwards = computeFunAwards(filteredEvents, FUN_AWARD_CONFIGS);
 
@@ -83,7 +114,7 @@ export function StatsPageContent() {
     : null;
 
   const playerMatches = selectedPlayer
-    ? matches
+    ? timeFilteredMatches
         .filter(
           (m) =>
             m.team1.includes(selectedPlayer) ||
@@ -124,11 +155,15 @@ export function StatsPageContent() {
             <TabsTrigger value="eventos">Eventos</TabsTrigger>
           </TabsList>
 
+          <TimeRangeFilter value={timeRange} onChange={onTimeRangeChange} />
+
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-3xl font-heading font-bold">
-                  {selectedPlayer ? playerMatches.length : matches.length}
+                  {selectedPlayer
+                    ? playerMatches.length
+                    : timeFilteredMatches.length}
                 </p>
                 <p className="text-xs text-muted-foreground">Partidos</p>
               </CardContent>
@@ -146,7 +181,7 @@ export function StatsPageContent() {
           <TabsContent value="general">
             <GeneralTab
               players={players}
-              matches={matches}
+              matches={timeFilteredMatches}
               playerMap={playerMap}
               allStats={allStats}
               mvpRankings={mvpRankings}
@@ -169,6 +204,7 @@ export function StatsPageContent() {
           <TabsContent value="eventos">
             <EventosTab
               leaderboards={leaderboards}
+              eventRecords={eventRecords}
               playerMap={playerMap}
               selectedPlayer={selectedPlayer}
             />

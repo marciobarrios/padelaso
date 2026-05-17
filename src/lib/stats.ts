@@ -1,4 +1,11 @@
-import { Match, MatchEvent, MatchVote, PlayerId, MatchEventType } from "./types";
+import {
+  Match,
+  MatchEvent,
+  MatchVote,
+  PlayerId,
+  MatchId,
+  MatchEventType,
+} from "./types";
 import { getSetWins } from "./utils";
 import { type FunAwardConfig } from "./event-config";
 
@@ -93,14 +100,36 @@ export function getPartnerStats(
     .sort((a, b) => b.matches - a.matches);
 }
 
+export const MIN_MATCHES_FOR_RATE = 3;
+
+export interface EventLeaderboardEntry {
+  playerId: PlayerId;
+  count: number;
+  matchesPlayed: number;
+  perMatch: number;
+  eligible: boolean;
+}
+
 export interface EventLeaderboard {
   type: MatchEventType;
-  entries: { playerId: PlayerId; count: number }[];
+  totalCount: number;
+  entries: EventLeaderboardEntry[];
 }
 
 export function getEventLeaderboards(
-  events: MatchEvent[]
+  events: MatchEvent[],
+  matches: Match[],
 ): EventLeaderboard[] {
+  const matchCountByPlayer = new Map<PlayerId, number>();
+  for (const match of matches) {
+    for (const id of match.team1) {
+      matchCountByPlayer.set(id, (matchCountByPlayer.get(id) ?? 0) + 1);
+    }
+    for (const id of match.team2) {
+      matchCountByPlayer.set(id, (matchCountByPlayer.get(id) ?? 0) + 1);
+    }
+  }
+
   const byType = new Map<MatchEventType, Map<PlayerId, number>>();
   const totals = new Map<MatchEventType, number>();
 
@@ -112,13 +141,65 @@ export function getEventLeaderboards(
   }
 
   return [...byType.entries()]
-    .map(([type, playerCounts]) => ({
-      type,
-      entries: [...playerCounts.entries()]
-        .map(([playerId, count]) => ({ playerId, count }))
-        .sort((a, b) => b.count - a.count),
-    }))
-    .sort((a, b) => (totals.get(b.type) ?? 0) - (totals.get(a.type) ?? 0));
+    .map(([type, playerCounts]) => {
+      const entries: EventLeaderboardEntry[] = [...playerCounts.entries()]
+        .map(([playerId, count]) => {
+          const matchesPlayed = matchCountByPlayer.get(playerId) ?? 0;
+          const perMatch = matchesPlayed > 0 ? count / matchesPlayed : 0;
+          const eligible = matchesPlayed >= MIN_MATCHES_FOR_RATE;
+          return { playerId, count, matchesPlayed, perMatch, eligible };
+        })
+        .sort((a, b) => {
+          if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
+          if (b.perMatch !== a.perMatch) return b.perMatch - a.perMatch;
+          return b.count - a.count;
+        });
+      return {
+        type,
+        totalCount: totals.get(type) ?? 0,
+        entries,
+      };
+    })
+    .sort((a, b) => b.totalCount - a.totalCount);
+}
+
+export interface EventRecord {
+  type: MatchEventType;
+  playerId: PlayerId;
+  count: number;
+  matchId: MatchId;
+  date: string | Date;
+}
+
+export function getEventRecords(
+  events: MatchEvent[],
+  matches: Match[],
+): Map<MatchEventType, EventRecord> {
+  const matchById = new Map<MatchId, Match>();
+  for (const m of matches) matchById.set(m.id, m);
+
+  const tally = new Map<string, number>();
+  for (const e of events) {
+    const key = `${e.matchId} ${e.playerId} ${e.type}`;
+    tally.set(key, (tally.get(key) ?? 0) + 1);
+  }
+
+  const best = new Map<MatchEventType, EventRecord>();
+  for (const [key, count] of tally) {
+    const [matchId, playerId, type] = key.split(" ") as [
+      MatchId,
+      PlayerId,
+      MatchEventType,
+    ];
+    const match = matchById.get(matchId);
+    if (!match) continue;
+    const current = best.get(type);
+    if (!current || count > current.count) {
+      best.set(type, { type, playerId, count, matchId, date: match.date });
+    }
+  }
+
+  return best;
 }
 
 // ---------- Pair stats ----------
