@@ -59,10 +59,16 @@ export function AuthProvider({
           { onConflict: "id" }
         );
       }
+      // Covers explicit signOut, refresh-token failure, and cross-tab signout.
+      // INITIAL_SESSION with a null session does NOT fire SIGNED_OUT, so this
+      // can't re-introduce the SSR/client hydration loop the mobile-shell fix targeted.
+      if (event === "SIGNED_OUT") {
+        router.replace("/login");
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, router]);
 
   async function signInWithGoogle(next?: string) {
     const callback = new URL("/auth/callback", window.location.origin);
@@ -78,7 +84,6 @@ export function AuthProvider({
   async function signOut() {
     clearActiveGroupCookie();
     await supabase.auth.signOut();
-    router.push("/login");
   }
 
   return (
