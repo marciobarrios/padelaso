@@ -1,13 +1,16 @@
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { requireGroupContext } from "@/lib/server-data";
+import { GroupDataHydrator } from "@/lib/swr-hydration";
 import { PlayersPageContent } from "@/app/_components/players-page-content";
 
 export default async function PlayersPage() {
-  const { data } = await requireGroupContext();
+  const { activeGroup, data } = await requireGroupContext();
 
   return (
     <MobileShell>
-      <PlayersPageContent initialPlayers={data.players} />
+      <GroupDataHydrator groupId={activeGroup.id} players={data.players}>
+        <PlayersPageContent />
+      </GroupDataHydrator>
     </MobileShell>
   );
 }

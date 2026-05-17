@@ -8,26 +8,11 @@ import { useMatches, usePlayers } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { buildPlayerMap } from "@/lib/utils";
 import { HomePageSkeleton } from "@/components/layout/skeletons";
-import type { Match, Player } from "@/lib/types";
 
-interface HomePageContentProps {
-  initialMatches: Match[];
-  initialPlayers: Player[];
-}
-
-export function HomePageContent({
-  initialMatches,
-  initialPlayers,
-}: HomePageContentProps) {
+export function HomePageContent() {
   const { activeGroup } = useGroup();
-  const { matches, loaded: matchesLoaded } = useMatches(
-    activeGroup?.id,
-    initialMatches
-  );
-  const { players, loaded: playersLoaded } = usePlayers(
-    activeGroup?.id,
-    initialPlayers
-  );
+  const { matches, loaded: matchesLoaded } = useMatches(activeGroup?.id);
+  const { players, loaded: playersLoaded } = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
 
   if (!matchesLoaded || !playersLoaded) {

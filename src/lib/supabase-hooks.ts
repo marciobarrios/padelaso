@@ -132,8 +132,7 @@ export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
 }
 
 export function usePlayers(
-  groupId?: GroupId,
-  initialData?: Player[]
+  groupId?: GroupId
 ): { players: Player[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
     groupId ? keys.players(groupId) : null,
@@ -144,16 +143,14 @@ export function usePlayers(
         .eq("group_id", groupId!)
         .order("name");
       return data?.map(mapPlayer) ?? [];
-    },
-    { fallbackData: initialData }
+    }
   );
 
   return { players: data ?? [], loaded: !isLoading };
 }
 
 export function useMatches(
-  groupId?: GroupId,
-  initialData?: Match[]
+  groupId?: GroupId
 ): { matches: Match[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
     groupId ? keys.matches(groupId) : null,
@@ -164,80 +161,57 @@ export function useMatches(
         .eq("group_id", groupId!)
         .order("created_at", { ascending: false });
       return data?.map(mapMatch) ?? [];
-    },
-    { fallbackData: initialData }
+    }
   );
 
   return { matches: data ?? [], loaded: !isLoading };
 }
 
-export function useMatch(
-  id: MatchId,
-  initialData?: Match
-): {
+export function useMatch(id: MatchId): {
   match: Match | undefined;
   loaded: boolean;
 } {
-  const { data, isLoading } = useSWR(
-    keys.match(id),
-    async () => {
-      const { data } = await getSupabase()
-        .from("matches")
-        .select("*")
-        .eq("id", id)
-        .single();
-      return data ? mapMatch(data) : undefined;
-    },
-    { fallbackData: initialData }
-  );
+  const { data, isLoading } = useSWR(keys.match(id), async () => {
+    const { data } = await getSupabase()
+      .from("matches")
+      .select("*")
+      .eq("id", id)
+      .single();
+    return data ? mapMatch(data) : undefined;
+  });
 
   return { match: data, loaded: !isLoading };
 }
 
-export function useMatchEvents(
-  matchId: MatchId,
-  initialData?: MatchEvent[]
-): {
+export function useMatchEvents(matchId: MatchId): {
   events: MatchEvent[];
   loaded: boolean;
 } {
-  const { data, isLoading } = useSWR(
-    keys.matchEvents(matchId),
-    async () => {
-      const { data } = await getSupabase()
-        .from("match_events")
-        .select("*")
-        .eq("match_id", matchId);
-      return data?.map(mapMatchEvent) ?? [];
-    },
-    { fallbackData: initialData }
-  );
+  const { data, isLoading } = useSWR(keys.matchEvents(matchId), async () => {
+    const { data } = await getSupabase()
+      .from("match_events")
+      .select("*")
+      .eq("match_id", matchId);
+    return data?.map(mapMatchEvent) ?? [];
+  });
 
   return { events: data ?? [], loaded: !isLoading };
 }
 
-export function useMatchVotes(
-  matchId: MatchId,
-  initialData?: MatchVote[]
-): MatchVote[] {
-  const { data } = useSWR(
-    keys.matchVotes(matchId),
-    async () => {
-      const { data } = await getSupabase()
-        .from("match_votes")
-        .select("*")
-        .eq("match_id", matchId);
-      return data?.map(mapMatchVote) ?? [];
-    },
-    { fallbackData: initialData }
-  );
+export function useMatchVotes(matchId: MatchId): MatchVote[] {
+  const { data } = useSWR(keys.matchVotes(matchId), async () => {
+    const { data } = await getSupabase()
+      .from("match_votes")
+      .select("*")
+      .eq("match_id", matchId);
+    return data?.map(mapMatchVote) ?? [];
+  });
 
   return data ?? [];
 }
 
 export function useAllMatchEvents(
-  groupId?: GroupId,
-  initialData?: MatchEvent[]
+  groupId?: GroupId
 ): { events: MatchEvent[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
     groupId ? keys.allMatchEvents(groupId) : null,
@@ -247,16 +221,14 @@ export function useAllMatchEvents(
         .select(MATCH_EVENTS_GROUP_SELECT)
         .eq("matches.group_id", groupId!);
       return data?.map(mapMatchEvent) ?? [];
-    },
-    { fallbackData: initialData }
+    }
   );
 
   return { events: data ?? [], loaded: !isLoading };
 }
 
 export function useAllMatchVotes(
-  groupId?: GroupId,
-  initialData?: MatchVote[]
+  groupId?: GroupId
 ): { votes: MatchVote[]; loaded: boolean } {
   const { data, isLoading } = useSWR(
     groupId ? keys.allMatchVotes(groupId) : null,
@@ -266,48 +238,37 @@ export function useAllMatchVotes(
         .select(MATCH_VOTES_GROUP_SELECT)
         .eq("matches.group_id", groupId!);
       return data?.map(mapMatchVote) ?? [];
-    },
-    { fallbackData: initialData }
+    }
   );
 
   return { votes: data ?? [], loaded: !isLoading };
 }
 
 export function usePlayerMatches(
-  playerId: string,
-  initialData?: Match[]
+  playerId: string
 ): { matches: Match[]; loaded: boolean } {
-  const { data, isLoading } = useSWR(
-    keys.playerMatches(playerId),
-    async () => {
-      const { data } = await getSupabase()
-        .from("matches")
-        .select("*")
-        .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`)
-        .order("created_at", { ascending: false });
-      return data?.map(mapMatch) ?? [];
-    },
-    { fallbackData: initialData }
-  );
+  const { data, isLoading } = useSWR(keys.playerMatches(playerId), async () => {
+    const { data } = await getSupabase()
+      .from("matches")
+      .select("*")
+      .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`)
+      .order("created_at", { ascending: false });
+    return data?.map(mapMatch) ?? [];
+  });
 
   return { matches: data ?? [], loaded: !isLoading };
 }
 
 export function usePlayerEvents(
-  playerId: string,
-  initialData?: MatchEvent[]
+  playerId: string
 ): { events: MatchEvent[]; loaded: boolean } {
-  const { data, isLoading } = useSWR(
-    keys.playerEvents(playerId),
-    async () => {
-      const { data } = await getSupabase()
-        .from("match_events")
-        .select("*")
-        .eq("player_id", playerId);
-      return data?.map(mapMatchEvent) ?? [];
-    },
-    { fallbackData: initialData }
-  );
+  const { data, isLoading } = useSWR(keys.playerEvents(playerId), async () => {
+    const { data } = await getSupabase()
+      .from("match_events")
+      .select("*")
+      .eq("player_id", playerId);
+    return data?.map(mapMatchEvent) ?? [];
+  });
 
   return { events: data ?? [], loaded: !isLoading };
 }

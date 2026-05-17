@@ -6,17 +6,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { usePlayers } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { PlayerListSkeleton } from "@/components/layout/skeletons";
-import type { Player } from "@/lib/types";
 
-interface PlayersPageContentProps {
-  initialPlayers: Player[];
-}
-
-export function PlayersPageContent({
-  initialPlayers,
-}: PlayersPageContentProps) {
+export function PlayersPageContent() {
   const { activeGroup } = useGroup();
-  const { players, loaded } = usePlayers(activeGroup?.id, initialPlayers);
+  const { players, loaded } = usePlayers(activeGroup?.id);
 
   return (
     <>

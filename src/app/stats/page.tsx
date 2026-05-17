@@ -1,10 +1,11 @@
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireGroupContext } from "@/lib/server-data";
+import { GroupDataHydrator } from "@/lib/swr-hydration";
 import { StatsPageContent } from "@/app/_components/stats-page-content";
 
 export default async function StatsPage() {
-  const { data } = await requireGroupContext();
+  const { activeGroup, data } = await requireGroupContext();
 
   if (data.matches.length === 0) {
     return (
@@ -24,12 +25,15 @@ export default async function StatsPage() {
 
   return (
     <MobileShell>
-      <StatsPageContent
-        initialMatches={data.matches}
-        initialPlayers={data.players}
-        initialEvents={data.events}
-        initialVotes={data.votes}
-      />
+      <GroupDataHydrator
+        groupId={activeGroup.id}
+        matches={data.matches}
+        players={data.players}
+        events={data.events}
+        votes={data.votes}
+      >
+        <StatsPageContent />
+      </GroupDataHydrator>
     </MobileShell>
   );
 }

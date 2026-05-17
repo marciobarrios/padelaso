@@ -8,20 +8,11 @@ import { MatchCard } from "@/components/match/match-card";
 import { useMatches, usePlayers } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { buildPlayerMap } from "@/lib/utils";
-import type { Match, Player } from "@/lib/types";
 
-interface MatchesPageContentProps {
-  initialMatches: Match[];
-  initialPlayers: Player[];
-}
-
-export function MatchesPageContent({
-  initialMatches,
-  initialPlayers,
-}: MatchesPageContentProps) {
+export function MatchesPageContent() {
   const { activeGroup } = useGroup();
-  const { matches } = useMatches(activeGroup?.id, initialMatches);
-  const { players } = usePlayers(activeGroup?.id, initialPlayers);
+  const { matches } = useMatches(activeGroup?.id);
+  const { players } = usePlayers(activeGroup?.id);
   const playerMap = buildPlayerMap(players);
 
   return (

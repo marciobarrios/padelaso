@@ -21,7 +21,7 @@ import {
 } from "@/lib/stats";
 import { FUN_AWARD_CONFIGS } from "@/lib/event-config";
 import { buildPlayerMap } from "@/lib/utils";
-import type { PlayerId, Match, Player, MatchEvent, MatchVote } from "@/lib/types";
+import type { PlayerId } from "@/lib/types";
 
 import { PlayerFilter } from "@/app/stats/_components/player-filter";
 import { GeneralTab } from "@/app/stats/_components/general-tab";
@@ -29,27 +29,12 @@ import { ParejasTab } from "@/app/stats/_components/parejas-tab";
 import { EventosTab } from "@/app/stats/_components/eventos-tab";
 import { StatsPageSkeleton } from "@/components/layout/skeletons";
 
-interface StatsPageContentProps {
-  initialMatches: Match[];
-  initialPlayers: Player[];
-  initialEvents: MatchEvent[];
-  initialVotes: MatchVote[];
-}
-
-export function StatsPageContent({
-  initialMatches,
-  initialPlayers,
-  initialEvents,
-  initialVotes,
-}: StatsPageContentProps) {
+export function StatsPageContent() {
   const { activeGroup } = useGroup();
-  const { players } = usePlayers(activeGroup?.id, initialPlayers);
-  const { matches, loaded: matchesLoaded } = useMatches(
-    activeGroup?.id,
-    initialMatches
-  );
-  const { events } = useAllMatchEvents(activeGroup?.id, initialEvents);
-  const { votes } = useAllMatchVotes(activeGroup?.id, initialVotes);
+  const { players } = usePlayers(activeGroup?.id);
+  const { matches, loaded: matchesLoaded } = useMatches(activeGroup?.id);
+  const { events } = useAllMatchEvents(activeGroup?.id);
+  const { votes } = useAllMatchVotes(activeGroup?.id);
 
   const [rawSelectedPlayer, setSelectedPlayer] = useState<PlayerId | null>(null);
 
