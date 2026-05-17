@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Group } from "@/lib/types";
 import { useGroups } from "@/lib/db-hooks";
 import { ACTIVE_GROUP_COOKIE, setActiveGroupCookie } from "@/lib/active-group-cookie";
@@ -37,14 +37,18 @@ export function GroupProvider({
   const [initialized, setInitialized] = useState(!!initialActiveGroupId);
 
   // Merge fetched groups with optimistic group (if not yet in fetched list)
-  const groups = optimisticGroup && !fetchedGroups.some((g) => g.id === optimisticGroup.id)
-    ? [...fetchedGroups, optimisticGroup]
-    : fetchedGroups;
+  const groups = useMemo(
+    () =>
+      optimisticGroup && !fetchedGroups.some((g) => g.id === optimisticGroup.id)
+        ? [...fetchedGroups, optimisticGroup]
+        : fetchedGroups,
+    [fetchedGroups, optimisticGroup]
+  );
 
   // Clear optimistic group once it appears in fetched data
   useEffect(() => {
     if (optimisticGroup && fetchedGroups.some((g) => g.id === optimisticGroup.id)) {
-      setOptimisticGroup(null);
+      queueMicrotask(() => setOptimisticGroup(null));
     }
   }, [fetchedGroups, optimisticGroup]);
 
@@ -52,8 +56,10 @@ export function GroupProvider({
   useEffect(() => {
     if (initialized) return;
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) setActiveGroupIdState(stored);
-    setInitialized(true);
+    queueMicrotask(() => {
+      if (stored) setActiveGroupIdState(stored);
+      setInitialized(true);
+    });
   }, [initialized]);
 
   // Once groups load, validate/set the active group
@@ -63,9 +69,11 @@ export function GroupProvider({
     const validGroup = groups.find((g) => g.id === activeGroupId);
     if (!validGroup) {
       const firstId = groups[0].id;
-      setActiveGroupIdState(firstId);
-      localStorage.setItem(STORAGE_KEY, firstId);
-      setActiveGroupCookie(firstId);
+      queueMicrotask(() => {
+        setActiveGroupIdState(firstId);
+        localStorage.setItem(STORAGE_KEY, firstId);
+        setActiveGroupCookie(firstId);
+      });
     }
   }, [groups, activeGroupId, initialized]);
 

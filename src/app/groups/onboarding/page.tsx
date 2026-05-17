@@ -9,7 +9,7 @@ import { Home, Plus, UserPlus, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGroup } from "@/components/group/group-provider";
 import { LoadingFallback } from "@/components/layout/loading-fallback";
-import { useDataRefresh } from "@/lib/supabase-hooks";
+import { invalidate, keys } from "@/lib/supabase-hooks";
 import { createGroup, joinGroupByCode } from "@/lib/supabase-mutations";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,7 @@ function GroupOnboardingContent() {
   const codeFromUrl = searchParams.get("code");
   const { user, loading, signOut } = useAuth();
   const { groups, loading: groupLoading, setActiveGroup } = useGroup();
-  const { refresh } = useDataRefresh();
+
   const [mode, setMode] = useState<"choice" | "create" | "join">(
     codeFromUrl ? "join" : "choice"
   );
@@ -53,8 +53,8 @@ function GroupOnboardingContent() {
     setSaving(true);
     setError(null);
     try {
-      const group = await createGroup(name.trim(), emoji, user.id);
-      refresh();
+      const group = await createGroup(name.trim(), emoji);
+      invalidate(keys.groups());
       setActiveGroup(group);
       router.replace("/");
     } catch {
@@ -69,7 +69,7 @@ function GroupOnboardingContent() {
     setError(null);
     try {
       const group = await joinGroupByCode(joinCode);
-      refresh();
+      invalidate(keys.groups());
       setActiveGroup(group);
       router.replace("/");
     } catch {

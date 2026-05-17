@@ -1,11 +1,8 @@
-import { createClient } from "./supabase";
+import { getBrowserClient } from "./supabase";
 import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group, VoteType, ScoreToken } from "./types";
 
-// Lazy-initialized client — avoids creation at module-evaluation time
-let _supabase: ReturnType<typeof createClient>;
 function supabase() {
-  if (!_supabase) _supabase = createClient();
-  return _supabase;
+  return getBrowserClient();
 }
 
 // ---------- Groups ----------
@@ -21,8 +18,7 @@ function generateInviteCode(): string {
 
 export async function createGroup(
   name: string,
-  emoji: string,
-  userId: string
+  emoji: string
 ): Promise<Group> {
   const inviteCode = generateInviteCode();
 
@@ -137,18 +133,27 @@ export async function deletePlayer(playerId: PlayerId) {
     .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`);
 
   if (matches) {
-    for (const match of matches) {
-      const updates: Record<string, PlayerId[]> = {};
-      if ((match.team1 as PlayerId[]).includes(playerId)) {
-        updates.team1 = (match.team1 as PlayerId[]).filter((id) => id !== playerId);
-      }
-      if ((match.team2 as PlayerId[]).includes(playerId)) {
-        updates.team2 = (match.team2 as PlayerId[]).filter((id) => id !== playerId);
-      }
-      if (Object.keys(updates).length > 0) {
-        await supabase().from("matches").update(updates).eq("id", match.id);
-      }
-    }
+    const updates = matches
+      .map((match) => {
+        const payload: Record<string, PlayerId[]> & { id: string } = { id: match.id };
+        if ((match.team1 as PlayerId[]).includes(playerId)) {
+          payload.team1 = (match.team1 as PlayerId[]).filter((id) => id !== playerId);
+        }
+        if ((match.team2 as PlayerId[]).includes(playerId)) {
+          payload.team2 = (match.team2 as PlayerId[]).filter((id) => id !== playerId);
+        }
+        return payload;
+      })
+      .filter((u) => u.team1 !== undefined || u.team2 !== undefined);
+
+    await Promise.all(
+      updates.map((u) =>
+        supabase()
+          .from("matches")
+          .update({ team1: u.team1, team2: u.team2 })
+          .eq("id", u.id)
+      )
+    );
   }
 
   // match_events with this player_id will cascade delete via FK

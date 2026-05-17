@@ -10,7 +10,7 @@ import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useMatch, usePlayers, useDataRefresh, useAllMatchEvents } from "@/lib/db-hooks";
+import { useMatch, usePlayers, useAllMatchEvents, invalidate, keys } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import {
   createScoreToken,
@@ -22,7 +22,7 @@ import {
   addMatchEvent,
 } from "@/lib/supabase-mutations";
 import { buildPlayerMap, dateFormatter } from "@/lib/utils";
-import { createClient } from "@/lib/supabase";
+import { getBrowserClient } from "@/lib/supabase";
 import { EVENT_CONFIGS } from "@/lib/event-config";
 import { MatchSet, MatchEventType, ScoreToken } from "@/lib/types";
 
@@ -568,7 +568,6 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   const { match } = useMatch(matchId);
   const { activeGroup } = useGroup();
   const { players } = usePlayers(activeGroup?.id);
-  const { refresh } = useDataRefresh();
   const [busy, setBusy] = useState(false);
   // Optimistic override: seeded from RPC responses so the UI reflects the
   // new score immediately. Cleared whenever the fetched match.sets changes,
@@ -613,7 +612,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
   // tab). Subscribe to UPDATE on this match row so the pinned view stays
   // in sync without manual refresh.
   useEffect(() => {
-    const client = createClient();
+    const client = getBrowserClient();
     let channel: ReturnType<typeof client.channel> | null = null;
 
     function open() {
@@ -628,7 +627,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
             table: "matches",
             filter: `id=eq.${matchId}`,
           },
-          () => refresh()
+          () => invalidate(keys.match(matchId))
         )
         .subscribe((status, err) => {
           if (status === "SUBSCRIBED") return;
@@ -644,12 +643,12 @@ function PinnedScorer({ matchId }: { matchId: string }) {
     open();
     // iOS Safari suspends websockets when the page is backgrounded (Siri
     // activation, screen lock). Tear down + reopen on visible so a dead
-    // socket gets replaced; refresh() makes the data current immediately.
+    // socket gets replaced; invalidate makes the data current immediately.
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
       close();
       open();
-      refresh();
+      invalidate(keys.match(matchId));
     };
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -657,7 +656,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
       document.removeEventListener("visibilitychange", onVisibility);
       close();
     };
-  }, [matchId, refresh]);
+  }, [matchId]);
 
   // Reconcile optimistic state back to the server's view whenever the
   // fetched match changes.
@@ -665,7 +664,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
     if (match?.sets) setOptimisticSets(null);
   }, [match?.sets]);
 
-  const playerMap = useMemo(() => buildPlayerMap(players), [players]);
+  const playerMap = buildPlayerMap(players);
 
   if (!match) return null;
 
@@ -680,7 +679,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
     try {
       const updated = await incrementMatchScore(match.id, team, delta);
       setOptimisticSets(updated);
-      refresh();
+      invalidate(keys.match(matchId));
     } finally {
       setBusy(false);
     }
@@ -693,7 +692,7 @@ function PinnedScorer({ matchId }: { matchId: string }) {
       // Append an empty set by passing newSet=true with a no-op delta.
       const updated = await incrementMatchScore(match.id, 1, 0, true);
       setOptimisticSets(updated);
-      refresh();
+      invalidate(keys.match(matchId));
     } finally {
       setBusy(false);
     }
@@ -833,7 +832,6 @@ function QuickEventRow({ matchId }: { matchId: string }) {
   const { activeGroup } = useGroup();
   const { players } = usePlayers(activeGroup?.id);
   const { events: groupEvents } = useAllMatchEvents(activeGroup?.id);
-  const { refresh } = useDataRefresh();
   const [selecting, setSelecting] = useState<MatchEventType | null>(null);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
   const lastAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -870,7 +868,8 @@ function QuickEventRow({ matchId }: { matchId: string }) {
   async function handleSelect(type: MatchEventType, playerId: string) {
     if (!user) return;
     await addMatchEvent(matchId, playerId, type, user.id);
-    refresh();
+    invalidate(keys.matchEvents(matchId));
+    if (activeGroup?.id) invalidate(keys.allMatchEvents(activeGroup.id));
     setLastAdded(type);
     setSelecting(null);
     if (lastAddedTimerRef.current) clearTimeout(lastAddedTimerRef.current);

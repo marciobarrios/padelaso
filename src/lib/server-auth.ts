@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerSupabaseClient } from "./supabase-server";
 import { mapGroup } from "./mappers";
@@ -11,7 +12,7 @@ interface ServerAuthResult {
   activeGroupId: string | null;
 }
 
-export async function getServerAuth(): Promise<ServerAuthResult> {
+export const getServerAuth = cache(async (): Promise<ServerAuthResult> => {
   const cookieStore = await cookies();
   const activeGroupId =
     cookieStore.get(ACTIVE_GROUP_COOKIE)?.value ?? null;
@@ -40,4 +41,4 @@ export async function getServerAuth(): Promise<ServerAuthResult> {
   }
 
   return { user, groups, activeGroupId };
-}
+});

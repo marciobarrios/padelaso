@@ -1,4 +1,4 @@
-import { Match, MatchEvent, MatchVote, Player, PlayerId, MatchEventType } from "./types";
+import { Match, MatchEvent, MatchVote, PlayerId, MatchEventType } from "./types";
 import { getSetWins } from "./utils";
 import { type FunAwardConfig } from "./event-config";
 

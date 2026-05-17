@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Check, RefreshCw, LogOut, Pencil, Crown, Trash2 } from "lucide-react";
 import { useGroup } from "@/components/group/group-provider";
-import { useGroupMembers, useDataRefresh, usePlayers } from "@/lib/db-hooks";
+import { useGroupMembers, usePlayers, invalidate, keys } from "@/lib/db-hooks";
 import { useAuth } from "@/components/auth/auth-provider";
 import {
   updateGroup,
@@ -34,7 +34,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const { groups, setActiveGroupId } = useGroup();
-  const { refresh } = useDataRefresh();
+
   const members = useGroupMembers(groupId);
   const { players } = usePlayers(groupId);
 
@@ -61,13 +61,13 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
   async function saveEdit() {
     if (!editName.trim()) return;
     await updateGroup(groupId, { name: editName.trim(), emoji: editEmoji });
-    refresh();
+    invalidate(keys.groups());
     setEditing(false);
   }
 
   async function handleRegenerateCode() {
     await regenerateInviteCode(groupId);
-    refresh();
+    invalidate(keys.groups());
   }
 
   async function copyCode() {
@@ -94,7 +94,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
   async function handleLeave() {
     if (!user) return;
     await leaveGroup(groupId, user.id);
-    refresh();
+    invalidate(keys.groups(), keys.players(groupId));
     const remaining = groups.filter((g) => g.id !== groupId);
     if (remaining.length > 0) {
       setActiveGroupId(remaining[0].id);
@@ -106,7 +106,7 @@ export function GroupSettingsContent({ groupId }: { groupId: string }) {
 
   async function handleDelete() {
     await deleteGroup(groupId);
-    refresh();
+    invalidate(keys.groups());
     const remaining = groups.filter((g) => g.id !== groupId);
     if (remaining.length > 0) {
       setActiveGroupId(remaining[0].id);
