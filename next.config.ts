@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   htmlLimitedBots: /.*/,
   reactCompiler: true,
+  cacheComponents: true,
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

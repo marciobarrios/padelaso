@@ -24,12 +24,16 @@ function NavSkeleton() {
   );
 }
 
-export function MobileShellSkeleton() {
+export function MobileShellSkeleton({
+  children,
+}: {
+  children?: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col min-h-dvh">
       <GroupSwitcherSkeleton />
       <main className="flex-1 overflow-y-auto pb-20">
-        <HomePageSkeleton />
+        {children ?? <HomePageSkeleton />}
       </main>
       <NavSkeleton />
     </div>
@@ -104,25 +108,78 @@ export function PlayerListSkeleton() {
 export function StatsPageSkeleton() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+      {/* Tabs: General / Parejas / Eventos */}
       <Skeleton className="h-10 w-full rounded-lg" />
+
+      {/* Time range filter: Todo / 90 días / 30 días */}
+      <Skeleton className="h-9 w-full rounded-lg" />
+
+      {/* Top stats: Partidos · Eventos */}
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 2 }).map((_, i) => (
           <Card key={i}>
             <CardContent className="p-4 flex flex-col items-center gap-1">
-              <Skeleton className="h-8 w-10" />
+              <Skeleton className="h-8 w-12" />
               <Skeleton className="h-3 w-16" />
             </CardContent>
           </Card>
         ))}
       </div>
-      <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <Skeleton className="size-8 rounded-full" />
-            <Skeleton className="h-4 w-24 flex-1" />
-            <Skeleton className="h-4 w-12" />
-          </div>
-        ))}
+
+      {/* LOGROS section — 2x2 grid of achievement cards */}
+      <div className="space-y-3 pt-2">
+        <Skeleton className="h-3 w-16" />
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex flex-col items-center gap-1">
+                  <Skeleton className="size-8 rounded-full" />
+                  <Skeleton className="h-3.5 w-20" />
+                  <Skeleton className="h-2.5 w-24" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="size-5 rounded-full" />
+                    <Skeleton className="h-3 flex-1" />
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="size-5 rounded-full" />
+                    <Skeleton className="h-3 flex-1" />
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* RANKING DE VICTORIAS */}
+      <div className="space-y-3 pt-2">
+        <Skeleton className="h-3 w-32" />
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="h-4 w-3" />
+              <Skeleton className="size-8 rounded-full" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-16" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+              <div className="flex flex-col items-end gap-1.5">
+                <Skeleton className="h-3.5 w-10" />
+                <Skeleton className="h-3 w-14" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* MVP label */}
+      <div className="pt-2">
+        <Skeleton className="h-3 w-12" />
       </div>
     </div>
   );

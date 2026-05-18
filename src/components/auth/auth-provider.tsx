@@ -19,14 +19,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 interface AuthProviderProps {
   children: React.ReactNode;
-  initialUser: User | null;
-  initialGroups: Group[];
-  initialActiveGroupId: string | null;
+  initialUser?: User | null;
+  initialGroups?: Group[];
+  initialActiveGroupId?: string | null;
 }
 
 export function AuthProvider({
   children,
-  initialUser,
+  initialUser = null,
   initialGroups,
   initialActiveGroupId,
 }: AuthProviderProps) {

@@ -4,8 +4,6 @@ import { MatchSet } from "@/lib/types";
 import { requireActiveMatch } from "../_token";
 import { fetchMatchTeams, joinTeamNames, resolvePlayerNames } from "../_match";
 
-export const runtime = "nodejs";
-
 interface ScoreRequestBody {
   team?: 1 | 2;
   delta?: number;

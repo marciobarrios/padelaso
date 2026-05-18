@@ -6,8 +6,6 @@ import { requireActiveMatch } from "../_token";
 import { fetchMatchTeams, fetchMatchRoster } from "../_match";
 import { resolveEventQuery } from "./_resolve";
 
-export const runtime = "nodejs";
-
 const VALID_EVENT_TYPES = new Set<string>(EVENT_CONFIGS.map((e) => e.type));
 
 type ResolveErrorCode =

@@ -34,5 +34,18 @@ export function GroupDataHydrator({
     fallback[unstable_serialize(keys.allMatchEvents(groupId))] = events;
   if (votes !== undefined)
     fallback[unstable_serialize(keys.allMatchVotes(groupId))] = votes;
-  return <SWRConfig value={{ fallback }}>{children}</SWRConfig>;
+  return (
+    <SWRConfig
+      value={{
+        fallback,
+        revalidateOnFocus: false,
+        revalidateIfStale: false,
+        revalidateOnReconnect: false,
+        dedupingInterval: 60_000,
+        keepPreviousData: true,
+      }}
+    >
+      {children}
+    </SWRConfig>
+  );
 }
