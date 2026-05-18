@@ -4,8 +4,6 @@ import { MatchSet } from "@/lib/types";
 import { requireActiveMatch } from "../_token";
 import { resolvePlayerNames } from "../_match";
 
-export const runtime = "nodejs";
-
 export async function GET(request: NextRequest) {
   const auth = await requireActiveMatch(request);
   if (auth instanceof Response) return auth;

@@ -1,5 +1,7 @@
 "use client";
 
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 export type TimeRange = "all" | "90d" | "30d";
 
 interface TimeRangeFilterProps {
@@ -15,29 +17,14 @@ const OPTIONS: { value: TimeRange; label: string }[] = [
 
 export function TimeRangeFilter({ value, onChange }: TimeRangeFilterProps) {
   return (
-    <div
-      role="tablist"
-      aria-label="Rango de tiempo"
-      className="inline-flex items-center gap-1 p-1 bg-muted rounded-full w-full"
-    >
-      {OPTIONS.map((opt) => {
-        const active = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(opt.value)}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-              active
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
+    <Tabs value={value} onValueChange={(next) => onChange(next as TimeRange)}>
+      <TabsList className="w-full" aria-label="Rango de tiempo">
+        {OPTIONS.map((opt) => (
+          <TabsTrigger key={opt.value} value={opt.value}>
             {opt.label}
-          </button>
-        );
-      })}
-    </div>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

@@ -6,7 +6,6 @@ import { User } from "@supabase/supabase-js";
 import { getBrowserClient } from "@/lib/supabase";
 import { GroupProvider } from "@/components/group/group-provider";
 import { clearActiveGroupCookie } from "@/lib/active-group-cookie";
-import type { Group } from "@/lib/types";
 
 interface AuthContextValue {
   user: User | null;
@@ -17,22 +16,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-interface AuthProviderProps {
-  children: React.ReactNode;
-  initialUser: User | null;
-  initialGroups: Group[];
-  initialActiveGroupId: string | null;
-}
-
-export function AuthProvider({
-  children,
-  initialUser,
-  initialGroups,
-  initialActiveGroupId,
-}: AuthProviderProps) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = getBrowserClient();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(initialUser);
+  const [user, setUser] = useState<User | null>(null);
   const loading = false;
 
   useEffect(() => {
@@ -59,9 +46,6 @@ export function AuthProvider({
           { onConflict: "id" }
         );
       }
-      // Covers explicit signOut, refresh-token failure, and cross-tab signout.
-      // INITIAL_SESSION with a null session does NOT fire SIGNED_OUT, so this
-      // can't re-introduce the SSR/client hydration loop the mobile-shell fix targeted.
       if (event === "SIGNED_OUT") {
         router.replace("/login");
       }
@@ -88,12 +72,7 @@ export function AuthProvider({
 
   return (
     <AuthContext value={{ user, loading, signInWithGoogle, signOut }}>
-      <GroupProvider
-        initialGroups={initialGroups}
-        initialActiveGroupId={initialActiveGroupId}
-      >
-        {children}
-      </GroupProvider>
+      <GroupProvider>{children}</GroupProvider>
     </AuthContext>
   );
 }

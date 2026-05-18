@@ -1,6 +1,6 @@
-import { cache } from "react";
+import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "./supabase-server";
+import { createAdminSupabaseClient } from "./supabase-admin";
 import { mapMatch, mapPlayer, mapMatchEvent, mapMatchVote } from "./mappers";
 import { getServerAuth } from "./server-auth";
 import {
@@ -25,45 +25,54 @@ export interface GroupListData {
   votes: MatchVote[];
 }
 
-export const fetchGroupListData = cache(
-  async (groupId: GroupId): Promise<GroupListData> => {
-    const supabase = await createServerSupabaseClient();
+export const GROUP_DATA_TAG = (groupId: GroupId) => `group:${groupId}`;
 
-    const [
-      { data: matchesData },
-      { data: playersData },
-      { data: eventsData },
-      { data: votesData },
-    ] = await Promise.all([
-      supabase
-        .from("matches")
-        .select("*")
-        .eq("group_id", groupId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("players")
-        .select("*")
-        .eq("group_id", groupId)
-        .order("name"),
-      supabase
-        .from("match_events")
-        .select(MATCH_EVENTS_GROUP_SELECT)
-        .eq("matches.group_id", groupId),
-      supabase
-        .from("match_votes")
-        .select(MATCH_VOTES_GROUP_SELECT)
-        .eq("matches.group_id", groupId),
-    ]);
+// Service-role client (no cookies) is required because `use cache` forbids
+// runtime APIs. Authorization is enforced by the uncached caller below — a
+// user can only reach this with a `groupId` they're already a member of.
+export async function fetchGroupListData(
+  groupId: GroupId
+): Promise<GroupListData> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(GROUP_DATA_TAG(groupId));
 
-    return {
-      groupId,
-      matches: matchesData?.map(mapMatch) ?? [],
-      players: playersData?.map(mapPlayer) ?? [],
-      events: eventsData?.map(mapMatchEvent) ?? [],
-      votes: votesData?.map(mapMatchVote) ?? [],
-    };
-  }
-);
+  const supabase = createAdminSupabaseClient();
+
+  const [
+    { data: matchesData },
+    { data: playersData },
+    { data: eventsData },
+    { data: votesData },
+  ] = await Promise.all([
+    supabase
+      .from("matches")
+      .select("*")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("players")
+      .select("*")
+      .eq("group_id", groupId)
+      .order("name"),
+    supabase
+      .from("match_events")
+      .select(MATCH_EVENTS_GROUP_SELECT)
+      .eq("matches.group_id", groupId),
+    supabase
+      .from("match_votes")
+      .select(MATCH_VOTES_GROUP_SELECT)
+      .eq("matches.group_id", groupId),
+  ]);
+
+  return {
+    groupId,
+    matches: matchesData?.map(mapMatch) ?? [],
+    players: playersData?.map(mapPlayer) ?? [],
+    events: eventsData?.map(mapMatchEvent) ?? [],
+    votes: votesData?.map(mapMatchVote) ?? [],
+  };
+}
 
 export interface GroupContext {
   user: User;
@@ -74,6 +83,9 @@ export interface GroupContext {
 /**
  * Resolves the auth/active-group context for an authenticated page.
  * Redirects to /login or /groups/onboarding when the user can't see this page.
+ *
+ * Reads cookies (uncached). The expensive Supabase fan-out happens in
+ * fetchGroupListData which is cached by `use cache` + cacheTag.
  */
 export async function requireGroupContext(): Promise<GroupContext> {
   const { user, groups, activeGroupId } = await getServerAuth();

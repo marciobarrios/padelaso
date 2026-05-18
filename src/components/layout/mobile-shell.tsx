@@ -42,6 +42,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={href}
+                prefetch
                 className={cn(
                   "flex flex-col items-center gap-1 px-3 py-2 text-xs transition-colors",
                   active
