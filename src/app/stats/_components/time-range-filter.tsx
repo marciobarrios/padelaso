@@ -18,7 +18,7 @@ const OPTIONS: { value: TimeRange; label: string }[] = [
 export function TimeRangeFilter({ value, onChange }: TimeRangeFilterProps) {
   return (
     <Tabs value={value} onValueChange={(next) => onChange(next as TimeRange)}>
-      <TabsList className="w-full">
+      <TabsList className="w-full" aria-label="Rango de tiempo">
         {OPTIONS.map((opt) => (
           <TabsTrigger key={opt.value} value={opt.value}>
             {opt.label}
