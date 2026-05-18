@@ -27,17 +27,14 @@ export interface GroupListData {
 
 export const GROUP_DATA_TAG = (groupId: GroupId) => `group:${groupId}`;
 
-// Cached per-group payload. Authorization is enforced by the uncached caller
-// (requireGroupContext below) — by the time we get here, the user is already
-// known to be a member of `groupId`. The service-role client bypasses RLS so
-// the cached function never touches cookies, which is required by `use cache`.
-// The cache key is just `groupId`, so two users in the same group share one
-// entry. Invalidate with revalidateTag(`group:<id>`) on writes.
+// Service-role client (no cookies) is required because `use cache` forbids
+// runtime APIs. Authorization is enforced by the uncached caller below — a
+// user can only reach this with a `groupId` they're already a member of.
 export async function fetchGroupListData(
   groupId: GroupId
 ): Promise<GroupListData> {
   "use cache";
-  cacheLife("minutes");
+  cacheLife("hours");
   cacheTag(GROUP_DATA_TAG(groupId));
 
   const supabase = createAdminSupabaseClient();

@@ -81,9 +81,7 @@ export const matchAll = {
 type SWRKey = readonly (string | undefined)[];
 
 /** Revalidate one or more SWR keys. Pass exact keys or a predicate function.
- *  Also invalidates the server-side `group:<activeGroupId>` cache tag so the
- *  next Server Component render fetches fresh data instead of the stale entry
- *  produced by `fetchGroupListData` (see src/lib/server-data.ts). */
+ *  Also invalidates the server-side group cache tag. */
 export function invalidate(
   ...keyPatterns: (SWRKey | ((key: unknown) => boolean))[]
 ) {
@@ -94,8 +92,7 @@ export function invalidate(
       mutate(pattern);
     }
   }
-  // Fire-and-forget — SWR has already refreshed the client cache.
-  revalidateActiveGroup().catch(() => {});
+  revalidateActiveGroup().catch(console.error);
 }
 
 function getSupabase() {

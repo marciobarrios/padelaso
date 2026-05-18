@@ -1,6 +1,18 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 
+export function PageHeaderShell({ title }: { title: string }) {
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95">
+      <div className="flex items-center h-14 px-4 max-w-lg mx-auto">
+        <h1 className="text-lg font-bold font-heading flex-1 truncate">
+          {title}
+        </h1>
+      </div>
+    </header>
+  );
+}
+
 function GroupSwitcherSkeleton() {
   return (
     <div className="flex items-center justify-center py-2 px-4">
@@ -40,7 +52,7 @@ export function MobileShellSkeleton({
   );
 }
 
-function MatchCardSkeleton() {
+export function MatchCardSkeleton() {
   return (
     <Card>
       <CardContent className="p-3 sm:p-4">
@@ -92,6 +104,16 @@ export function HomePageSkeleton() {
   );
 }
 
+export function MatchesListSkeleton() {
+  return (
+    <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <MatchCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
+
 export function PlayerListSkeleton() {
   return (
     <div className="divide-y divide-border">
@@ -108,13 +130,8 @@ export function PlayerListSkeleton() {
 export function StatsPageSkeleton() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-      {/* Tabs: General / Parejas / Eventos */}
       <Skeleton className="h-10 w-full rounded-lg" />
-
-      {/* Time range filter: Todo / 90 días / 30 días */}
       <Skeleton className="h-9 w-full rounded-lg" />
-
-      {/* Top stats: Partidos · Eventos */}
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 2 }).map((_, i) => (
           <Card key={i}>
@@ -126,7 +143,6 @@ export function StatsPageSkeleton() {
         ))}
       </div>
 
-      {/* LOGROS section — 2x2 grid of achievement cards */}
       <div className="space-y-3 pt-2">
         <Skeleton className="h-3 w-16" />
         <div className="grid grid-cols-2 gap-3">
@@ -156,7 +172,6 @@ export function StatsPageSkeleton() {
         </div>
       </div>
 
-      {/* RANKING DE VICTORIAS */}
       <div className="space-y-3 pt-2">
         <Skeleton className="h-3 w-32" />
         <div className="space-y-3">
@@ -177,10 +192,7 @@ export function StatsPageSkeleton() {
         </div>
       </div>
 
-      {/* MVP label */}
-      <div className="pt-2">
-        <Skeleton className="h-3 w-12" />
-      </div>
+      <Skeleton className="mt-2 h-3 w-12" />
     </div>
   );
 }
