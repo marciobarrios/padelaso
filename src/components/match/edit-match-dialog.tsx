@@ -28,7 +28,12 @@ export function EditMatchDialog({
 
   async function handleSave() {
     await updateMatch(match.id, { sets });
-    invalidate(keys.match(match.id));
+    const playerIds = [...match.team1, ...match.team2];
+    invalidate(
+      keys.match(match.id),
+      keys.matches(match.groupId),
+      ...playerIds.map(keys.playerMatches),
+    );
     onOpenChange(false);
   }
 
