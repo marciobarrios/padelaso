@@ -45,7 +45,7 @@ export function EditMatchDialog({
             disabled={sets.every(
               (s) => s.team1Score === 0 && s.team2Score === 0
             )}
-            className="w-full"
+            className="w-full touch-manipulation"
           >
             Guardar cambios
           </Button>
