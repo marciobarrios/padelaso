@@ -12,7 +12,6 @@ import { Match, MatchSet } from "@/lib/types";
 import { ScoreInput } from "./score-input";
 import { updateMatch } from "@/lib/supabase-mutations";
 import { invalidate, keys } from "@/lib/supabase-hooks";
-import { revalidateGroupData } from "@/lib/server-actions";
 
 interface EditMatchDialogProps {
   match: Match;
@@ -35,7 +34,6 @@ export function EditMatchDialog({
       keys.matches(match.groupId),
       ...playerIds.map(keys.playerMatches),
     );
-    await revalidateGroupData();
     onOpenChange(false);
   }
 
