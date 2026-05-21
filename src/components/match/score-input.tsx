@@ -39,7 +39,7 @@ export function ScoreInput({ sets, onChange }: ScoreInputProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7"
+                className="size-9 touch-manipulation"
                 onClick={() => removeSet(i)}
               >
                 <Trash2 className="size-3.5" />
@@ -52,7 +52,7 @@ export function ScoreInput({ sets, onChange }: ScoreInputProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="size-9 rounded-full"
+                className="size-11 rounded-full touch-manipulation"
                 onClick={() => updateSet(i, "team1Score", -1)}
                 disabled={set.team1Score <= 0}
               >
@@ -64,7 +64,7 @@ export function ScoreInput({ sets, onChange }: ScoreInputProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="size-9 rounded-full"
+                className="size-11 rounded-full touch-manipulation"
                 onClick={() => updateSet(i, "team1Score", 1)}
               >
                 <Plus className="size-4" />
@@ -78,7 +78,7 @@ export function ScoreInput({ sets, onChange }: ScoreInputProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="size-9 rounded-full"
+                className="size-11 rounded-full touch-manipulation"
                 onClick={() => updateSet(i, "team2Score", -1)}
                 disabled={set.team2Score <= 0}
               >
@@ -90,7 +90,7 @@ export function ScoreInput({ sets, onChange }: ScoreInputProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="size-9 rounded-full"
+                className="size-11 rounded-full touch-manipulation"
                 onClick={() => updateSet(i, "team2Score", 1)}
               >
                 <Plus className="size-4" />
@@ -101,7 +101,11 @@ export function ScoreInput({ sets, onChange }: ScoreInputProps) {
       ))}
 
       {sets.length < 5 && (
-        <Button variant="outline" className="w-full" onClick={addSet}>
+        <Button
+          variant="outline"
+          className="w-full touch-manipulation"
+          onClick={addSet}
+        >
           + Añadir set
         </Button>
       )}
