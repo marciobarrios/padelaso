@@ -158,13 +158,11 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
         back
         action={
           <div className="flex gap-1">
-            {user?.id === match.createdBy && (
-              <Link href={`/matches/${matchId}/scorekeeper`}>
-                <Button variant="ghost" size="icon" aria-label="Scorekeeper">
-                  <Radio className="size-4" />
-                </Button>
-              </Link>
-            )}
+            <Link href={`/matches/${matchId}/scorekeeper`}>
+              <Button variant="ghost" size="icon" aria-label="Scorekeeper">
+                <Radio className="size-4" />
+              </Button>
+            </Link>
             <Button
               variant="ghost"
               size="icon"
