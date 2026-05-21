@@ -33,9 +33,7 @@ export function ScorekeeperContent({
   matchId: string;
   pinned: boolean;
 }) {
-  const { user } = useAuth();
   const { match, loaded: matchLoaded } = useMatch(matchId);
-  const isCreator = Boolean(user && match && match.createdBy === user.id);
 
   if (!matchLoaded) {
     return (
@@ -50,16 +48,6 @@ export function ScorekeeperContent({
         <PageHeader title="Scorekeeper" back />
         <p className="text-center py-12 text-muted-foreground">
           Partido no encontrado
-        </p>
-      </MobileShell>
-    );
-  }
-  if (!isCreator) {
-    return (
-      <MobileShell>
-        <PageHeader title="Scorekeeper" back />
-        <p className="text-center py-12 text-muted-foreground px-6">
-          Sólo quien creó el partido puede abrir el scorekeeper.
         </p>
       </MobileShell>
     );
