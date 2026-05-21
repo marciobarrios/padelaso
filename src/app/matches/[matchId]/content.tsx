@@ -14,6 +14,7 @@ import { EventFeed } from "@/components/events/event-feed";
 import { useMatch, useMatchEvents, useMatchVotes, usePlayers, invalidate, keys } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import { addMatchEvent, removeMatchEvent, deleteMatch } from "@/lib/supabase-mutations";
+import { revalidateGroupData } from "@/lib/server-actions";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getBrowserClient } from "@/lib/supabase";
 import { MatchEventType, MatchEventId } from "@/lib/types";
@@ -127,6 +128,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
     await deleteMatch(matchId);
     invalidate(keys.match(matchId));
     if (activeGroup?.id) invalidate(keys.matches(activeGroup.id));
+    await revalidateGroupData();
     router.replace("/");
   }
 
