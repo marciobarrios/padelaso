@@ -42,7 +42,6 @@ export function GroupDataHydrator({
         revalidateIfStale: false,
         revalidateOnReconnect: false,
         dedupingInterval: 60_000,
-        keepPreviousData: true,
       }}
     >
       {children}

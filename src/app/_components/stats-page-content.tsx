@@ -36,10 +36,10 @@ import { StatsPageSkeleton } from "@/components/layout/skeletons";
 
 export function StatsPageContent() {
   const { activeGroup } = useGroup();
-  const { players } = usePlayers(activeGroup?.id);
+  const { players, loaded: playersLoaded } = usePlayers(activeGroup?.id);
   const { matches, loaded: matchesLoaded } = useMatches(activeGroup?.id);
-  const { events } = useAllMatchEvents(activeGroup?.id);
-  const { votes } = useAllMatchVotes(activeGroup?.id);
+  const { events, loaded: eventsLoaded } = useAllMatchEvents(activeGroup?.id);
+  const { votes, loaded: votesLoaded } = useAllMatchVotes(activeGroup?.id);
 
   const [rawSelectedPlayer, setSelectedPlayer] = useState<PlayerId | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
@@ -126,7 +126,7 @@ export function StatsPageContent() {
         )
     : [];
 
-  if (!matchesLoaded) {
+  if (!matchesLoaded || !playersLoaded || !eventsLoaded || !votesLoaded) {
     return (
       <>
         <PageHeader title="Stats" />
