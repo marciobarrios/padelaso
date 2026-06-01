@@ -161,6 +161,10 @@ export function useMatches(
         .eq("group_id", groupId!)
         .order("created_at", { ascending: false });
       return data?.map(mapMatch) ?? [];
+    },
+    {
+      dedupingInterval: 0,
+      revalidateOnMount: true,
     }
   );
 
@@ -272,4 +276,3 @@ export function usePlayerEvents(
 
   return { events: data ?? [], loaded: !isLoading };
 }
-
