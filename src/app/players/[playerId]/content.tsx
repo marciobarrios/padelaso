@@ -24,7 +24,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { getEventConfig } from "@/lib/event-config";
 import { MatchEventType } from "@/lib/types";
 import { calculatePlayerStats, getPartnerStats } from "@/lib/stats";
-import { buildPlayerMap } from "@/lib/utils";
+import { buildPlayerMap, isCompletedMatch } from "@/lib/utils";
 
 const EditPlayerDialog = dynamic(() =>
   import("@/components/players/edit-player-dialog").then((m) => ({ default: m.EditPlayerDialog }))
@@ -53,6 +53,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
 
   const player = allPlayers.find((p) => p.id === playerId);
   const playerMap = buildPlayerMap(allPlayers);
+  const completedPlayerMatches = playerMatches.filter(isCompletedMatch);
 
   // Check if current user already linked to a player
   const linkedPlayer = allPlayers.find((p) => p.userId === user?.id);
@@ -115,8 +116,8 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     );
   }
 
-  const stats = calculatePlayerStats(playerId, playerMatches);
-  const partners = getPartnerStats(playerId, playerMatches);
+  const stats = calculatePlayerStats(playerId, completedPlayerMatches);
+  const partners = getPartnerStats(playerId, completedPlayerMatches);
   const topPartner = partners[0];
 
   const eventCounts = new Map<MatchEventType, number>();
@@ -211,7 +212,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
         <div className="grid grid-cols-3 gap-3">
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-heading font-bold">{playerMatches.length}</p>
+              <p className="text-2xl font-heading font-bold">{completedPlayerMatches.length}</p>
               <p className="text-xs text-muted-foreground">Partidos</p>
             </CardContent>
           </Card>
@@ -230,7 +231,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
         </div>
 
         {/* Win rate */}
-        {playerMatches.length > 0 && (
+        {completedPlayerMatches.length > 0 && (
           <Card>
             <CardContent className="p-4 flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Win rate</span>

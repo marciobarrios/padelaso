@@ -62,5 +62,29 @@ export async function requireActiveMatch(
       { status: 409 }
     );
   }
+  const admin = createAdminSupabaseClient();
+  const { data: match } = await admin
+    .from("matches")
+    .select("status")
+    .eq("id", verified.currentMatchId)
+    .maybeSingle();
+  if (!match) {
+    return Response.json(
+      {
+        error: "Match not found",
+        spoken: "Partido no encontrado.",
+      },
+      { status: 404 }
+    );
+  }
+  if ((match.status as string | null) === "scheduled") {
+    return Response.json(
+      {
+        error: "Scheduled matches cannot be scored",
+        spoken: "Este partido aún está planificado.",
+      },
+      { status: 409 }
+    );
+  }
   return { verified, matchId: verified.currentMatchId };
 }

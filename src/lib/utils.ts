@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { MatchSet, Player, PlayerId } from "./types"
+import { Match, MatchSet, Player, PlayerId } from "./types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -14,6 +14,14 @@ export function getSetWins(sets: MatchSet[]) {
     else if (s.team2Score > s.team1Score) team2Wins++;
   }
   return { team1Wins, team2Wins };
+}
+
+export function isCompletedMatch(match: Match): boolean {
+  return match.status === "completed";
+}
+
+export function isScheduledMatch(match: Match): boolean {
+  return match.status === "scheduled";
 }
 
 export function buildPlayerMap(players: Player[]): Map<PlayerId, Player> {
@@ -37,4 +45,17 @@ export const dateFormatter = new Intl.DateTimeFormat("es-ES", {
   weekday: "long",
   day: "numeric",
   month: "long",
+});
+
+export const dateTimeFormatter = new Intl.DateTimeFormat("es-ES", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export const timeFormatter = new Intl.DateTimeFormat("es-ES", {
+  hour: "2-digit",
+  minute: "2-digit",
 });

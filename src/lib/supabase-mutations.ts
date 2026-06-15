@@ -180,6 +180,7 @@ export async function createMatch(
       team1,
       team2,
       sets,
+      status: "completed",
       created_by: userId,
       ...(groupId ? { group_id: groupId } : {}),
     })
@@ -204,6 +205,32 @@ export async function createMatch(
   return match.id as string;
 }
 
+export async function createScheduledMatch(
+  team1: PlayerId[],
+  team2: PlayerId[],
+  startAt: string,
+  endAt: string,
+  userId: string,
+  groupId?: GroupId
+) {
+  const { data: match, error } = await supabase()
+    .from("matches")
+    .insert({
+      team1,
+      team2,
+      date: startAt,
+      scheduled_end_at: endAt,
+      sets: [],
+      status: "scheduled",
+      created_by: userId,
+      ...(groupId ? { group_id: groupId } : {}),
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return match.id as string;
+}
+
 export async function updateMatch(
   matchId: MatchId,
   data: { sets?: MatchSet[] }
@@ -213,6 +240,44 @@ export async function updateMatch(
     .update(data)
     .eq("id", matchId);
   if (error) throw error;
+}
+
+export async function updateScheduledMatchSchedule(
+  matchId: MatchId,
+  startAt: string,
+  endAt: string
+) {
+  const { error } = await supabase()
+    .from("matches")
+    .update({
+      date: startAt,
+      scheduled_end_at: endAt,
+    })
+    .eq("id", matchId)
+    .eq("status", "scheduled");
+  if (error) throw error;
+}
+
+export async function canConfirmScheduledMatch(matchId: MatchId): Promise<boolean> {
+  const { data, error } = await supabase().rpc("can_confirm_scheduled_match", {
+    p_match_id: matchId,
+  });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function confirmScheduledMatch(
+  matchId: MatchId,
+  sets: MatchSet[],
+  events: { playerId: PlayerId; type: MatchEventType }[] = []
+) {
+  const { data, error } = await supabase().rpc("confirm_scheduled_match", {
+    p_match_id: matchId,
+    p_sets: sets,
+    p_events: events,
+  });
+  if (error) throw error;
+  return data as string;
 }
 
 // Atomic increment that row-locks the match in Postgres, so concurrent

@@ -35,9 +35,15 @@ export interface MatchSet {
   team2Score: number;
 }
 
+export type MatchStatus = "completed" | "scheduled";
+
 export interface Match {
   id: MatchId;
   date: string | Date;
+  scheduledEndAt?: string | Date | null;
+  status: MatchStatus;
+  confirmedAt?: string | Date | null;
+  confirmedBy?: string | null;
   courtNumber?: number | null;
   team1: PlayerId[];
   team2: PlayerId[];

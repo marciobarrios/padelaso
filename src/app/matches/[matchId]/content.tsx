@@ -9,7 +9,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Plus, Trash2, Radio } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CalendarClock, CheckCircle2, Clock, Pencil, Plus, Trash2, Radio } from "lucide-react";
 import { EventFeed } from "@/components/events/event-feed";
 import { useMatch, useMatchEvents, useMatchVotes, usePlayers, invalidate, keys } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
@@ -17,14 +18,16 @@ import { addMatchEvent, removeMatchEvent, deleteMatch } from "@/lib/supabase-mut
 import { revalidateGroupData } from "@/lib/server-actions";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getBrowserClient } from "@/lib/supabase";
-import { MatchEventType, MatchEventId } from "@/lib/types";
-import { buildPlayerMap, getSetWins } from "@/lib/utils";
+import { MatchEventType, MatchEventId, Player } from "@/lib/types";
+import { buildPlayerMap, dateFormatter, dateTimeFormatter, getSetWins, isScheduledMatch, timeFormatter } from "@/lib/utils";
 import { MatchVoting } from "@/components/match/match-voting";
 import { VOTE_CONFIGS } from "@/lib/event-config";
-import { dateFormatter } from "@/lib/utils";
 
 const EditMatchDialog = dynamic(() =>
   import("@/components/match/edit-match-dialog").then((m) => ({ default: m.EditMatchDialog }))
+);
+const RescheduleMatchDialog = dynamic(() =>
+  import("@/components/match/reschedule-match-dialog").then((m) => ({ default: m.RescheduleMatchDialog }))
 );
 const ConfirmDialog = dynamic(() =>
   import("@/components/confirm-dialog").then((m) => ({ default: m.ConfirmDialog }))
@@ -52,8 +55,11 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   const [editKey, setEditKey] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteMounted, setDeleteMounted] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleMounted, setRescheduleMounted] = useState(false);
   const [addingEvents, setAddingEvents] = useState(false);
   const [pickerEventType, setPickerEventType] = useState<MatchEventType | null>(null);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     const client = getBrowserClient();
@@ -110,6 +116,15 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
     };
   }, [matchId, activeGroup?.id]);
 
+  useEffect(() => {
+    const first = window.setTimeout(() => setNow(Date.now()), 0);
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, []);
+
   async function handleAddEvent(playerId: string) {
     if (!pickerEventType || !user) return;
     await addMatchEvent(matchId, playerId, pickerEventType, user.id);
@@ -152,6 +167,100 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   const team1Players = match.team1.map((id) => playerMap.get(id));
   const team2Players = match.team2.map((id) => playerMap.get(id));
   const { team1Wins, team2Wins } = getSetWins(match.sets);
+  const canConfirmScheduled =
+    new Date(match.date).getTime() - 15 * 60_000 <= now;
+
+  if (isScheduledMatch(match)) {
+    return (
+      <MobileShell>
+        <PageHeader
+          title="Partido planificado"
+          back
+          action={
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { setRescheduleMounted(true); setRescheduleOpen(true); }}
+                aria-label="Cambiar hora"
+              >
+                <Pencil className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { setDeleteMounted(true); setDeleteOpen(true); }}
+                aria-label="Eliminar"
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            </div>
+          }
+        />
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-5 space-y-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-2 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="size-5 text-primary shrink-0" />
+                    <span className="font-medium">
+                      {dateTimeFormatter.format(new Date(match.date))}
+                    </span>
+                  </div>
+                  {match.scheduledEndAt && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="size-4 shrink-0" />
+                      <span>
+                        Hasta {timeFormatter.format(new Date(match.scheduledEndAt))}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <Badge variant="secondary">Planificado</Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <ScheduledTeam title="Equipo 1" players={team1Players} tone="blue" />
+                <ScheduledTeam title="Equipo 2" players={team2Players} tone="orange" />
+              </div>
+
+              <Button
+                className="w-full"
+                disabled={!canConfirmScheduled}
+                onClick={() => router.push(`/matches/${matchId}/confirm`)}
+              >
+                <CheckCircle2 className="size-4 mr-1" />
+                Confirmar partido
+              </Button>
+              {!canConfirmScheduled && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Disponible desde 15 minutos antes del inicio.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {rescheduleMounted && (
+          <RescheduleMatchDialog
+            match={match}
+            open={rescheduleOpen}
+            onOpenChange={setRescheduleOpen}
+          />
+        )}
+        {deleteMounted && (
+          <ConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title="Eliminar partido planificado"
+            description="¿Seguro que quieres eliminar este partido planificado?"
+            onConfirm={handleDelete}
+          />
+        )}
+      </MobileShell>
+    );
+  }
 
   return (
     <MobileShell>
@@ -358,5 +467,41 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
         />
       )}
     </MobileShell>
+  );
+}
+
+function ScheduledTeam({
+  title,
+  players,
+  tone,
+}: {
+  title: string;
+  players: (Player | undefined)[];
+  tone: "blue" | "orange";
+}) {
+  return (
+    <div className="space-y-2">
+      <h3
+        className={
+          tone === "blue"
+            ? "text-sm font-medium text-blue-500"
+            : "text-sm font-medium text-orange-500"
+        }
+      >
+        {title}
+      </h3>
+      {players.map((player, index) => (
+        <div key={player?.id ?? index} className="flex items-center gap-2 min-w-0">
+          {player ? (
+            <>
+              <PlayerAvatar emoji={player.emoji} size="sm" />
+              <span className="text-sm truncate">{player.name}</span>
+            </>
+          ) : (
+            <span className="text-sm text-destructive">Jugador eliminado</span>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
