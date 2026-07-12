@@ -18,8 +18,14 @@ export const VOTE_CONFIGS: VoteConfig[] = [
   { type: "jugada_del_partido", emoji: "⭐", label: "Jugada del partido" },
 ];
 
-export const EVENT_CONFIGS: EventConfig[] = [
+// Kept for rendering and calculating stats from matches recorded before the
+// event was retired. Legacy events must not be offered when logging new ones.
+const LEGACY_EVENT_CONFIGS: EventConfig[] = [
   { type: "bola_fuera", emoji: "🚀", label: "Bola fuera", sentiment: "negative" },
+];
+
+export const EVENT_CONFIGS: EventConfig[] = [
+  { type: "por_4_metros", emoji: "🦅", label: "Por 4 metros", sentiment: "positive" },
   { type: "pelotazo", emoji: "💥", label: "Pelotazo al rival", sentiment: "negative" },
   { type: "bola_perdida", emoji: "🫠", label: "Bola perdida", sentiment: "negative" },
   { type: "ace", emoji: "🎯", label: "Ace", sentiment: "positive" },
@@ -48,7 +54,9 @@ export const EVENT_CONFIGS: EventConfig[] = [
   { type: "magic", emoji: "✨", label: "Punto mágico", sentiment: "fun" },
 ];
 
-export const EVENT_MAP = new Map(EVENT_CONFIGS.map((e) => [e.type, e]));
+export const EVENT_MAP = new Map(
+  [...LEGACY_EVENT_CONFIGS, ...EVENT_CONFIGS].map((e) => [e.type, e]),
+);
 
 export function getEventConfig(type: MatchEventType): EventConfig {
   return (
@@ -86,6 +94,9 @@ export const FUN_AWARD_CONFIGS: FunAwardConfig[] = [
   { emoji: "🤕", title: "Suicida", events: ["remate_red", "caida_epica"] },
   { emoji: "🏗️", title: "La Pared Humana", events: ["bajada_muro", "bajada_muro"] },
   { emoji: "🐍", title: "La Víbora", events: ["vibora", "chiquita"] },
+  { emoji: "👑", title: "Rey del aire", events: ["por_3_metros", "por_4_metros"] },
+  { emoji: "🚀", title: "Despegue vertical", events: ["por_4_metros", "por_4_metros"] },
+  { emoji: "💥", title: "Artillería pesada", events: ["por_4_metros", "remate"] },
   { emoji: "🔨", title: "Cañonero", events: ["pelotazo", "por_la_puerta"] },
   { emoji: "🎱", title: "La Ruleta", events: ["cano", "cinta", "tocaste_techo"] },
   { emoji: "💀", title: "Desastre", events: ["bola_fuera", "bola_perdida", "remate_red"] },
