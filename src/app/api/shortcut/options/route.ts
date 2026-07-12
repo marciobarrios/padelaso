@@ -2,11 +2,17 @@ import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { EVENT_CONFIGS } from "@/lib/event-config";
 import { requireActiveMatch } from "../../_token";
+import {
+  buildEventOptions,
+  buildPlayerOptions,
+  eventOptionLabel,
+} from "../_options";
 
 // Feeds the Apple Watch shortcut's tap-driven pickers. Shortcuts treats
-// dictionaries as unordered key/value rows, so each picker gets a label-only
-// array for display and a dictionary for resolving the chosen label to the
-// machine-readable value expected by the mutation endpoint.
+// dictionaries as unordered key/value rows, so each picker gets an ordered,
+// label-only array that the mutation endpoint can resolve directly. The maps
+// remain in the response for shortcuts created before label resolution moved
+// to the server.
 export async function GET(request: NextRequest) {
   const auth = await requireActiveMatch(request);
   if (auth instanceof Response) return auth;
@@ -52,22 +58,23 @@ export async function GET(request: NextRequest) {
     b.count !== a.count ? b.count - a.count : a.originalIndex - b.originalIndex
   );
 
-  const events: Record<string, string> = {};
-  for (const { cfg } of sortedConfigs) {
-    events[`${cfg.emoji} ${cfg.label}`] = cfg.type;
-  }
-
-  const byId = new Map((playerRows ?? []).map((p) => [p.id as string, p]));
-  const players: Record<string, string> = {};
-  for (const id of orderedIds) {
-    const p = byId.get(id);
-    if (!p) continue;
-    const self = (p.user_id as string | null) === verified.createdBy;
-    let key = `${p.emoji as string} ${p.name as string}${self ? " (yo)" : ""}`;
-    // Duplicate emoji+name pairs would silently merge as dictionary keys.
-    while (key in players) key += " ²";
-    players[key] = id;
-  }
+  const eventTypes = buildEventOptions();
+  const events = Object.fromEntries(
+    sortedConfigs.map(({ cfg }) => {
+      const label = eventOptionLabel(cfg);
+      return [label, eventTypes[label]];
+    })
+  );
+  const players = buildPlayerOptions(
+    orderedIds,
+    (playerRows ?? []).map((player) => ({
+      id: player.id as string,
+      name: player.name as string,
+      emoji: player.emoji as string,
+      userId: (player.user_id as string | null) ?? null,
+    })),
+    verified.createdBy
+  );
 
   return Response.json({
     match: { id: matchId },

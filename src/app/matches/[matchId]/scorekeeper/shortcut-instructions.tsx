@@ -141,7 +141,7 @@ export function ShortcutSetupInstructions({
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          4 · Bajo la etiqueta ⭐ Evento (14 acciones, sin dictado)
+          4 · Bajo la etiqueta ⭐ Evento (10 acciones, sin dictado)
         </p>
         <p className="text-muted-foreground">
           Registrar un evento son 3 toques: menú → evento → jugador. Las listas
@@ -164,19 +164,8 @@ export function ShortcutSetupInstructions({
             menos usados.
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>events</code>; en <code>Diccionario</code>, otra vez{" "}
-            <strong>Contenido de URL</strong> del paso 1.
-          </li>
-          <li>
-            <strong>Obtener valor del diccionario</strong> → en <code>Clave</code>,
-            la variable <strong>Elemento seleccionado</strong> del paso 3; en{" "}
-            <code>Diccionario</code>, la salida del paso 4. Así conviertes el
-            nombre visible en el código que espera la API.
-          </li>
-          <li>
             <strong>Establecer variable</strong> <code>evento</code> con la salida
-            del paso 5.
+            del paso 3. La API convertirá este nombre visible al código interno.
           </li>
           <li>
             <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
@@ -184,43 +173,32 @@ export function ShortcutSetupInstructions({
             <strong>Contenido de URL</strong> del paso 1.
           </li>
           <li>
-            <strong>Seleccionar de la lista</strong> sobre la salida del paso 7. En
+            <strong>Seleccionar de la lista</strong> sobre la salida del paso 5. En
             el Watch verás sólo el emoji y nombre de los jugadores del partido.
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>players</code>; en <code>Diccionario</code>, otra vez{" "}
-            <strong>Contenido de URL</strong> del paso 1.
-          </li>
-          <li>
-            <strong>Obtener valor del diccionario</strong> → en <code>Clave</code>,
-            la variable <strong>Elemento seleccionado</strong> del paso 8; en{" "}
-            <code>Diccionario</code>, la salida del paso 9. El identificador se
-            obtiene aquí, pero nunca se muestra en la lista.
-          </li>
-          <li>
             <strong>Establecer variable</strong> <code>jugador</code> con la salida
-            del paso 10.
+            del paso 6. La API resolverá el identificador sin mostrarlo.
           </li>
           <li>
             <strong>Obtener contenidos de URL</strong> — pega la URL de eventos
             (abajo). <code>Método</code> = <code>POST</code>;{" "}
             <code>Content-Type</code> = <code>application/json</code>;{" "}
             <code>Cuerpo de la solicitud</code> tipo <em>JSON</em> con dos
-            campos: <code>type</code> = variable <code>evento</code> y{" "}
-            <code>playerId</code> = variable <code>jugador</code>.
+            campos: <code>eventOption</code> = variable <code>evento</code> y{" "}
+            <code>playerOption</code> = variable <code>jugador</code>.
           </li>
           <li>
             <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
             = <code>spoken</code>; diccionario = <strong>Contenido de URL</strong>{" "}
-            del paso 12.
+            del paso 8.
           </li>
           <li>
-            <strong>Leer texto</strong> con la salida del paso 13.
+            <strong>Leer texto</strong> con la salida del paso 9.
           </li>
         </ol>
         <UrlBlock url={optionsUrl} label="URL de opciones → paso 1" />
-        <UrlBlock url={eventsUrl} label="URL de eventos → paso 12" />
+        <UrlBlock url={eventsUrl} label="URL de eventos → paso 8" />
       </section>
 
       <section className="space-y-2">

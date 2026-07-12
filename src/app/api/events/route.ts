@@ -4,6 +4,7 @@ import { EVENT_CONFIGS, getEventConfig } from "@/lib/event-config";
 import { MatchEventType } from "@/lib/types";
 import { requireActiveMatch } from "../_token";
 import { fetchMatchRoster } from "../_match";
+import { buildEventOptions, buildPlayerOptions } from "../shortcut/_options";
 import { resolveEventQuery } from "./_resolve";
 
 const VALID_EVENT_TYPES = new Set<string>(EVENT_CONFIGS.map((e) => e.type));
@@ -28,6 +29,8 @@ function spokenForResolveError(code: ResolveErrorCode): string {
 }
 
 interface EventRequestBody {
+  eventOption?: string;
+  playerOption?: string;
   playerId?: string;
   type?: MatchEventType;
   query?: string;
@@ -48,7 +51,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { playerId, type, query } = body;
+  let { playerId, type } = body;
+  const { eventOption, playerOption, query } = body;
   const admin = createAdminSupabaseClient();
 
   // Voice-driven path: resolve a free-form phrase against the roster + vocabulary.
@@ -100,11 +104,58 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // Tap-driven path: resolve the labels shown by the shortcut. Keeping this on
+  // the server lets the shortcut display ordered names without exposing or
+  // translating internal IDs on the Watch.
+  let resolvedRoster: Awaited<ReturnType<typeof fetchMatchRoster>> = null;
+  if (
+    typeof eventOption === "string" &&
+    eventOption !== "" &&
+    typeof playerOption === "string" &&
+    playerOption !== "" &&
+    (!playerId || !type)
+  ) {
+    resolvedRoster = await fetchMatchRoster(admin, matchId);
+    if (!resolvedRoster) {
+      return Response.json(
+        { error: "Match not found", spoken: "Partido no encontrado." },
+        { status: 404 }
+      );
+    }
+
+    type = buildEventOptions()[eventOption];
+    playerId = buildPlayerOptions(
+      [...resolvedRoster.team1Ids, ...resolvedRoster.team2Ids],
+      resolvedRoster.players,
+      verified.createdBy
+    )[playerOption];
+
+    if (!type) {
+      return Response.json(
+        {
+          error: `Unknown event option: ${eventOption}`,
+          spoken: "Tipo de evento desconocido.",
+        },
+        { status: 400 }
+      );
+    }
+    if (!playerId) {
+      return Response.json(
+        {
+          error: `Unknown player option: ${playerOption}`,
+          spoken: "El jugador no está en este partido.",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   // Legacy path: explicit playerId + type.
   if (!playerId || !type) {
     return Response.json(
       {
-        error: "playerId and type are required",
+        error:
+          "playerId and type, or eventOption and playerOption, are required",
         spoken: "Faltan datos del evento.",
       },
       { status: 400 }
@@ -120,7 +171,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const roster = await fetchMatchRoster(admin, matchId);
+  const roster = resolvedRoster ?? (await fetchMatchRoster(admin, matchId));
   if (!roster) {
     return Response.json(
       { error: "Match not found", spoken: "Partido no encontrado." },
