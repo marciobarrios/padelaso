@@ -67,7 +67,7 @@ Verified against the repo (this section replaces the original plan's stale claim
 | Dynamic routes `matches/[matchId]`, `matches/[matchId]/scorekeeper`, `players/[playerId]`, `groups/[groupId]` | Thin async server wrappers → client `content.tsx`. No `generateStaticParams()`. Scorekeeper also awaits `searchParams` server-side. | **Query-param routes** in the Tauri build (see Phase 3.4). |
 | Server Action `src/lib/server-actions.ts` (`revalidateGroupData`) | Used by `edit-match-dialog.tsx` and `matches/[matchId]/content.tsx`. Server Actions are unsupported in static export. | No-op under Tauri — it only flushes the RSC router cache, which doesn't exist in a static export. Semantically correct. |
 | Supabase browser client `src/lib/supabase.ts` | `createBrowserClient` from `@supabase/ssr` → **session lives in cookies**, not localStorage (original plan was wrong here). | Tauri build constructs plain `supabase-js` `createClient` with `flowType: 'pkce'` and a **custom `storage` adapter backed by `tauri-plugin-store`** (see Phase 5.0). |
-| API routes `api/state`, `api/score`, `api/events` + `auth/callback/route.ts` | Server-only; used by Apple Shortcuts / web OAuth. | Excluded from Tauri build via `pageExtensions` (see Phase 3.2). Stay untouched on Vercel. |
+| API routes `api/score`, `api/events`, `api/shortcut/options` + `auth/callback/route.ts` | Server-only; used by Apple Shortcuts / web OAuth. | Excluded from Tauri build via `pageExtensions` (see Phase 3.2). Stay untouched on Vercel. |
 | Active-group cookie (`active-group-cookie.ts`) | Set via `document.cookie`, read server-side for SSR. | GroupProvider's localStorage fallback already covers Tauri. |
 | Realtime re-subscribe on visibility | Already implemented in `scorekeeper/content.tsx` and `matches/[matchId]/content.tsx`. | Verify against Tauri iOS/macOS lifecycle events, not just browser `visibilitychange`. |
 
@@ -131,7 +131,7 @@ code, which is exactly what we want.
 
 Rename web-only route files so they only match the web build's `pageExtensions`:
 
-- `src/app/api/state/route.ts` → `route.web.ts` (same for `score`, `events`)
+- `src/app/api/score/route.ts` → `route.web.ts` (same for `events`, `shortcut/options`)
 - `src/app/auth/callback/route.ts` → `route.web.ts`
 - The four list pages get **two variants**: `page.web.tsx` (current server component)
   and `page.tsx` (new client version). Same pattern for the dynamic-route wrappers
@@ -329,7 +329,7 @@ After Phase 3:
 - `BUILD_TARGET=tauri pnpm build` emits `out/`; plain `pnpm build` still SSRs.
 - Serve `out/` with `npx serve` and walk login → group switch → match wizard →
   **match detail and scorekeeper via the query-param routes**.
-- **Confirm the web build still exposes `/api/state|score|events` and
+- **Confirm the web build still exposes `/api/score|events` and `/api/shortcut/options` and
   `/auth/callback`, and the Tauri `out/` contains none of them** (pageExtensions
   check in both directions).
 - **Edit a match, navigate back and forth — confirms the server-action no-op is safe.**
@@ -364,7 +364,7 @@ Modified: `next.config.ts` (conditional export + pageExtensions), `package.json`
 `src/components/auth/auth-provider.tsx` (redirectTo + system-browser branch),
 `src/lib/server-actions.ts` callers untouched (guard inside), `.gitignore`.
 
-Renamed to `.web.ts(x)`: `api/state|score|events/route.ts`,
+Renamed to `.web.ts(x)`: `api/score|events/route.ts`, `api/shortcut/options/route.ts`,
 `auth/callback/route.ts`, the four list `page.tsx` files (originals become
 `page.web.tsx`).
 
