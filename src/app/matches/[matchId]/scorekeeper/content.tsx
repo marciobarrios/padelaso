@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Loader2, Plus, Minus, Trash2, Check, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Minus, Trash2, Check, RefreshCw } from "lucide-react";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
@@ -25,6 +25,7 @@ import { buildPlayerMap, dateFormatter } from "@/lib/utils";
 import { getBrowserClient } from "@/lib/supabase";
 import { EVENT_CONFIGS } from "@/lib/event-config";
 import { MatchSet, MatchEventType, ScoreToken } from "@/lib/types";
+import { ShortcutSetupInstructions } from "./shortcut-instructions";
 
 export function ScorekeeperContent({
   matchId,
@@ -139,16 +140,12 @@ function SetupView({ matchId }: { matchId: string }) {
       ids.map((id) => playerMap.get(id)?.name ?? "?").join("·");
     return `${join(match.team1)} vs ${join(match.team2)}`;
   }, [match, playerMap]);
-  const matchRoster = useMemo(() => {
-    if (!match) return [];
-    return [...match.team1, ...match.team2]
-      .map((id) => playerMap.get(id))
-      .filter((p): p is NonNullable<typeof p> => Boolean(p));
-  }, [match, playerMap]);
-
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const scoreUrl = token ? `${origin}/api/score?token=${token.token}` : "";
   const eventsUrl = token ? `${origin}/api/events?token=${token.token}` : "";
+  const optionsUrl = token
+    ? `${origin}/api/shortcut/options?token=${token.token}`
+    : "";
 
   const tokenStatus: TokenStatus | null = !token
     ? null
@@ -195,12 +192,14 @@ function SetupView({ matchId }: { matchId: string }) {
           <CardContent className="p-5 space-y-4 text-sm">
             <div className="space-y-1">
               <h2 className="font-heading text-lg font-bold">
-                ⌚ Atajos de Siri (Apple Watch)
+                ⌚ Atajo para Apple Watch
               </h2>
               <p className="text-muted-foreground">
-                Monta los atajos en iOS una sola vez. La URL no cambia entre
-                partidos: cada nuevo partido en vivo apunta el atajo
-                automáticamente al marcador correcto.
+                Un único atajo que se lanza con un toque (sin Siri ni
+                dictado): menú → punto o evento → confirmación por voz.
+                Móntalo una sola vez: las URLs no cambian entre partidos,
+                cada nuevo partido en vivo apunta el atajo automáticamente
+                al marcador correcto.
               </p>
             </div>
 
@@ -256,161 +255,11 @@ function SetupView({ matchId }: { matchId: string }) {
                   </Button>
                 )}
 
-                <section className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Receta base (sólo la primera vez)
-                  </p>
-                  <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground marker:text-foreground/60">
-                    <li>
-                      iPhone → <strong>Atajos</strong> → <strong>+</strong>{" "}
-                      nuevo → acción{" "}
-                      <strong>Obtener contenidos de URL</strong>.
-                    </li>
-                    <li>Pega la URL del atajo correspondiente (abajo).</li>
-                    <li>
-                      Toca <strong>Mostrar más</strong> y deja:{" "}
-                      <code>Método</code> = <code>POST</code>;{" "}
-                      <code>Cabeceras</code> → <code>Content-Type</code> ={" "}
-                      <code>application/json</code>;{" "}
-                      <code>Cuerpo de la solicitud</code> tipo <em>JSON</em>,
-                      con los campos que indica cada atajo.
-                    </li>
-                    <li>
-                      Renómbralo y activa <strong>Añadir a Siri</strong> con
-                      esa misma frase.
-                    </li>
-                  </ol>
-                </section>
-
-                <section className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    1 · Punto equipo uno
-                  </p>
-                  <p className="text-muted-foreground">
-                    Frase Siri: <em>&ldquo;Punto equipo uno&rdquo;</em>. Crea
-                    un atajo nuevo y encadena estas{" "}
-                    <strong>3 acciones en orden</strong>:
-                  </p>
-                  <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
-                    <li>
-                      <strong>Obtener contenidos de URL</strong> — pega la URL
-                      de abajo. Toca <strong>Mostrar más</strong>:
-                      <ul className="list-disc list-outside pl-5 mt-1 space-y-0.5">
-                        <li>
-                          <code>Método</code> = <code>POST</code>.
-                        </li>
-                        <li>
-                          <code>Cabeceras</code> →{" "}
-                          <code>Content-Type</code> ={" "}
-                          <code>application/json</code>.
-                        </li>
-                        <li>
-                          <code>Cuerpo de la solicitud</code> tipo{" "}
-                          <em>JSON</em>, con un campo:{" "}
-                          <code>Clave</code> = <code>team</code>;{" "}
-                          <code>Valor</code> = <code>1</code> (Número).
-                        </li>
-                      </ul>
-                    </li>
-                    <li>
-                      <strong>Obtener valor del diccionario</strong> →{" "}
-                      <code>Clave</code> = <code>spoken</code>; en{" "}
-                      <code>Diccionario</code>, abre el panel de variables y
-                      elige <strong>Contenido de URL</strong> (la salida del
-                      paso 1). Extrae la frase de confirmación del JSON de
-                      respuesta.
-                    </li>
-                    <li>
-                      <strong>Leer texto con voz</strong> con la salida del
-                      paso 2. <em>Sin este paso el atajo se ejecuta en
-                      silencio aunque haya éxito.</em>
-                    </li>
-                  </ol>
-                  <UrlBlock url={scoreUrl} />
-                </section>
-
-                <section className="space-y-1.5">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    2 · Punto equipo dos
-                  </p>
-                  <p className="text-muted-foreground">
-                    Mantén pulsado el atajo 1 → <strong>Duplicar</strong>{" "}
-                    (las 3 acciones se copian). En la copia cambia{" "}
-                    <code>team</code> a <code>2</code>, renómbralo{" "}
-                    <em>&ldquo;Punto equipo dos&rdquo;</em> y vuelve a
-                    activar Siri.
-                  </p>
-                </section>
-
-                <section className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    3 · Registrar evento por voz
-                  </p>
-                  <p className="text-muted-foreground">
-                    Frase Siri: <em>&ldquo;Registrar evento&rdquo;</em>. Crea
-                    un atajo nuevo y encadena estas{" "}
-                    <strong>4 acciones en orden</strong>:
-                  </p>
-                  <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
-                    <li>
-                      <strong>Dictar texto</strong> — recoge la frase (p.ej.{" "}
-                      <em>&ldquo;víbora Marcio&rdquo;</em>).
-                    </li>
-                    <li>
-                      <strong>Obtener contenidos de URL</strong> — pega la URL
-                      de abajo. Toca <strong>Mostrar más</strong>:
-                      <ul className="list-disc list-outside pl-5 mt-1 space-y-0.5">
-                        <li>
-                          <code>Método</code> = <code>POST</code>.
-                        </li>
-                        <li>
-                          <code>Cabeceras</code> →{" "}
-                          <code>Content-Type</code> ={" "}
-                          <code>application/json</code>.
-                        </li>
-                        <li>
-                          <code>Cuerpo de la solicitud</code> tipo{" "}
-                          <em>JSON</em>, con un campo:{" "}
-                          <code>Clave</code> = <code>query</code>; en{" "}
-                          <code>Valor</code>, toca el campo, abre el panel
-                          de variables y elige{" "}
-                          <strong>Texto dictado</strong> (la salida del paso
-                          1).
-                        </li>
-                      </ul>
-                    </li>
-                    <li>
-                      <strong>Obtener valor del diccionario</strong> →{" "}
-                      <code>Clave</code> = <code>spoken</code>; en{" "}
-                      <code>Diccionario</code>, abre el panel de variables y
-                      elige <strong>Contenido de URL</strong> (la salida del
-                      paso 2). Extrae la frase de confirmación del JSON de
-                      respuesta.
-                    </li>
-                    <li>
-                      <strong>Leer texto con voz</strong> con la salida del
-                      paso 3. <em>Sin este paso el atajo se ejecuta en
-                      silencio aunque haya éxito.</em>
-                    </li>
-                  </ol>
-                  <UrlBlock url={eventsUrl} />
-                  <p className="text-xs text-muted-foreground">
-                    Pista: si dices <em>&ldquo;yo&rdquo;</em>,{" "}
-                    <em>&ldquo;me&rdquo;</em> o <em>&ldquo;mí&rdquo;</em>, el
-                    atajo registra el evento contra tu propio jugador del
-                    partido.
-                  </p>
-                  <VoiceReferencePanel
-                    roster={matchRoster}
-                    selfUserId={user?.id}
-                  />
-                </section>
-
-                <p className="text-xs text-muted-foreground border-t border-border pt-3">
-                  <strong>Extras opcionales</strong>: en el cuerpo JSON,{" "}
-                  <code>delta = -1</code> deshace un punto y{" "}
-                  <code>newSet = true</code> abre un set nuevo.
-                </p>
+                <ShortcutSetupInstructions
+                  scoreUrl={scoreUrl}
+                  eventsUrl={eventsUrl}
+                  optionsUrl={optionsUrl}
+                />
               </div>
             )}
           </CardContent>
@@ -460,91 +309,6 @@ const TOKEN_BANNERS: Record<
 function TokenStatusBanner({ status }: { status: TokenStatus }) {
   const { className, content } = TOKEN_BANNERS[status];
   return <div className={className}>{content}</div>;
-}
-
-function UrlBlock({ url }: { url: string }) {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    },
-    []
-  );
-
-  async function copy() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setCopied(false), 1500);
-  }
-
-  return (
-    <div className="space-y-1.5">
-      <pre className="p-2 rounded bg-muted text-xs overflow-x-auto whitespace-pre-wrap break-all">
-        {url}
-      </pre>
-      <Button size="sm" onClick={copy} className="w-full">
-        {copied ? (
-          <>
-            <Check className="size-3.5 mr-1.5" /> Copiado
-          </>
-        ) : (
-          <>
-            <Copy className="size-3.5 mr-1.5" /> Copiar URL
-          </>
-        )}
-      </Button>
-    </div>
-  );
-}
-
-function VoiceReferencePanel({
-  roster,
-  selfUserId,
-}: {
-  roster: { id: string; name: string; emoji: string; userId?: string | null }[];
-  selfUserId: string | undefined;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-3 pt-1">
-      <div className="space-y-1.5">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Jugadores
-        </p>
-        <ul className="space-y-1 text-xs">
-          {roster.map((p) => (
-            <li key={p.id} className="flex items-center gap-1.5">
-              <span aria-hidden>{p.emoji}</span>
-              <span className="truncate">{p.name}</span>
-              {p.userId && p.userId === selfUserId && (
-                <span className="ml-auto text-[9px] uppercase font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-1 rounded">
-                  yo
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="space-y-1.5">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Vocabulario
-        </p>
-        <ul className="space-y-0.5 text-xs max-h-44 overflow-y-auto pr-1">
-          {EVENT_CONFIGS.map((e) => (
-            <li key={e.type} className="flex items-center gap-1.5">
-              <span aria-hidden>{e.emoji}</span>
-              <span className="truncate">{e.label}</span>
-              <code className="ml-auto text-[9px] text-muted-foreground/70 shrink-0">
-                {e.type.replace(/_/g, " ")}
-              </code>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
 }
 
 // ============================================================
