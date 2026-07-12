@@ -58,6 +58,7 @@ export interface MatchEvent {
 
 export type MatchEventType =
   | "bola_fuera"
+  | "por_4_metros"
   | "pelotazo"
   | "bola_perdida"
   | "ace"
