@@ -3,11 +3,10 @@ import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { EVENT_CONFIGS } from "@/lib/event-config";
 import { requireActiveMatch } from "../../_token";
 
-// Feeds the Apple Watch shortcut's tap-driven pickers. Both `events` and
-// `players` are JSON dictionaries because the Shortcuts app's "Choose from
-// List" action, given a dictionary, displays the keys and resolves the
-// chosen item to its value — so the Watch shows "🐍 Víbora letal" while the
-// shortcut gets back the machine-readable `vibora` with zero parsing actions.
+// Feeds the Apple Watch shortcut's tap-driven pickers. Shortcuts treats
+// dictionaries as unordered key/value rows, so each picker gets a label-only
+// array for display and a dictionary for resolving the chosen label to the
+// machine-readable value expected by the mutation endpoint.
 export async function GET(request: NextRequest) {
   const auth = await requireActiveMatch(request);
   if (auth instanceof Response) return auth;
@@ -70,5 +69,11 @@ export async function GET(request: NextRequest) {
     players[key] = id;
   }
 
-  return Response.json({ match: { id: matchId }, events, players });
+  return Response.json({
+    match: { id: matchId },
+    eventOptions: Object.keys(events),
+    events,
+    playerOptions: Object.keys(players),
+    players,
+  });
 }

@@ -141,7 +141,7 @@ export function ShortcutSetupInstructions({
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          4 · Bajo la etiqueta ⭐ Evento (8 acciones, sin dictado)
+          4 · Bajo la etiqueta ⭐ Evento (14 acciones, sin dictado)
         </p>
         <p className="text-muted-foreground">
           Registrar un evento son 3 toques: menú → evento → jugador. Las listas
@@ -155,55 +155,72 @@ export function ShortcutSetupInstructions({
           </li>
           <li>
             <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>events</code>; en <code>Diccionario</code>, la variable{" "}
+            = <code>eventOptions</code>; en <code>Diccionario</code>, la variable{" "}
             <strong>Contenido de URL</strong> (paso 1).
           </li>
           <li>
             <strong>Seleccionar de la lista</strong> sobre la salida del paso 2. En
-            el Watch verás los eventos con su emoji; el elemento elegido vale el
-            código que espera la API.
+            el Watch verás sólo los eventos con su emoji, ordenados de más a
+            menos usados.
+          </li>
+          <li>
+            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
+            = <code>events</code>; en <code>Diccionario</code>, otra vez{" "}
+            <strong>Contenido de URL</strong> del paso 1.
+          </li>
+          <li>
+            <strong>Obtener valor del diccionario</strong> → en <code>Clave</code>,
+            la variable <strong>Elemento seleccionado</strong> del paso 3; en{" "}
+            <code>Diccionario</code>, la salida del paso 4. Así conviertes el
+            nombre visible en el código que espera la API.
+          </li>
+          <li>
+            <strong>Establecer variable</strong> <code>evento</code> con la salida
+            del paso 5.
+          </li>
+          <li>
+            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
+            = <code>playerOptions</code>; en <code>Diccionario</code>, otra vez{" "}
+            <strong>Contenido de URL</strong> del paso 1.
+          </li>
+          <li>
+            <strong>Seleccionar de la lista</strong> sobre la salida del paso 7. En
+            el Watch verás sólo el emoji y nombre de los jugadores del partido.
           </li>
           <li>
             <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
             = <code>players</code>; en <code>Diccionario</code>, otra vez{" "}
-            <strong>Contenido de URL</strong> del paso 1.{" "}
-            <em>
-              Ojo: este campo suele autocompletarse con{" "}
-              <strong>Elemento seleccionado</strong> (la salida del paso 3);
-              bórralo y elige <strong>Contenido de URL</strong> del paso 1.
-            </em>
+            <strong>Contenido de URL</strong> del paso 1.
           </li>
           <li>
-            <strong>Seleccionar de la lista</strong> sobre la salida del paso 4 (los
-            jugadores del partido en vivo).
+            <strong>Obtener valor del diccionario</strong> → en <code>Clave</code>,
+            la variable <strong>Elemento seleccionado</strong> del paso 8; en{" "}
+            <code>Diccionario</code>, la salida del paso 9. El identificador se
+            obtiene aquí, pero nunca se muestra en la lista.
+          </li>
+          <li>
+            <strong>Establecer variable</strong> <code>jugador</code> con la salida
+            del paso 10.
           </li>
           <li>
             <strong>Obtener contenidos de URL</strong> — pega la URL de eventos
             (abajo). <code>Método</code> = <code>POST</code>;{" "}
             <code>Content-Type</code> = <code>application/json</code>;{" "}
             <code>Cuerpo de la solicitud</code> tipo <em>JSON</em> con dos
-            campos: <code>type</code> = el evento del paso 3 y{" "}
-            <code>playerId</code> = el jugador del paso 5.{" "}
-            <em>
-              Ambas selecciones se llaman igual (<strong>Elemento
-              seleccionado</strong>) y el autocompletar coge la más cercana (el
-              jugador), así que se cruzan fácil. Truco: añade un{" "}
-              <strong>Establecer variable</strong> tras el paso 3 (llámalo{" "}
-              <code>evento</code>) y otro tras el paso 5 (llámalo{" "}
-              <code>jugador</code>), y usa esos nombres aquí.
-            </em>
+            campos: <code>type</code> = variable <code>evento</code> y{" "}
+            <code>playerId</code> = variable <code>jugador</code>.
           </li>
           <li>
             <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
             = <code>spoken</code>; diccionario = <strong>Contenido de URL</strong>{" "}
-            del paso 6.
+            del paso 12.
           </li>
           <li>
-            <strong>Leer texto</strong> con la salida del paso 7.
+            <strong>Leer texto</strong> con la salida del paso 13.
           </li>
         </ol>
         <UrlBlock url={optionsUrl} label="URL de opciones → paso 1" />
-        <UrlBlock url={eventsUrl} label="URL de eventos → paso 6" />
+        <UrlBlock url={eventsUrl} label="URL de eventos → paso 12" />
       </section>
 
       <section className="space-y-2">
