@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
-import { EVENT_CONFIGS } from "@/lib/event-config";
+import { EVENT_CONFIGS, getEventConfig } from "@/lib/event-config";
 import { MatchEventType } from "@/lib/types";
 import { requireActiveMatch } from "../_token";
-import { fetchMatchTeams, fetchMatchRoster } from "../_match";
+import { fetchMatchRoster } from "../_match";
 import { resolveEventQuery } from "./_resolve";
 
 const VALID_EVENT_TYPES = new Set<string>(EVENT_CONFIGS.map((e) => e.type));
@@ -120,14 +120,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const teams = await fetchMatchTeams(admin, matchId);
-  if (!teams) {
+  const roster = await fetchMatchRoster(admin, matchId);
+  if (!roster) {
     return Response.json(
       { error: "Match not found", spoken: "Partido no encontrado." },
       { status: 404 }
     );
   }
-  const matchPlayers = new Set<string>([...teams.team1Ids, ...teams.team2Ids]);
+  const matchPlayers = new Set<string>([...roster.team1Ids, ...roster.team2Ids]);
   if (!matchPlayers.has(playerId)) {
     return Response.json(
       {
@@ -155,11 +155,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const playerName =
+    roster.players.find((p) => p.id === playerId)?.name ?? "el jugador";
+  const eventLabel = getEventConfig(type).label;
+
   return Response.json({
     match: { id: matchId },
     id: inserted.id,
     type,
     playerId,
-    spoken: "Evento registrado.",
+    playerName,
+    eventLabel,
+    spoken: `${eventLabel} para ${playerName}`,
   });
 }
