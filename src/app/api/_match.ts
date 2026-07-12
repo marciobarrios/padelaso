@@ -10,6 +10,7 @@ export interface MatchTeams {
 export interface RosterPlayer {
   id: string;
   name: string;
+  emoji: string;
   userId: string | null;
 }
 
@@ -42,11 +43,12 @@ export async function fetchMatchRoster(
   const ids = [...teams.team1Ids, ...teams.team2Ids];
   const { data } = await admin
     .from("players")
-    .select("id, name, user_id")
+    .select("id, name, emoji, user_id")
     .in("id", ids);
   const players: RosterPlayer[] = (data ?? []).map((p) => ({
     id: p.id as string,
     name: p.name as string,
+    emoji: p.emoji as string,
     userId: (p.user_id as string | null) ?? null,
   }));
   return { ...teams, players };
