@@ -145,7 +145,9 @@ export function ShortcutSetupInstructions({
         </p>
         <p className="text-muted-foreground">
           Registrar un evento son 3 toques: menú → evento → jugador. Las listas
-          vienen del servidor con los eventos más usados primero.
+          vienen del servidor con los eventos más usados primero. No hacen falta
+          pasos de conversión: guarda cada <strong>Ítem seleccionado</strong> y
+          envíalo directamente a la API.
         </p>
         <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
           <li>
@@ -164,8 +166,9 @@ export function ShortcutSetupInstructions({
             menos usados.
           </li>
           <li>
-            <strong>Establecer variable</strong> <code>evento</code> con la salida
-            del paso 3. La API convertirá este nombre visible al código interno.
+            <strong>Definir variable</strong> <code>evento</code> con el{" "}
+            <strong>Ítem seleccionado</strong> del paso 3. La API convertirá este
+            nombre visible al código interno.
           </li>
           <li>
             <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
@@ -177,8 +180,9 @@ export function ShortcutSetupInstructions({
             el Watch verás sólo el emoji y nombre de los jugadores del partido.
           </li>
           <li>
-            <strong>Establecer variable</strong> <code>jugador</code> con la salida
-            del paso 6. La API resolverá el identificador sin mostrarlo.
+            <strong>Definir variable</strong> <code>jugador</code> con el{" "}
+            <strong>Ítem seleccionado</strong> del paso 6. La API resolverá el
+            identificador sin mostrarlo.
           </li>
           <li>
             <strong>Obtener contenidos de URL</strong> — pega la URL de eventos
@@ -186,7 +190,8 @@ export function ShortcutSetupInstructions({
             <code>Content-Type</code> = <code>application/json</code>;{" "}
             <code>Cuerpo de la solicitud</code> tipo <em>JSON</em> con dos
             campos: <code>eventOption</code> = variable <code>evento</code> y{" "}
-            <code>playerOption</code> = variable <code>jugador</code>.
+            <code>playerOption</code> = variable <code>jugador</code>. Escribe
+            ambas claves respetando exactamente las mayúsculas.
           </li>
           <li>
             <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
