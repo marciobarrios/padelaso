@@ -98,8 +98,23 @@ export function GeneralTab({
                 </span>
                 <span className="text-xs text-muted-foreground">índice</span>
               </p>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {Math.round(stats.winRate * 100)}% victorias
+              <p className="flex items-center justify-end gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                <span>{Math.round(stats.winRate * 100)}% victorias</span>
+                {stats.currentStreak !== 0 && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span
+                      className={
+                        stats.currentStreak > 0
+                          ? "text-primary"
+                          : "text-destructive"
+                      }
+                    >
+                      {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
+                      {Math.abs(stats.currentStreak)} racha
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </CardContent>
