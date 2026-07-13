@@ -3,8 +3,15 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { MatchCard } from "@/components/match/match-card";
+import { Info } from "lucide-react";
 import { getEventConfig } from "@/lib/event-config";
 import {
   getRecentForm,
@@ -86,10 +93,10 @@ export function GeneralTab({
             </div>
             <div className="text-right">
               <p className="text-lg font-heading font-bold text-primary">
-                {Math.round(stats.rankingScore * 100)}
+                Índice {Math.round(stats.rankingScore * 100)}
               </p>
               <p className="text-xs text-muted-foreground">
-                {Math.round(stats.winRate * 100)}% victorias
+                Victorias {Math.round(stats.winRate * 100)}%
               </p>
             </div>
           </CardContent>
@@ -215,10 +222,27 @@ export function GeneralTab({
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Ranking de rendimiento
           </h2>
-          <p className="text-xs text-muted-foreground mb-3">
-            El índice ajusta el porcentaje de victorias según los partidos
-            jugados.
-          </p>
+          <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <p>
+              El índice ajusta el porcentaje de victorias según los partidos
+              jugados.
+            </p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger
+                  aria-label="Cómo se calcula el índice"
+                  className="shrink-0 rounded-full outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Info className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Combina los resultados del jugador con 5 partidos virtuales
+                  al promedio del grupo. Cuantos más partidos juega, más se
+                  acerca el índice a su porcentaje real de victorias.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           {establishedStats.length > 0 && renderRanking(establishedStats, false)}
           {provisionalStats.length > 0 && (
             <div className={establishedStats.length > 0 ? "mt-5" : undefined}>
