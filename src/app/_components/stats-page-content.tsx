@@ -13,6 +13,7 @@ import {
 import { useGroup } from "@/components/group/group-provider";
 import {
   calculatePlayerStats,
+  getRankedPlayerStats,
   getEventLeaderboards,
   getEventRecords,
   getPairStats,
@@ -79,13 +80,21 @@ export function StatsPageContent() {
     ? timeFilteredEvents.filter((e) => e.playerId === selectedPlayer)
     : timeFilteredEvents;
 
-  const allStats = players
+  const playerStats = players
     .map((p) => ({
       player: p,
       stats: calculatePlayerStats(p.id, timeFilteredMatches),
     }))
-    .filter((s) => s.stats.matches > 0)
-    .sort((a, b) => b.stats.winRate - a.stats.winRate);
+    .filter((s) => s.stats.matches > 0);
+
+  const rankedStats = getRankedPlayerStats(playerStats.map(({ stats }) => stats));
+  const statsByPlayer = new Map(
+    playerStats.map(({ player, stats }) => [player.id, { player, stats }]),
+  );
+  const allStats = rankedStats.flatMap((stats) => {
+    const entry = statsByPlayer.get(stats.playerId);
+    return entry ? [{ player: entry.player, stats }] : [];
+  });
 
   const leaderboards = getEventLeaderboards(filteredEvents, timeFilteredMatches);
   const eventRecords = getEventRecords(timeFilteredEvents, timeFilteredMatches);
