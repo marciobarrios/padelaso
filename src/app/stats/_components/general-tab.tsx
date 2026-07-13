@@ -93,10 +93,10 @@ export function GeneralTab({
             </div>
             <div className="text-right">
               <p className="flex items-baseline justify-end gap-1 tabular-nums">
+                <span className="text-xs text-muted-foreground">Índice</span>
                 <span className="text-base font-semibold text-foreground">
                   {Math.round(stats.rankingScore * 100)}
                 </span>
-                <span className="text-xs text-muted-foreground">índice</span>
               </p>
               <p className="flex items-center justify-end gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
                 <span>{Math.round(stats.winRate * 100)}% victorias</span>
