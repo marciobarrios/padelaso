@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Suspense } from "react";
 import { GeistPixelSquare } from "geist/font/pixel";
 import { Analytics } from "@vercel/analytics/next";
@@ -28,11 +29,12 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${GeistPixelSquare.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="min-h-dvh flex flex-col pb-[env(safe-area-inset-bottom)]">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {THEME_INIT_SCRIPT}
+        </Script>
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
           <Suspense fallback={null}>

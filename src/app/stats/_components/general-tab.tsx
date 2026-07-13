@@ -3,10 +3,23 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { MatchCard } from "@/components/match/match-card";
+import { Info } from "lucide-react";
 import { getEventConfig } from "@/lib/event-config";
-import { getRecentForm, type PlayerStats, type FunAwardResult } from "@/lib/stats";
+import {
+  getRecentForm,
+  MIN_MATCHES_FOR_RANKING,
+  type PlayerStats,
+  type RankedPlayerStats,
+  type FunAwardResult,
+} from "@/lib/stats";
 import type { Player, PlayerId, Match, MatchEventType } from "@/lib/types";
 
 function getAwardDescription(events: MatchEventType[]): string {
@@ -26,7 +39,7 @@ interface GeneralTabProps {
   players: Player[];
   matches: Match[];
   playerMap: Map<PlayerId, Player>;
-  allStats: { player: Player; stats: PlayerStats }[];
+  allStats: { player: Player; stats: RankedPlayerStats }[];
   mvpRankings: { playerId: PlayerId; count: number }[];
   funAwards: FunAwardResult[];
   selectedPlayer: PlayerId | null;
@@ -47,6 +60,68 @@ export function GeneralTab({
   const selectedPlayerObj = selectedPlayer
     ? playerMap.get(selectedPlayer)
     : null;
+  const establishedStats = allStats.filter(({ stats }) => !stats.provisional);
+  const provisionalStats = allStats.filter(({ stats }) => stats.provisional);
+
+  const renderRanking = (
+    entries: typeof allStats,
+    provisional: boolean,
+  ) => (
+    <div className="space-y-2">
+      {entries.map(({ player, stats }, i) => (
+        <Card key={player.id}>
+          <CardContent className="p-3 flex items-center gap-3">
+            <span className="text-lg font-heading font-bold w-6 text-center text-muted-foreground">
+              {provisional ? "—" : i + 1}
+            </span>
+            <PlayerAvatar emoji={player.emoji} size="sm" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm truncate">{player.name}</p>
+                {provisional && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Provisional
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {stats.wins}V {stats.losses}D · {stats.matches} partidos
+                </p>
+                <RecentFormDots playerId={player.id} matches={matches} />
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="flex items-baseline justify-end gap-1 tabular-nums">
+                <span className="text-xs text-muted-foreground">Índice</span>
+                <span className="text-base font-semibold text-foreground">
+                  {Math.round(stats.rankingScore * 100)}
+                </span>
+              </p>
+              <p className="flex items-center justify-end gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                <span>{Math.round(stats.winRate * 100)}% victorias</span>
+                {stats.currentStreak !== 0 && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span
+                      className={
+                        stats.currentStreak > 0
+                          ? "text-primary"
+                          : "text-destructive"
+                      }
+                    >
+                      {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
+                      {Math.abs(stats.currentStreak)} racha
+                    </span>
+                  </>
+                )}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -163,52 +238,38 @@ export function GeneralTab({
       ) : (
         <div>
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Ranking de victorias
+            Ranking de rendimiento
           </h2>
-          <div className="space-y-2">
-            {allStats.map(({ player, stats }, i) => (
-              <Card key={player.id}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  <span className="text-lg font-heading font-bold w-6 text-center text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <PlayerAvatar emoji={player.emoji} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {player.name}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        {stats.wins}V {stats.losses}D · {stats.matches}{" "}
-                        partidos
-                      </p>
-                      <RecentFormDots
-                        playerId={player.id}
-                        matches={matches}
-                      />
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-heading font-bold text-primary">
-                      {Math.round(stats.winRate * 100)}%
-                    </p>
-                    {stats.currentStreak !== 0 && (
-                      <p
-                        className={`text-xs ${
-                          stats.currentStreak > 0
-                            ? "text-primary"
-                            : "text-destructive"
-                        }`}
-                      >
-                        {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
-                        {Math.abs(stats.currentStreak)} racha
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <p>
+              El índice ajusta el porcentaje de victorias según los partidos
+              jugados.
+            </p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger
+                  aria-label="Cómo se calcula el índice"
+                  className="shrink-0 rounded-full outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Info className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Combina los resultados del jugador con 5 partidos virtuales
+                  al promedio del grupo. Cuantos más partidos juega, más se
+                  acerca el índice a su porcentaje real de victorias.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+          {establishedStats.length > 0 && renderRanking(establishedStats, false)}
+          {provisionalStats.length > 0 && (
+            <div className={establishedStats.length > 0 ? "mt-5" : undefined}>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Provisionales · menos de {MIN_MATCHES_FOR_RANKING} partidos
+              </p>
+              {renderRanking(provisionalStats, true)}
+            </div>
+          )}
         </div>
       )}
 

@@ -19,6 +19,41 @@ export interface PlayerStats {
   bestStreak: number;
 }
 
+export const RANKING_CONFIDENCE_MATCHES = 5;
+export const MIN_MATCHES_FOR_RANKING = 5;
+
+export interface RankedPlayerStats extends PlayerStats {
+  rankingScore: number;
+  provisional: boolean;
+}
+
+export function getRankedPlayerStats(
+  stats: PlayerStats[],
+): RankedPlayerStats[] {
+  const totalWins = stats.reduce((sum, player) => sum + player.wins, 0);
+  const totalDecidedMatches = stats.reduce(
+    (sum, player) => sum + player.wins + player.losses,
+    0,
+  );
+  const groupWinRate =
+    totalDecidedMatches > 0 ? totalWins / totalDecidedMatches : 0.5;
+
+  return stats
+    .map((player) => ({
+      ...player,
+      rankingScore:
+        (player.wins + groupWinRate * RANKING_CONFIDENCE_MATCHES) /
+        (player.matches + RANKING_CONFIDENCE_MATCHES),
+      provisional: player.matches < MIN_MATCHES_FOR_RANKING,
+    }))
+    .sort(
+      (a, b) =>
+        Number(a.provisional) - Number(b.provisional) ||
+        b.rankingScore - a.rankingScore ||
+        b.matches - a.matches,
+    );
+}
+
 function didPlayerWin(match: Match, playerId: PlayerId): boolean | null {
   const inTeam1 = match.team1.includes(playerId);
   const { team1Wins, team2Wins } = getSetWins(match.sets);
