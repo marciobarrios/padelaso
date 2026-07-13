@@ -70,48 +70,70 @@ export function GeneralTab({
     <div className="space-y-2">
       {entries.map(({ player, stats }, i) => (
         <Card key={player.id}>
-          <CardContent className="p-3 flex items-center gap-3">
-            <span className="text-lg font-heading font-bold w-6 text-center text-muted-foreground">
+          <CardContent className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-2.5 p-3 sm:gap-x-3">
+            <span className="w-5 text-center text-lg font-heading font-bold text-muted-foreground sm:w-6">
               {provisional ? "—" : i + 1}
             </span>
             <PlayerAvatar emoji={player.emoji} size="sm" />
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="font-medium text-sm truncate">{player.name}</p>
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {player.name}
+                </p>
                 {provisional && (
-                  <Badge variant="secondary" className="text-[10px]">
-                    Provisional
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 px-1.5 text-[10px]"
+                    aria-label="Provisional"
+                  >
+                    <span aria-hidden="true" className="sm:hidden">
+                      Prov.
+                    </span>
+                    <span aria-hidden="true" className="hidden sm:inline">
+                      Provisional
+                    </span>
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground">
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="truncate text-xs text-muted-foreground">
                   {stats.wins}V {stats.losses}D · {stats.matches} partidos
                 </p>
                 <RecentFormDots playerId={player.id} matches={matches} />
               </div>
             </div>
-            <div className="text-right">
+            <div className="ml-0.5 shrink-0 text-right">
               <p className="flex items-baseline justify-end gap-1 tabular-nums">
                 <span className="text-xs text-muted-foreground">Índice</span>
                 <span className="text-base font-semibold text-foreground">
                   {Math.round(stats.rankingScore * 100)}
                 </span>
               </p>
-              <p className="flex items-center justify-end gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                <span>{Math.round(stats.winRate * 100)}% victorias</span>
+              <p className="flex items-center justify-end gap-1.5 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                <span
+                  aria-label={`${Math.round(stats.winRate * 100)}% de victorias`}
+                >
+                  <span aria-hidden="true">
+                    {Math.round(stats.winRate * 100)}%V
+                  </span>
+                </span>
                 {stats.currentStreak !== 0 && (
                   <>
                     <span aria-hidden="true">·</span>
                     <span
+                      aria-label={`Racha de ${Math.abs(stats.currentStreak)} ${
+                        stats.currentStreak > 0 ? "victorias" : "derrotas"
+                      }`}
                       className={
                         stats.currentStreak > 0
                           ? "text-primary"
                           : "text-destructive"
                       }
                     >
-                      {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
-                      {Math.abs(stats.currentStreak)} racha
+                      <span aria-hidden="true">
+                        {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
+                        {Math.abs(stats.currentStreak)}
+                      </span>
                     </span>
                   </>
                 )}
@@ -322,7 +344,7 @@ function RecentFormDots({
   );
   if (form.length === 0) return null;
   return (
-    <div className="flex gap-0.5">
+    <div className="flex shrink-0 gap-0.5">
       {form.map((result, i) => (
         <span
           key={i}
