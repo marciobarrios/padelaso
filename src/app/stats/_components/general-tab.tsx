@@ -3,15 +3,8 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { MatchCard } from "@/components/match/match-card";
-import { Info } from "lucide-react";
 import { getEventConfig } from "@/lib/event-config";
 import {
   getRecentForm,
@@ -76,25 +69,7 @@ export function GeneralTab({
             </span>
             <PlayerAvatar emoji={player.emoji} size="sm" />
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {player.name}
-                </p>
-                {provisional && (
-                  <Badge
-                    variant="secondary"
-                    className="shrink-0 px-1.5 text-[10px]"
-                    aria-label="Provisional"
-                  >
-                    <span aria-hidden="true" className="sm:hidden">
-                      Prov.
-                    </span>
-                    <span aria-hidden="true" className="hidden sm:inline">
-                      Provisional
-                    </span>
-                  </Badge>
-                )}
-              </div>
+              <p className="truncate text-sm font-medium">{player.name}</p>
               <div className="flex min-w-0 items-center gap-2">
                 <p className="truncate text-xs text-muted-foreground">
                   {stats.wins}V {stats.losses}D · {stats.matches} partidos
@@ -262,27 +237,11 @@ export function GeneralTab({
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Ranking de rendimiento
           </h2>
-          <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <p>
-              El índice ajusta el porcentaje de victorias según los partidos
-              jugados.
-            </p>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger
-                  aria-label="Cómo se calcula el índice"
-                  className="shrink-0 rounded-full outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Info className="size-3.5" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Combina los resultados del jugador con 5 partidos virtuales
-                  al promedio del grupo. Cuantos más partidos juega, más se
-                  acerca el índice a su porcentaje real de victorias.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+            El índice ajusta el % de victorias al promedio del grupo. Con pocos
+            partidos pesa más el promedio; cuantos más se juegan, más se acerca
+            al % real.
+          </p>
           {establishedStats.length > 0 && renderRanking(establishedStats, false)}
           {provisionalStats.length > 0 && (
             <div className={establishedStats.length > 0 ? "mt-5" : undefined}>
