@@ -20,7 +20,7 @@ export interface PlayerStats {
 }
 
 export const RANKING_CONFIDENCE_MATCHES = 5;
-export const MIN_MATCHES_FOR_RANKING = 5;
+export const MIN_MATCHES_FOR_RANKING = 10;
 
 export interface RankedPlayerStats extends PlayerStats {
   rankingScore: number;
