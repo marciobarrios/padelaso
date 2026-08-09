@@ -116,9 +116,12 @@ export function ShortcutSetupInstructions({
             marcador).
           </li>
           <li>
-            <strong>Leer texto</strong> con la salida del paso 2.{" "}
+            <strong>Mostrar notificación</strong> con la salida del paso 2 como
+            texto. La confirmación aparece al instante y el atajo termina sin
+            leerla en voz alta.
             <em>
-              Sin este paso el atajo se ejecuta en silencio aunque haya éxito.
+              {" "}Si ya tienes el atajo creado, sustituye únicamente la acción
+              Leer texto por ésta.
             </em>
           </li>
         </ol>
@@ -133,9 +136,9 @@ export function ShortcutSetupInstructions({
           Vuelve a añadir a mano las mismas 3 acciones de la rama azul
           (<strong>Obtener contenido de</strong> con la URL del marcador,{" "}
           <strong>Obtener valor del diccionario</strong> y{" "}
-          <strong>Leer texto</strong>), cambiando sólo <code>team</code> a{" "}
-          <code>2</code>. En iOS mantener pulsada una acción sólo la mueve, así
-          que rehacerlas suele ser más rápido que copiar y pegar.
+          <strong>Mostrar notificación</strong>), cambiando sólo <code>team</code>{" "}
+          a <code>2</code>. En iOS mantener pulsada una acción sólo la mueve,
+          así que rehacerlas suele ser más rápido que copiar y pegar.
         </p>
       </section>
 
@@ -199,7 +202,9 @@ export function ShortcutSetupInstructions({
             del paso 8.
           </li>
           <li>
-            <strong>Leer texto</strong> con la salida del paso 9.
+            <strong>Mostrar notificación</strong> con la salida del paso 9 como
+            texto. Verás la confirmación del evento sin esperar a que el Watch
+            la lea en voz alta.
           </li>
         </ol>
         <UrlBlock url={optionsUrl} label="URL de opciones → paso 1" />
