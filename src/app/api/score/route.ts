@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { MatchSet } from "@/lib/types";
 import { requireActiveMatch } from "../_token";
-import { fetchMatchTeams, joinTeamNames, resolvePlayerNames } from "../_match";
 
 interface ScoreRequestBody {
   team?: 1 | 2;
@@ -46,21 +45,11 @@ export async function POST(request: NextRequest) {
   const updatedSets = data as MatchSet[];
   const last = updatedSets[updatedSets.length - 1];
 
-  const teams = await fetchMatchTeams(admin, matchId);
-  let label = "";
-  if (teams) {
-    const nameById = await resolvePlayerNames(admin, [
-      ...teams.team1Ids,
-      ...teams.team2Ids,
-    ]);
-    label = `${joinTeamNames(teams.team1Ids, nameById)} vs ${joinTeamNames(teams.team2Ids, nameById)}`;
-  }
-
   const score = `${last.team1Score}-${last.team2Score}`;
   const spoken = score;
 
   return Response.json({
-    match: { id: matchId, label },
+    match: { id: matchId },
     sets: updatedSets,
     score,
     setsSpoken: updatedSets

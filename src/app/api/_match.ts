@@ -53,23 +53,3 @@ export async function fetchMatchRoster(
   }));
   return { ...teams, players };
 }
-
-export async function resolvePlayerNames(
-  admin: AdminClient,
-  ids: string[]
-): Promise<Map<string, string>> {
-  const { data } = await admin
-    .from("players")
-    .select("id, name")
-    .in("id", ids);
-  return new Map<string, string>(
-    (data ?? []).map((p) => [p.id as string, p.name as string])
-  );
-}
-
-export function joinTeamNames(
-  ids: string[],
-  nameById: Map<string, string>
-): string {
-  return ids.map((id) => nameById.get(id) ?? "?").join("·");
-}
