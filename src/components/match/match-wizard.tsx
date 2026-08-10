@@ -13,7 +13,7 @@ import { createMatch, repointScoreToken } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
 import { invalidate, keys } from "@/lib/supabase-hooks";
 import { cn } from "@/lib/utils";
-import { Check, ChevronLeft, ChevronRight, Radio } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Radio, Shuffle } from "lucide-react";
 import { getEventConfig } from "@/lib/event-config";
 
 const STEPS = [
@@ -75,6 +75,17 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
       setTeam1([selectedIds[0], selectedIds[1]]);
       setTeam2([selectedIds[2], selectedIds[3]]);
     }
+  }
+
+  function randomizeTeams() {
+    if (selectedIds.length !== 4) return;
+    const shuffled = [...selectedIds];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    setTeam1([shuffled[0], shuffled[1]]);
+    setTeam2([shuffled[2], shuffled[3]]);
   }
 
   // Swap tapped player with the first player on the other team
@@ -240,12 +251,23 @@ export function MatchWizard({ players, groupId }: MatchWizardProps) {
 
         {/* Step 1: Teams */}
         {step === 1 && (
-          <TeamPicker
-            players={selectedPlayers}
-            team1={team1}
-            team2={team2}
-            onToggle={toggleTeam}
-          />
+          <div className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={randomizeTeams}
+            >
+              <Shuffle className="size-4 mr-2" />
+              Equipos al azar
+            </Button>
+            <TeamPicker
+              players={selectedPlayers}
+              team1={team1}
+              team2={team2}
+              onToggle={toggleTeam}
+            />
+          </div>
         )}
 
         {/* Step 2: Score */}

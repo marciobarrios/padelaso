@@ -22,7 +22,7 @@ import {
   computeFunAwards,
 } from "@/lib/stats";
 import { FUN_AWARD_CONFIGS } from "@/lib/event-config";
-import { buildPlayerMap } from "@/lib/utils";
+import { buildPlayerMap, isCompletedMatch } from "@/lib/utils";
 import type { PlayerId } from "@/lib/types";
 
 import { PlayerFilter } from "@/app/stats/_components/player-filter";
@@ -62,11 +62,13 @@ export function StatsPageContent() {
       : null;
 
   const playerMap = buildPlayerMap(players);
+  const completedMatches = matches.filter(isCompletedMatch);
 
   const timeFilteredMatches =
     cutoffMs == null
-      ? matches
-      : matches.filter((m) => new Date(m.date).getTime() >= cutoffMs);
+      ? completedMatches
+      : completedMatches.filter((m) => new Date(m.date).getTime() >= cutoffMs);
+  const timeFilteredMatchIds = new Set(timeFilteredMatches.map((m) => m.id));
 
   const timeFilteredEvents =
     cutoffMs == null
@@ -75,6 +77,9 @@ export function StatsPageContent() {
           const ids = new Set(timeFilteredMatches.map((m) => m.id));
           return events.filter((e) => ids.has(e.matchId));
         })();
+  const timeFilteredVotes = votes.filter((vote) =>
+    timeFilteredMatchIds.has(vote.matchId)
+  );
 
   const filteredEvents = selectedPlayer
     ? timeFilteredEvents.filter((e) => e.playerId === selectedPlayer)
@@ -101,7 +106,7 @@ export function StatsPageContent() {
 
   const pairStats = getPairStats(timeFilteredMatches);
   const h2hStats = getHeadToHeadStats(timeFilteredMatches);
-  const mvpRankings = getMvpRankings(votes);
+  const mvpRankings = getMvpRankings(timeFilteredVotes);
   const funAwards = computeFunAwards(filteredEvents, FUN_AWARD_CONFIGS);
 
   const filteredPairStats = selectedPlayer

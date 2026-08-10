@@ -16,6 +16,10 @@ export function mapMatch(row: Record<string, unknown>): Match {
   return {
     id: row.id as string,
     date: row.date as string,
+    scheduledEndAt: (row.scheduled_end_at as string | null) ?? null,
+    status: (row.status as Match["status"]) ?? "completed",
+    confirmedAt: (row.confirmed_at as string | null) ?? null,
+    confirmedBy: (row.confirmed_by as string | null) ?? null,
     courtNumber: (row.court_number as number) ?? null,
     team1: row.team1 as string[],
     team2: row.team2 as string[],
