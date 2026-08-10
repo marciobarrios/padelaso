@@ -86,7 +86,7 @@ export function ShortcutSetupInstructions({
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          2 · Bajo la etiqueta 🔵 Punto azul (3 acciones)
+          2 · Bajo la etiqueta 🔵 Punto azul (1 acción)
         </p>
         <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
           <li>
@@ -107,24 +107,14 @@ export function ShortcutSetupInstructions({
               </li>
             </ul>
           </li>
-          <li>
-            <strong>Obtener valor del diccionario</strong> — en{" "}
-            <code>Diccionario</code> elige la variable{" "}
-            <strong>Contenido de URL</strong> (salida del paso 1), y en el campo{" "}
-            <code>Clave</code> escribe la palabra <code>spoken</code> (es el
-            campo de la respuesta con la frase de confirmación, p.ej. el
-            marcador).
-          </li>
-          <li>
-            <strong>Mostrar notificación</strong> con la salida del paso 2 como
-            texto. La confirmación aparece al instante y el atajo termina sin
-            leerla en voz alta.
-            <em>
-              {" "}Si ya tienes el atajo creado, sustituye únicamente la acción
-              Leer texto por ésta.
-            </em>
-          </li>
         </ol>
+        <p className="text-muted-foreground">
+          No añadas ninguna acción después: si la petición funciona, el atajo
+          termina en silencio. Si falla, Atajos mostrará el error de la acción{" "}
+          <strong>Obtener contenidos de URL</strong>. Si ya tienes el atajo
+          creado, elimina <strong>Obtener valor del diccionario</strong> y{" "}
+          <strong>Mostrar notificación</strong> de esta rama.
+        </p>
         <UrlBlock url={scoreUrl} label="URL del marcador (ramas azul y roja)" />
       </section>
 
@@ -133,18 +123,16 @@ export function ShortcutSetupInstructions({
           3 · Bajo la etiqueta 🔴 Punto rojo
         </p>
         <p className="text-muted-foreground">
-          Vuelve a añadir a mano las mismas 3 acciones de la rama azul
-          (<strong>Obtener contenido de</strong> con la URL del marcador,{" "}
-          <strong>Obtener valor del diccionario</strong> y{" "}
-          <strong>Mostrar notificación</strong>), cambiando sólo <code>team</code>{" "}
-          a <code>2</code>. En iOS mantener pulsada una acción sólo la mueve,
-          así que rehacerlas suele ser más rápido que copiar y pegar.
+          Añade únicamente <strong>Obtener contenidos de URL</strong> con la URL
+          del marcador y la misma configuración de la rama azul, cambiando sólo{" "}
+          <code>team</code> a <code>2</code>. Si ya tienes el atajo creado,
+          elimina las dos acciones de confirmación posteriores.
         </p>
       </section>
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          4 · Bajo la etiqueta ⭐ Evento (10 acciones, sin dictado)
+          4 · Bajo la etiqueta ⭐ Evento (8 acciones, sin dictado)
         </p>
         <p className="text-muted-foreground">
           Registrar un evento son 3 toques: menú → evento → jugador. Las listas
@@ -196,17 +184,12 @@ export function ShortcutSetupInstructions({
             <code>playerOption</code> = variable <code>jugador</code>. Escribe
             ambas claves respetando exactamente las mayúsculas.
           </li>
-          <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>spoken</code>; diccionario = <strong>Contenido de URL</strong>{" "}
-            del paso 8.
-          </li>
-          <li>
-            <strong>Mostrar notificación</strong> con la salida del paso 9 como
-            texto. Verás la confirmación del evento sin esperar a que el Watch
-            la lea en voz alta.
-          </li>
         </ol>
+        <p className="text-muted-foreground">
+          La petición del paso 8 es la última acción: éxito silencioso y error
+          visible sólo si algo falla. En un atajo existente, elimina los dos
+          pasos de confirmación que venían después.
+        </p>
         <UrlBlock url={optionsUrl} label="URL de opciones → paso 1" />
         <UrlBlock url={eventsUrl} label="URL de eventos → paso 8" />
       </section>
