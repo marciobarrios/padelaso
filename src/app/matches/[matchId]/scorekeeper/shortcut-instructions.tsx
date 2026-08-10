@@ -86,7 +86,7 @@ export function ShortcutSetupInstructions({
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          2 · Bajo la etiqueta 🔵 Punto azul (1 acción)
+          2 · Bajo la etiqueta 🔵 Punto azul (3 acciones)
         </p>
         <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
           <li>
@@ -107,13 +107,24 @@ export function ShortcutSetupInstructions({
               </li>
             </ul>
           </li>
+          <li>
+            <strong>Obtener valor del diccionario</strong> — en{" "}
+            <code>Diccionario</code> elige la variable{" "}
+            <strong>Contenido de URL</strong> (salida del paso 1), y en{" "}
+            <code>Clave</code> escribe <code>score</code>.
+          </li>
+          <li>
+            <strong>Mostrar resultado</strong> con la salida del paso 2. El
+            marcador actualizado aparece directamente dentro de Atajos en el
+            Watch, sin voz ni notificaciones.
+          </li>
         </ol>
         <p className="text-muted-foreground">
-          No añadas ninguna acción después: si la petición funciona, el atajo
-          termina en silencio. Si falla, Atajos mostrará el error de la acción{" "}
-          <strong>Obtener contenidos de URL</strong>. Si ya tienes el atajo
-          creado, elimina <strong>Obtener valor del diccionario</strong> y{" "}
-          <strong>Mostrar notificación</strong> de esta rama.
+          Si la petición falla, Atajos se detiene antes de mostrar el resultado
+          y enseña el error de <strong>Obtener contenidos de URL</strong>. Si ya
+          tienes el atajo creado, cambia la clave <code>spoken</code> por{" "}
+          <code>score</code> y sustituye <strong>Mostrar notificación</strong> por{" "}
+          <strong>Mostrar resultado</strong>.
         </p>
         <UrlBlock url={scoreUrl} label="URL del marcador (ramas azul y roja)" />
       </section>
@@ -123,10 +134,10 @@ export function ShortcutSetupInstructions({
           3 · Bajo la etiqueta 🔴 Punto rojo
         </p>
         <p className="text-muted-foreground">
-          Añade únicamente <strong>Obtener contenidos de URL</strong> con la URL
-          del marcador y la misma configuración de la rama azul, cambiando sólo{" "}
-          <code>team</code> a <code>2</code>. Si ya tienes el atajo creado,
-          elimina las dos acciones de confirmación posteriores.
+          Usa las mismas 3 acciones de la rama azul: <strong>Obtener contenidos
+          de URL</strong>, <strong>Obtener valor del diccionario</strong> con la
+          clave <code>score</code> y <strong>Mostrar resultado</strong>. Cambia
+          sólo <code>team</code> a <code>2</code>.
         </p>
       </section>
 

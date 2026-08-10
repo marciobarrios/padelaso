@@ -196,8 +196,9 @@ function SetupView({ matchId }: { matchId: string }) {
               </h2>
               <p className="text-muted-foreground">
                 Un único atajo que se lanza con un toque (sin Siri ni
-                dictado): menú → punto o evento. Si todo va bien, termina en
-                silencio; Atajos sólo muestra los fallos de la petición.
+                dictado): menú → punto o evento. Al sumar un punto muestra el
+                marcador actualizado dentro de Atajos; los eventos terminan en
+                silencio. Atajos también muestra cualquier fallo de la petición.
                 Móntalo una sola vez: las URLs no cambian entre partidos,
                 cada nuevo partido en vivo apunta el atajo automáticamente
                 al marcador correcto.
