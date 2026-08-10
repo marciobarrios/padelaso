@@ -114,7 +114,8 @@ export function ShortcutSetupInstructions({
             <code>Clave</code> escribe <code>score</code>.
           </li>
           <li>
-            <strong>Mostrar resultado</strong> con la salida del paso 2. El
+            <strong>Mostrar contenido</strong> (<em>Show Content</em>) con la
+            salida del paso 2. El
             marcador actualizado aparece directamente dentro de Atajos en el
             Watch, sin voz ni notificaciones.
           </li>
@@ -124,7 +125,7 @@ export function ShortcutSetupInstructions({
           y enseña el error de <strong>Obtener contenidos de URL</strong>. Si ya
           tienes el atajo creado, cambia la clave <code>spoken</code> por{" "}
           <code>score</code> y sustituye <strong>Mostrar notificación</strong> por{" "}
-          <strong>Mostrar resultado</strong>.
+          <strong>Mostrar contenido</strong> (<em>Show Content</em>).
         </p>
         <UrlBlock url={scoreUrl} label="URL del marcador (ramas azul y roja)" />
       </section>
@@ -136,7 +137,7 @@ export function ShortcutSetupInstructions({
         <p className="text-muted-foreground">
           Usa las mismas 3 acciones de la rama azul: <strong>Obtener contenidos
           de URL</strong>, <strong>Obtener valor del diccionario</strong> con la
-          clave <code>score</code> y <strong>Mostrar resultado</strong>. Cambia
+          clave <code>score</code> y <strong>Mostrar contenido</strong>. Cambia
           sólo <code>team</code> a <code>2</code>.
         </p>
       </section>
