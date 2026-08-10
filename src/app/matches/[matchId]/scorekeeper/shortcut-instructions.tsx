@@ -110,21 +110,23 @@ export function ShortcutSetupInstructions({
           <li>
             <strong>Obtener valor del diccionario</strong> — en{" "}
             <code>Diccionario</code> elige la variable{" "}
-            <strong>Contenido de URL</strong> (salida del paso 1), y en el campo{" "}
-            <code>Clave</code> escribe la palabra <code>spoken</code> (es el
-            campo de la respuesta con la frase de confirmación, p.ej. el
-            marcador).
+            <strong>Contenido de URL</strong> (salida del paso 1), y en{" "}
+            <code>Clave</code> escribe <code>score</code>.
           </li>
           <li>
-            <strong>Mostrar notificación</strong> con la salida del paso 2 como
-            texto. La confirmación aparece al instante y el atajo termina sin
-            leerla en voz alta.
-            <em>
-              {" "}Si ya tienes el atajo creado, sustituye únicamente la acción
-              Leer texto por ésta.
-            </em>
+            <strong>Mostrar contenido</strong> (<em>Show Content</em>) con la
+            salida del paso 2. El
+            marcador actualizado aparece directamente dentro de Atajos en el
+            Watch, sin voz ni notificaciones.
           </li>
         </ol>
+        <p className="text-muted-foreground">
+          Si la petición falla, Atajos se detiene antes de mostrar el resultado
+          y enseña el error de <strong>Obtener contenidos de URL</strong>. Si ya
+          tienes el atajo creado, cambia la clave <code>spoken</code> por{" "}
+          <code>score</code> y sustituye <strong>Mostrar notificación</strong> por{" "}
+          <strong>Mostrar contenido</strong> (<em>Show Content</em>).
+        </p>
         <UrlBlock url={scoreUrl} label="URL del marcador (ramas azul y roja)" />
       </section>
 
@@ -133,18 +135,16 @@ export function ShortcutSetupInstructions({
           3 · Bajo la etiqueta 🔴 Punto rojo
         </p>
         <p className="text-muted-foreground">
-          Vuelve a añadir a mano las mismas 3 acciones de la rama azul
-          (<strong>Obtener contenido de</strong> con la URL del marcador,{" "}
-          <strong>Obtener valor del diccionario</strong> y{" "}
-          <strong>Mostrar notificación</strong>), cambiando sólo <code>team</code>{" "}
-          a <code>2</code>. En iOS mantener pulsada una acción sólo la mueve,
-          así que rehacerlas suele ser más rápido que copiar y pegar.
+          Usa las mismas 3 acciones de la rama azul: <strong>Obtener contenidos
+          de URL</strong>, <strong>Obtener valor del diccionario</strong> con la
+          clave <code>score</code> y <strong>Mostrar contenido</strong>. Cambia
+          sólo <code>team</code> a <code>2</code>.
         </p>
       </section>
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          4 · Bajo la etiqueta ⭐ Evento (10 acciones, sin dictado)
+          4 · Bajo la etiqueta ⭐ Evento (8 acciones, sin dictado)
         </p>
         <p className="text-muted-foreground">
           Registrar un evento son 3 toques: menú → evento → jugador. Las listas
@@ -196,17 +196,12 @@ export function ShortcutSetupInstructions({
             <code>playerOption</code> = variable <code>jugador</code>. Escribe
             ambas claves respetando exactamente las mayúsculas.
           </li>
-          <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>spoken</code>; diccionario = <strong>Contenido de URL</strong>{" "}
-            del paso 8.
-          </li>
-          <li>
-            <strong>Mostrar notificación</strong> con la salida del paso 9 como
-            texto. Verás la confirmación del evento sin esperar a que el Watch
-            la lea en voz alta.
-          </li>
         </ol>
+        <p className="text-muted-foreground">
+          La petición del paso 8 es la última acción: éxito silencioso y error
+          visible sólo si algo falla. En un atajo existente, elimina los dos
+          pasos de confirmación que venían después.
+        </p>
         <UrlBlock url={optionsUrl} label="URL de opciones → paso 1" />
         <UrlBlock url={eventsUrl} label="URL de eventos → paso 8" />
       </section>
