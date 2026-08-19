@@ -1,0 +1,21 @@
+{
+  "name": "@padelaso/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./src/types.ts",
+    "./events": "./src/events.ts",
+    "./matches": "./src/matches.ts",
+    "./stats": "./src/stats.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@padelaso/typescript-config": "workspace:*",
+    "typescript": "^5"
+  }
+}
