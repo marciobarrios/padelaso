@@ -1,128 +1,118 @@
 # Padelaso
 
-Padel match tracker with gamification for friends.
+Padelaso is a playful match tracker for groups of friends who play padel. This
+repository is a pnpm/Turborepo monorepo containing the public marketing site,
+the authenticated product, and framework-neutral game logic that can later be
+used by mobile clients.
 
-Built with **Next.js 16** | **React 19** | **TypeScript** | **Supabase** | **Tailwind CSS 4** | **shadcn/ui**
+## Workspace
 
-## Overview
+```text
+apps/
+├── app/                    # Next.js product → app.padelaso.com
+└── marketing/              # Next.js landing page → padelaso.com
+packages/
+├── domain/                 # Types, events, scoring and statistics
+├── eslint-config/          # Shared Next.js ESLint configuration
+└── typescript-config/      # Shared TypeScript configuration
+supabase/
+└── migrations/             # Shared database schema history
+```
 
-Padelaso is a mobile-first web app for tracking padel matches among a group of friends. Record matches, log in-match events (MVPs, trick shots, epic falls...), and follow stats and leaderboards. The UI is in Spanish.
+The product uses **Next.js 16**, **React 19**, **TypeScript**, **Supabase**,
+**Tailwind CSS 4**, and **shadcn/ui**. Both web applications deploy independently
+on Vercel while Turborepo coordinates local and CI tasks.
 
-## Features
-
-- **Groups/Clubs** — Multi-tenant match scoping: create or join groups via invite codes, admin/member roles, group switcher
-- **Match creation wizard** — 5-step flow: select players, form teams, input set scores, log events, confirm
-- **25 event types** — MVP, Ace, Víbora, Bandeja, Globo, Bajada de muro, Puntazo, Dejada imposible, Chiquita, Caída épica, and more — classified as positive, negative, or fun
-- **Player management** — Create players with custom emoji avatars
-- **Stats and leaderboards** — Tabbed stats page (General, Parejas, Eventos) with win rates, streaks, pair/rivalry rankings, player filtering, recent form, and fun achievements — all scoped per group
-- **MVP voting** — Democratic MVP voting among match participants
-- **Google OAuth** — Authentication via Supabase Auth with account linking
-- **Match sharing** — View and share match details via unique URLs
-- **Dark theme** — Mobile-optimized dark UI with bottom navigation
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Framework | Next.js 16 (App Router) |
-| UI | React 19, Tailwind CSS 4, shadcn/ui |
-| Language | TypeScript 5.9 |
-| Database | Supabase (PostgreSQL) |
-| Auth | Supabase Auth (Google OAuth) |
-| Icons | Lucide React |
-| Fonts | Geist (via next/font) |
-
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Node.js 20+
-- A [Supabase](https://supabase.com) project
+- Node.js 20 or newer
+- pnpm 11.20.0 (pinned in the root `package.json`)
+- A Supabase project for the authenticated application
 
-### Setup
+Install all workspaces:
 
 ```bash
-# Install dependencies
 pnpm install
 ```
 
-Create a `.env.local` file with your Supabase credentials:
+Create `apps/app/.env.local` with the product credentials:
 
-```
+```dotenv
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-> **Superset:** The project includes a `.superset/` configuration for one-command dev environment setup (symlinks `.env.local` and runs `pnpm install` + `pnpm run dev`).
+`SUPABASE_SERVICE_ROLE_KEY` is required only for server routes that explicitly
+use the administrative client. Never expose it with a `NEXT_PUBLIC_` prefix.
 
-### Run
+## Development
 
 ```bash
-pnpm run dev     # Development server at http://localhost:3000
-pnpm run build   # Production build
-pnpm run start   # Start production server
-pnpm run lint    # Run ESLint
+pnpm dev                 # Product at http://localhost:3000
+pnpm dev:marketing       # Marketing at http://localhost:3001
+pnpm dev:all             # Both applications
+pnpm lint                # Lint every relevant workspace
+pnpm typecheck           # Type-check the dependency graph
+pnpm build               # Build every workspace
+pnpm check               # Lint, type-check, and build
 ```
 
-## Project Structure
+Run a single workspace directly when needed:
 
-```
-src/
-├── app/
-│   ├── layout.tsx                  # Root layout (auth, fonts)
-│   ├── page.tsx                    # Home dashboard
-│   ├── login/page.tsx              # Google OAuth login
-│   ├── groups/
-│   │   ├── onboarding/page.tsx     # Create/join group on first login
-│   │   └── [groupId]/
-│   │       ├── page.tsx            # Group settings (server component)
-│   │       └── content.tsx         # Client content
-│   ├── matches/
-│   │   ├── page.tsx                # Match list
-│   │   ├── new/page.tsx            # New match (wizard)
-│   │   └── [matchId]/
-│   │       ├── page.tsx            # Match details (server component)
-│   │       └── content.tsx         # Client content
-│   ├── players/
-│   │   ├── page.tsx                # Player list
-│   │   └── [playerId]/
-│   │       ├── page.tsx            # Player profile (server component)
-│   │       └── content.tsx         # Client content
-│   ├── stats/
-│   │   ├── page.tsx                # Stats orchestrator
-│   │   └── _components/            # Tab components (General, Parejas, Eventos)
-│   └── auth/callback/route.ts      # OAuth callback
-├── components/
-│   ├── auth/          # Auth provider & hooks
-│   ├── group/         # Group provider, switcher
-│   ├── layout/        # Mobile shell, page header
-│   ├── match/         # Match wizard, cards, score input
-│   ├── players/       # Player list, dialogs, avatar
-│   ├── events/        # Event grid, buttons, feed
-│   └── ui/            # shadcn/ui primitives
-└── lib/
-    ├── types.ts              # TypeScript interfaces
-    ├── event-config.ts       # Event type definitions (25 types)
-    ├── stats.ts              # Stats calculations & fun awards
-    ├── db-hooks.ts           # Database event hooks
-    ├── utils.ts              # Utility functions & shared formatters
-    ├── supabase.ts           # Client-side Supabase
-    ├── supabase-server.ts    # Server-side Supabase
-    ├── supabase-hooks.ts     # Data fetching hooks (group-scoped)
-    └── supabase-mutations.ts # Create/update operations
-supabase/
-└── migrations/               # Database schema & migrations
+```bash
+pnpm --filter @padelaso/app build
+pnpm --filter @padelaso/marketing dev
+pnpm --filter @padelaso/domain typecheck
 ```
 
-## Database
+The included Superset setup links the developer's existing root `.env.local`
+into `apps/app/.env.local` and then installs the workspace.
 
-| Table | Purpose |
-|-------|---------|
-| `groups` | Group/club profiles (name, emoji, invite code) |
-| `group_members` | User-group memberships with roles (admin/member) |
-| `players` | Player profiles scoped to a group (name, emoji avatar) |
-| `matches` | Match records scoped to a group (teams, set scores, date) |
-| `match_events` | In-match events linked to players |
-| `profiles` | User accounts (synced from auth) |
+## Shared domain package
 
-All player and match data is isolated per group via Row-Level Security (RLS) policies.
+`@padelaso/domain` is deliberately independent of React, Next.js, and Supabase.
+Use its explicit subpath exports:
+
+```ts
+import type { Match, Player } from "@padelaso/domain/types";
+import { EVENT_CONFIGS } from "@padelaso/domain/events";
+import { getSetWins } from "@padelaso/domain/matches";
+import { calculatePlayerStats } from "@padelaso/domain/stats";
+```
+
+Browser utilities, database mapping, authentication, and UI components remain
+inside `apps/app`. A future mobile app should be added as `apps/mobile` and can
+consume the domain package without inheriting web-only code.
+
+## Deployment
+
+Create two Vercel projects from this repository:
+
+| Project | Root directory | Domain | Environment |
+| --- | --- | --- | --- |
+| Marketing | `apps/marketing` | `padelaso.com` | No Supabase secrets |
+| Product | `apps/app` | `app.padelaso.com` | Supabase variables |
+
+The product's `apps/app/vercel.json` keeps its server functions in Frankfurt
+(`fra1`). The marketing project redirects legacy product pages to the app
+subdomain and proxies `/api/*` so existing Apple Shortcuts remain compatible.
+
+Before moving the domains, add
+`https://app.padelaso.com/auth/callback` to Supabase Auth's redirect allowlist.
+Deploy and verify both projects as previews before changing production DNS.
+
+## Product features
+
+- Groups with invite codes and admin/member roles
+- Match creation, scoring, editing, and sharing
+- Memorable in-match events and MVP voting
+- Player, pair, rivalry, streak, and event statistics
+- Google OAuth through Supabase Auth
+- Token-protected APIs used by Apple Shortcuts
+- Mobile-first dark interface in Spanish
+
+All group data is protected by Supabase Row-Level Security policies. Database
+changes belong in `supabase/migrations`; local environment files and secrets
+must remain untracked.

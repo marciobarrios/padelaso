@@ -1,6 +1,6 @@
 {
   "setup": [
-    "#!/bin/bash\n\nln -s \"$SUPERSET_ROOT_PATH/.env.local\" .env.local\npnpm install"
+    "#!/bin/bash\n\nln -s \"$SUPERSET_ROOT_PATH/.env.local\" apps/app/.env.local\npnpm install"
   ],
   "teardown": [],
   "run": [

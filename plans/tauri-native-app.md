@@ -1,5 +1,12 @@
 # Padelaso → Native App via Tauri v2 (revised 2026-07-12)
 
+> **Monorepo note (2026-08-20):** Padelaso now uses Turborepo. Paths in this
+> document such as `src/`, `next.config.ts`, and `package.json` refer to
+> `apps/app/src/`, `apps/app/next.config.ts`, and `apps/app/package.json`.
+> Framework-neutral match types and game logic live in `packages/domain`.
+> A future native client should be created as its own workspace app rather than
+> placing native project files inside `apps/app`.
+
 > Revision of the original June 2026 plan after a deep review: verified against the
 > current codebase and against Tauri v2 / Supabase / Google OAuth docs as of July 2026.
 > Major changes from v1 are marked **[CHANGED]**. Sources at the bottom.
