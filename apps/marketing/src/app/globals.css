@@ -27,7 +27,7 @@ a { color: inherit; text-decoration: none; }
 .app-link { min-height: 52px; padding: 0 21px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; background: var(--ink); color: white; border: 2px solid var(--ink); border-radius: 4px; font-weight: 750; box-shadow: 5px 5px 0 var(--orange); transition: transform 150ms ease, box-shadow 150ms ease; }
 .app-link:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 var(--orange); }
 .app-link:focus-visible, .text-link:focus-visible, .brand:focus-visible { outline: 3px solid var(--orange); outline-offset: 4px; }
-.nav-cta { min-height: 42px; padding-inline: 16px; font-size: 14px; box-shadow: 4px 4px 0 var(--acid); }
+.nav-cta { min-height: 42px; padding-inline: 16px; font-size: 14px; }
 .hero { min-height: 690px; padding: 74px 0 62px; display: grid; grid-template-columns: 1.08fr 0.92fr; align-items: center; gap: 70px; overflow: hidden; }
 .kicker { display: flex; align-items: center; gap: 10px; margin: 0 0 26px; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 h1, h2 { margin: 0; font-family: var(--font-geist-pixel-square); letter-spacing: -.065em; line-height: .91; }
