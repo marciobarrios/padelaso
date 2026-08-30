@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { ArrowUpRight, BarChart3, PartyPopper, UsersRound } from "lucide-react";
+import { DashboardPreview, StatsPreview } from "./phone-previews";
 
 const appUrl = "https://app.padelaso.com";
 
@@ -77,17 +77,14 @@ export default function Home() {
           <p className="microcopy">Gratis · Sin hojas de cálculo · Hecho para el móvil</p>
         </div>
 
-        <div className="hero-visual" aria-label="Vista de Padelaso en un teléfono">
+        <div className="hero-visual">
           <span className="sticker sticker-top">¡Puntazo!</span>
-          <div className="phone phone-main">
-            <Image
-              src="/screenshots/dashboard.jpg"
-              alt="Pantalla principal de Padelaso con los últimos partidos del grupo"
-              width={430}
-              height={932}
-              priority
-              sizes="(max-width: 700px) 78vw, 390px"
-            />
+          <div
+            className="phone phone-main"
+            role="img"
+            aria-label="Pantalla principal de Padelaso con los últimos partidos del grupo"
+          >
+            <DashboardPreview />
           </div>
           <span className="sticker sticker-bottom">🔥 4 seguidos</span>
         </div>
@@ -130,14 +127,12 @@ export default function Home() {
               <li><span>✓</span> Logros y momentazos del grupo</li>
             </ul>
           </div>
-          <div className="phone phone-stats">
-            <Image
-              src="/screenshots/stats.jpg"
-              alt="Estadísticas de jugadores y clasificación dentro de Padelaso"
-              width={430}
-              height={932}
-              sizes="(max-width: 700px) 76vw, 370px"
-            />
+          <div
+            className="phone phone-stats"
+            role="img"
+            aria-label="Estadísticas de jugadores y clasificación dentro de Padelaso"
+          >
+            <StatsPreview />
           </div>
         </div>
       </section>
