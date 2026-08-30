@@ -14,13 +14,13 @@ const features = [
     icon: PartyPopper,
     eyebrow: "Mucho más que el marcador",
     title: "Que no se pierda ningún momentazo",
-    copy: "Aces, caídas épicas, remontadas y golpes imposibles. El postpartido también cuenta.",
+    copy: "Añade puntos y eventos en tiempo real desde el Apple Watch: aces, caídas épicas, remontadas y golpes imposibles.",
   },
   {
     icon: BarChart3,
     eyebrow: "Pique sano",
     title: "Estadísticas con memoria",
-    copy: "Rachas, parejas, rivales y premios inesperados para resolver cada debate con datos.",
+    copy: "Rachas, parejas, rivales y logros —algunos bastante graciosos— que aparecen al combinar varios eventos.",
   },
 ];
 
@@ -64,7 +64,7 @@ export default function Home() {
 
       <section className="hero shell" id="inicio">
         <div className="hero-copy">
-          <p className="kicker"><span>Nuevo</span> El pádel después del pádel</p>
+          <p className="kicker">El pádel después del pádel</p>
           <h1>El tercer set<br />empieza aquí.</h1>
           <p className="hero-lede">
             Guarda los partidos. Celebra los puntazos. Descubre quién manda de verdad
@@ -127,7 +127,7 @@ export default function Home() {
             <ul>
               <li><span>✓</span> Clasificación ajustada por experiencia</li>
               <li><span>✓</span> Historial de parejas y rivales</li>
-              <li><span>✓</span> Premios y momentazos del grupo</li>
+              <li><span>✓</span> Logros y momentazos del grupo</li>
             </ul>
           </div>
           <div className="phone phone-stats">
