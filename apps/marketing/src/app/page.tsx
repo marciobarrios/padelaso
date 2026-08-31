@@ -64,7 +64,7 @@ export default function Home() {
 
       <section className="hero shell" id="inicio">
         <div className="hero-copy">
-          <p className="kicker">El pádel después del pádel</p>
+          <p className="kicker">La app para tu grupo de pádel</p>
           <h1>El tercer set<br />empieza aquí.</h1>
           <p className="hero-lede">
             Guarda los partidos, sigue las estadísticas y revive los momentazos de tu grupo
