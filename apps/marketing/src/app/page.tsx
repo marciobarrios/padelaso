@@ -67,8 +67,8 @@ export default function Home() {
           <p className="kicker">El pádel después del pádel</p>
           <h1>El tercer set<br />empieza aquí.</h1>
           <p className="hero-lede">
-            Guarda los partidos. Celebra los puntazos. Descubre quién manda de verdad
-            en tu grupo de amigos.
+            Guarda los partidos, sigue las estadísticas y revive los momentazos de tu grupo
+            de pádel.
           </p>
           <div className="hero-actions">
             <AppLink>Empezar a jugar</AppLink>
