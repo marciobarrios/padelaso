@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { ArrowUpRight, BarChart3, PartyPopper, UsersRound } from "lucide-react";
+import { DashboardPreview, StatsPreview } from "./phone-previews";
 
 const appUrl = "https://app.padelaso.com";
 
@@ -14,13 +14,13 @@ const features = [
     icon: PartyPopper,
     eyebrow: "Mucho más que el marcador",
     title: "Que no se pierda ningún momentazo",
-    copy: "Aces, caídas épicas, remontadas y golpes imposibles. El postpartido también cuenta.",
+    copy: "Añade puntos y eventos en tiempo real desde el Apple Watch: aces, caídas épicas, remontadas y golpes imposibles.",
   },
   {
     icon: BarChart3,
     eyebrow: "Pique sano",
     title: "Estadísticas con memoria",
-    copy: "Rachas, parejas, rivales y premios inesperados para resolver cada debate con datos.",
+    copy: "Rachas, parejas, rivales y logros —algunos bastante graciosos— que aparecen al combinar varios eventos.",
   },
 ];
 
@@ -64,11 +64,11 @@ export default function Home() {
 
       <section className="hero shell" id="inicio">
         <div className="hero-copy">
-          <p className="kicker"><span>Nuevo</span> El pádel después del pádel</p>
+          <p className="kicker">La app para tu grupo de pádel</p>
           <h1>El tercer set<br />empieza aquí.</h1>
           <p className="hero-lede">
-            Guarda los partidos. Celebra los puntazos. Descubre quién manda de verdad
-            en tu grupo de amigos.
+            Guarda los partidos, sigue las estadísticas y revive los momentazos de tu grupo
+            de pádel.
           </p>
           <div className="hero-actions">
             <AppLink>Empezar a jugar</AppLink>
@@ -77,17 +77,14 @@ export default function Home() {
           <p className="microcopy">Gratis · Sin hojas de cálculo · Hecho para el móvil</p>
         </div>
 
-        <div className="hero-visual" aria-label="Vista de Padelaso en un teléfono">
+        <div className="hero-visual">
           <span className="sticker sticker-top">¡Puntazo!</span>
-          <div className="phone phone-main">
-            <Image
-              src="/screenshots/dashboard.jpg"
-              alt="Pantalla principal de Padelaso con los últimos partidos del grupo"
-              width={430}
-              height={932}
-              priority
-              sizes="(max-width: 700px) 78vw, 390px"
-            />
+          <div
+            className="phone phone-main"
+            role="img"
+            aria-label="Pantalla principal de Padelaso con los últimos partidos del grupo"
+          >
+            <DashboardPreview />
           </div>
           <span className="sticker sticker-bottom">🔥 4 seguidos</span>
         </div>
@@ -127,17 +124,15 @@ export default function Home() {
             <ul>
               <li><span>✓</span> Clasificación ajustada por experiencia</li>
               <li><span>✓</span> Historial de parejas y rivales</li>
-              <li><span>✓</span> Premios y momentazos del grupo</li>
+              <li><span>✓</span> Logros y momentazos del grupo</li>
             </ul>
           </div>
-          <div className="phone phone-stats">
-            <Image
-              src="/screenshots/stats.jpg"
-              alt="Estadísticas de jugadores y clasificación dentro de Padelaso"
-              width={430}
-              height={932}
-              sizes="(max-width: 700px) 76vw, 370px"
-            />
+          <div
+            className="phone phone-stats"
+            role="img"
+            aria-label="Estadísticas de jugadores y clasificación dentro de Padelaso"
+          >
+            <StatsPreview />
           </div>
         </div>
       </section>
