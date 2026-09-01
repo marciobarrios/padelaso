@@ -91,7 +91,21 @@ export default function Home() {
       </section>
 
       <div className="ticker" aria-hidden="true">
-        <div>PARTIDOS · PUNTAZOS · PIQUES · REMONTADAS · ESTADÍSTICAS · PARTIDOS · PUNTAZOS · PIQUES · REMONTADAS · ESTADÍSTICAS ·</div>
+        <div className="ticker-track">
+          {[0, 1].map((group) => (
+            <div className="ticker-group" key={group}>
+              {Array.from({ length: 3 }, () => [
+                "PARTIDOS",
+                "PUNTAZOS",
+                "PIQUES",
+                "REMONTADAS",
+                "ESTADÍSTICAS",
+              ]).flat().map((item, index) => (
+                <span key={`${item}-${index}`}>{item} ·</span>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
       <section className="features shell" id="como-funciona">
