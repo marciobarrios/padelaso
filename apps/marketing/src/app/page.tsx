@@ -91,7 +91,25 @@ export default function Home() {
       </section>
 
       <div className="ticker" aria-hidden="true">
-        <div>PARTIDOS · PUNTAZOS · PIQUES · REMONTADAS · ESTADÍSTICAS · PARTIDOS · PUNTAZOS · PIQUES · REMONTADAS · ESTADÍSTICAS ·</div>
+        <div className="ticker-track">
+          {[0, 1].map((group) => (
+            <div className="ticker-group" key={group}>
+              {Array.from({ length: 2 }, () => [
+                "PARTIDOS",
+                "PUNTAZOS",
+                "PIQUES",
+                "REMONTADAS",
+                "ESTADÍSTICAS",
+                "LOGROS",
+                "CLASIFICACIÓN",
+                "RACHAS",
+              ]).flat().flatMap((item, index) => [
+                <span key={`${item}-${index}`}>{item}</span>,
+                <span className="ticker-separator" key={`separator-${index}`}>·</span>,
+              ])}
+            </div>
+          ))}
+        </div>
       </div>
 
       <section className="features shell" id="como-funciona">
