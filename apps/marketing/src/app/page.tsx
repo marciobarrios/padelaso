@@ -100,9 +100,10 @@ export default function Home() {
                 "PIQUES",
                 "REMONTADAS",
                 "ESTADÍSTICAS",
-              ]).flat().map((item, index) => (
-                <span key={`${item}-${index}`}>{item} ·</span>
-              ))}
+              ]).flat().flatMap((item, index) => [
+                <span key={`${item}-${index}`}>{item}</span>,
+                <span className="ticker-separator" key={`separator-${index}`}>·</span>,
+              ])}
             </div>
           ))}
         </div>
