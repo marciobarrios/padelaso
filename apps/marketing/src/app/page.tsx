@@ -94,12 +94,15 @@ export default function Home() {
         <div className="ticker-track">
           {[0, 1].map((group) => (
             <div className="ticker-group" key={group}>
-              {Array.from({ length: 3 }, () => [
+              {Array.from({ length: 2 }, () => [
                 "PARTIDOS",
                 "PUNTAZOS",
                 "PIQUES",
                 "REMONTADAS",
                 "ESTADÍSTICAS",
+                "LOGROS",
+                "CLASIFICACIÓN",
+                "RACHAS",
               ]).flat().flatMap((item, index) => [
                 <span key={`${item}-${index}`}>{item}</span>,
                 <span className="ticker-separator" key={`separator-${index}`}>·</span>,
