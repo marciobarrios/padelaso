@@ -63,6 +63,7 @@ export async function requireActiveMatch(
     console.error("[shortcut token authorization]", error);
     return Response.json(
       {
+        ok: false,
         error: "Token authorization unavailable",
         spoken: "El servicio no está disponible. Inténtalo de nuevo.",
       },
@@ -72,6 +73,7 @@ export async function requireActiveMatch(
   if (!verified) {
     return Response.json(
       {
+        ok: false,
         error: "Invalid token",
         spoken: "Token inválido.",
       },
@@ -81,6 +83,7 @@ export async function requireActiveMatch(
   if (verified.rateLimited) {
     return Response.json(
       {
+        ok: false,
         error: "Rate limit exceeded",
         spoken: "Demasiadas peticiones. Espera un minuto.",
       },
@@ -90,6 +93,7 @@ export async function requireActiveMatch(
   if (!verified.currentMatchId) {
     return Response.json(
       {
+        ok: false,
         error: "No hay partido activo",
         spoken: "No hay ningún partido activo.",
       },

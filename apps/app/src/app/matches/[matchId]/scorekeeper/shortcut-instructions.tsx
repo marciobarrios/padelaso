@@ -84,9 +84,22 @@ export function ShortcutSetupInstructions({
         </ol>
       </section>
 
+      <section className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+        <p className="font-medium text-foreground">
+          Importante si ya tienes el atajo instalado
+        </p>
+        <p className="text-muted-foreground">
+          La web no puede modificar automáticamente un atajo que ya está en tu
+          iPhone o Apple Watch. Añade la comprobación <code>ok</code> y la acción
+          <strong> Mostrar alerta</strong> descritas abajo en cada petición. Así
+          verás el mensaje devuelto por Padelaso cuando no se guarde un punto o
+          un evento.
+        </p>
+      </section>
+
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          2 · Bajo la etiqueta 🔵 Punto azul (3 acciones)
+          2 · Bajo la etiqueta 🔵 Punto azul
         </p>
         <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
           <li>
@@ -108,24 +121,30 @@ export function ShortcutSetupInstructions({
             </ul>
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> — en{" "}
-            <code>Diccionario</code> elige la variable{" "}
-            <strong>Contenido de URL</strong> (salida del paso 1), y en{" "}
-            <code>Clave</code> escribe <code>score</code>.
+            <strong>Definir variable</strong> <code>respuesta</code> con la salida
+            <strong> Contenido de URL</strong> del paso anterior.
           </li>
           <li>
-            <strong>Mostrar contenido</strong> (<em>Show Content</em>) con la
-            salida del paso 2. El
-            marcador actualizado aparece directamente dentro de Atajos en el
-            Watch, sin voz ni notificaciones.
+            <strong>Obtener valor del diccionario</strong> con clave <code>ok</code>
+            y diccionario <code>respuesta</code>.
+          </li>
+          <li>
+            Añade <strong>Si</strong> y comprueba que <code>ok</code> sea
+            verdadero. Dentro de esa rama, obtén la clave <code>score</code> de
+            <code>respuesta</code> y usa <strong>Mostrar contenido</strong> con el
+            resultado. El marcador actualizado aparecerá en el Watch.
+          </li>
+          <li>
+            Dentro de <strong>Si no</strong>, obtén la clave <code>spoken</code>
+            de <code>respuesta</code> y pásala a <strong>Mostrar alerta</strong>.
+            Puedes usar <em>Padelaso</em> como título.
           </li>
         </ol>
         <p className="text-muted-foreground">
-          Si la petición falla, Atajos se detiene antes de mostrar el resultado
-          y enseña el error de <strong>Obtener contenidos de URL</strong>. Si ya
-          tienes el atajo creado, cambia la clave <code>spoken</code> por{" "}
-          <code>score</code> y sustituye <strong>Mostrar notificación</strong> por{" "}
-          <strong>Mostrar contenido</strong> (<em>Show Content</em>).
+          Es importante elegir <code>respuesta</code> como diccionario en ambos
+          casos. Si dejas la variable automática del paso inmediatamente
+          anterior, Atajos intentará leer <code>score</code> o <code>spoken</code>
+          desde el booleano <code>ok</code>.
         </p>
         <UrlBlock url={scoreUrl} label="URL del marcador (ramas azul y roja)" />
       </section>
@@ -135,22 +154,21 @@ export function ShortcutSetupInstructions({
           3 · Bajo la etiqueta 🔴 Punto rojo
         </p>
         <p className="text-muted-foreground">
-          Usa las mismas 3 acciones de la rama azul: <strong>Obtener contenidos
-          de URL</strong>, <strong>Obtener valor del diccionario</strong> con la
-          clave <code>score</code> y <strong>Mostrar contenido</strong>. Cambia
-          sólo <code>team</code> a <code>2</code>.
+          Duplica todas las acciones de la rama azul, incluida la comprobación
+          de <code>ok</code> y la alerta de <code>spoken</code>. Cambia sólo{" "}
+          <code>team</code> a <code>2</code>.
         </p>
       </section>
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          4 · Bajo la etiqueta ⭐ Evento (8 acciones, sin dictado)
+          4 · Bajo la etiqueta ⭐ Evento (sin dictado)
         </p>
         <p className="text-muted-foreground">
           Registrar un evento son 3 toques: menú → evento → jugador. Las listas
           vienen del servidor con los eventos más usados primero. No hacen falta
-          pasos de conversión: guarda cada <strong>Ítem seleccionado</strong> y
-          envíalo directamente a la API.
+          pasos de conversión, pero hay que comprobar tanto la descarga de las
+          opciones como el guardado final.
         </p>
         <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
           <li>
@@ -159,32 +177,29 @@ export function ShortcutSetupInstructions({
             cabeceras ni cuerpo.
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>eventOptions</code>; en <code>Diccionario</code>, la variable{" "}
-            <strong>Contenido de URL</strong> (paso 1).
+            Guarda la salida como variable <code>respuestaOpciones</code>, obtén
+            su clave <code>ok</code> y añade <strong>Si</strong> es verdadero. Pon
+            los pasos 3 a 8 dentro de esa rama. En <strong>Si no</strong>, obtén
+            <code>spoken</code> de <code>respuestaOpciones</code> y usa
+            <strong> Mostrar alerta</strong>.
           </li>
           <li>
-            <strong>Seleccionar de la lista</strong> sobre la salida del paso 2. En
-            el Watch verás sólo los eventos con su emoji, ordenados de más a
-            menos usados.
+            Dentro de <strong>Si</strong>, obtén <code>eventOptions</code> de
+            <code>respuestaOpciones</code> y usa <strong>Seleccionar de la
+            lista</strong>. En el Watch verás los eventos con su emoji.
           </li>
           <li>
-            <strong>Definir variable</strong> <code>evento</code> con el{" "}
-            <strong>Ítem seleccionado</strong> del paso 3. La API convertirá este
+            <strong>Definir variable</strong> <code>evento</code> con el
+            <strong> Ítem seleccionado</strong>. La API convertirá este
             nombre visible al código interno.
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>playerOptions</code>; en <code>Diccionario</code>, otra vez{" "}
-            <strong>Contenido de URL</strong> del paso 1.
+            Obtén <code>playerOptions</code> de <code>respuestaOpciones</code> y
+            usa <strong>Seleccionar de la lista</strong>.
           </li>
           <li>
-            <strong>Seleccionar de la lista</strong> sobre la salida del paso 5. En
-            el Watch verás sólo el emoji y nombre de los jugadores del partido.
-          </li>
-          <li>
-            <strong>Definir variable</strong> <code>jugador</code> con el{" "}
-            <strong>Ítem seleccionado</strong> del paso 6. La API resolverá el
+            <strong>Definir variable</strong> <code>jugador</code> con el
+            <strong> Ítem seleccionado</strong>. La API resolverá el
             identificador sin mostrarlo.
           </li>
           <li>
@@ -196,14 +211,16 @@ export function ShortcutSetupInstructions({
             <code>playerOption</code> = variable <code>jugador</code>. Escribe
             ambas claves respetando exactamente las mayúsculas.
           </li>
+          <li>
+            Guarda esa salida como <code>respuestaEvento</code>, obtén su clave
+            <code>ok</code> y añade <strong>Si</strong>. Si es falso, obtén
+            <code>spoken</code> de <code>respuestaEvento</code> y usa
+            <strong> Mostrar alerta</strong>. Si es verdadero, no hace falta
+            añadir ninguna acción: el éxito queda silencioso.
+          </li>
         </ol>
-        <p className="text-muted-foreground">
-          La petición del paso 8 es la última acción: éxito silencioso y error
-          visible sólo si algo falla. En un atajo existente, elimina los dos
-          pasos de confirmación que venían después.
-        </p>
         <UrlBlock url={optionsUrl} label="URL de opciones → paso 1" />
-        <UrlBlock url={eventsUrl} label="URL de eventos → paso 8" />
+        <UrlBlock url={eventsUrl} label="URL de eventos → petición final" />
       </section>
 
       <section className="space-y-2">
