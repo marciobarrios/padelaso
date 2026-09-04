@@ -4,6 +4,15 @@ export interface VerifiedToken {
   token: string;
   createdBy: string;
   currentMatchId: string | null;
+  rateLimited: boolean;
+}
+
+const REQUESTS_PER_MINUTE = 120;
+
+interface AuthorizedTokenRow {
+  created_by: string;
+  current_match_id: string | null;
+  rate_limited: boolean;
 }
 
 export async function verifyTokenAndGetMatch(
@@ -11,17 +20,21 @@ export async function verifyTokenAndGetMatch(
 ): Promise<VerifiedToken | null> {
   if (!token) return null;
   const admin = createAdminSupabaseClient();
-  const { data } = await admin
-    .from("score_tokens")
-    .select("token, created_by, current_match_id, expires_at")
-    .eq("token", token)
+  const { data, error } = await admin
+    .rpc("authorize_score_token", {
+      p_token: token,
+      p_rate_limit: REQUESTS_PER_MINUTE,
+      p_window_seconds: 60,
+    })
     .maybeSingle();
+  if (error) throw error;
   if (!data) return null;
-  if (new Date(data.expires_at as string).getTime() < Date.now()) return null;
+  const row = data as AuthorizedTokenRow;
   return {
-    token: data.token as string,
-    createdBy: data.created_by as string,
-    currentMatchId: (data.current_match_id as string | null) ?? null,
+    token,
+    createdBy: row.created_by,
+    currentMatchId: row.current_match_id,
+    rateLimited: row.rate_limited,
   };
 }
 
@@ -43,14 +56,35 @@ export async function requireActiveMatch(
   request: Request
 ): Promise<ActiveMatchAuth | Response> {
   const token = extractToken(request);
-  const verified = await verifyTokenAndGetMatch(token);
+  let verified: VerifiedToken | null;
+  try {
+    verified = await verifyTokenAndGetMatch(token);
+  } catch (error) {
+    console.error("[shortcut token authorization]", error);
+    return Response.json(
+      {
+        error: "Token authorization unavailable",
+        spoken: "El servicio no está disponible. Inténtalo de nuevo.",
+      },
+      { status: 503 }
+    );
+  }
   if (!verified) {
     return Response.json(
       {
-        error: "Invalid or expired token",
-        spoken: "Token inválido o caducado.",
+        error: "Invalid token",
+        spoken: "Token inválido.",
       },
       { status: 401 }
+    );
+  }
+  if (verified.rateLimited) {
+    return Response.json(
+      {
+        error: "Rate limit exceeded",
+        spoken: "Demasiadas peticiones. Espera un minuto.",
+      },
+      { status: 429, headers: { "Retry-After": "60" } }
     );
   }
   if (!verified.currentMatchId) {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Minus, Trash2, Check, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Minus, Trash2, Check, RefreshCw, Square } from "lucide-react";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
@@ -17,6 +17,7 @@ import {
   rotateScoreToken,
   revokeScoreToken,
   repointScoreToken,
+  deactivateScoreToken,
   fetchUserScoreToken,
   incrementMatchScore,
   addMatchEvent,
@@ -133,6 +134,17 @@ function SetupView({ matchId }: { matchId: string }) {
     }
   }
 
+  async function finishLiveMatch() {
+    if (!userId) return;
+    setBusy(true);
+    try {
+      const t = await deactivateScoreToken(userId, matchId);
+      setToken(t ?? (await fetchUserScoreToken(userId)));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const playerMap = useMemo(() => buildPlayerMap(players), [players]);
   const matchLabel = useMemo(() => {
     if (!match) return "";
@@ -200,8 +212,9 @@ function SetupView({ matchId }: { matchId: string }) {
                 marcador actualizado dentro de Atajos; los eventos terminan en
                 silencio. Atajos también muestra cualquier fallo de la petición.
                 Móntalo una sola vez: las URLs no cambian entre partidos,
-                cada nuevo partido en vivo apunta el atajo automáticamente
-                al marcador correcto.
+                cada nuevo partido en vivo activa el atajo automáticamente
+                para el marcador correcto. Al terminar, desactívalo con el botón
+                de abajo; el token se conserva para el próximo partido.
               </p>
             </div>
 
@@ -212,19 +225,21 @@ function SetupView({ matchId }: { matchId: string }) {
             ) : !token ? (
               <Button onClick={createToken} disabled={busy} className="w-full">
                 {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
-                Crear token (válido 30 días)
+                Crear token permanente
               </Button>
             ) : (
               <div className="space-y-5">
                 {tokenStatus && <TokenStatusBanner status={tokenStatus} />}
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-3">
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground border-b border-border pb-3">
                   <span>
-                    Caduca:{" "}
-                    {new Date(token.expiresAt).toLocaleString("es-ES", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+                    Token permanente
+                    {token.lastUsedAt
+                      ? ` · Último uso: ${new Date(token.lastUsedAt).toLocaleString("es-ES", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}`
+                      : " · Sin uso todavía"}
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
@@ -257,6 +272,18 @@ function SetupView({ matchId }: { matchId: string }) {
                   </Button>
                 )}
 
+                {tokenStatus === "here" && (
+                  <Button
+                    variant="outline"
+                    onClick={finishLiveMatch}
+                    disabled={busy}
+                    className="w-full"
+                  >
+                    <Square className="size-3.5 mr-1.5" />
+                    Finalizar partido en directo
+                  </Button>
+                )}
+
                 <ShortcutSetupInstructions
                   scoreUrl={scoreUrl}
                   eventsUrl={eventsUrl}
@@ -283,7 +310,7 @@ const TOKEN_BANNERS: Record<
     content: (
       <>
         <Check className="size-3.5 shrink-0" />
-        Apuntando a este partido
+        Atajo activo para este partido
       </>
     ),
   },

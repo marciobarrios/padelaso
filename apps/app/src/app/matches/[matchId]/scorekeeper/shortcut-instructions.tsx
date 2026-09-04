@@ -220,6 +220,11 @@ export function ShortcutSetupInstructions({
             esfera y elige <em>Padelaso</em>, o lánzalo desde la app Atajos del
             reloj. Un toque abre el menú directamente.
           </li>
+          <li>
+            Cuando termine el partido, vuelve al scorekeeper y pulsa{" "}
+            <strong>Finalizar partido en directo</strong>. El token permanente se
+            conserva, pero queda inactivo hasta que empieces otro partido.
+          </li>
         </ol>
       </section>
 

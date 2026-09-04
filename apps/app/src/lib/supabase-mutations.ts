@@ -305,31 +305,24 @@ export async function removeMatchVote(
 
 // ---------- Score Tokens ----------
 
-const TOKEN_VALIDITY_DAYS = 30;
 const TOKEN_COLUMNS =
-  "token, current_match_id, expires_at, created_at, rotated_at";
+  "token, current_match_id, created_at, rotated_at, last_used_at";
 
 interface ScoreTokenRow {
   token: string;
   current_match_id: string | null;
-  expires_at: string;
   created_at: string;
   rotated_at: string | null;
-}
-
-function newExpiry(): string {
-  return new Date(
-    Date.now() + TOKEN_VALIDITY_DAYS * 24 * 3600_000
-  ).toISOString();
+  last_used_at: string | null;
 }
 
 function mapScoreToken(row: ScoreTokenRow): ScoreToken {
   return {
     token: row.token,
     currentMatchId: row.current_match_id,
-    expiresAt: row.expires_at,
     createdAt: row.created_at,
     rotatedAt: row.rotated_at,
+    lastUsedAt: row.last_used_at,
   };
 }
 
@@ -344,7 +337,6 @@ export async function createScoreToken(
       token,
       created_by: userId,
       current_match_id: matchId,
-      expires_at: newExpiry(),
     })
     .select(TOKEN_COLUMNS)
     .single();
@@ -358,8 +350,10 @@ export async function rotateScoreToken(userId: string): Promise<ScoreToken> {
     .from("score_tokens")
     .update({
       token: newToken,
-      expires_at: newExpiry(),
       rotated_at: new Date().toISOString(),
+      last_used_at: null,
+      rate_window_started_at: null,
+      rate_request_count: 0,
     })
     .eq("created_by", userId)
     .select(TOKEN_COLUMNS)
@@ -384,6 +378,21 @@ export async function repointScoreToken(
     .from("score_tokens")
     .update({ current_match_id: matchId })
     .eq("created_by", userId)
+    .select(TOKEN_COLUMNS)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapScoreToken(data) : null;
+}
+
+export async function deactivateScoreToken(
+  userId: string,
+  matchId: MatchId
+): Promise<ScoreToken | null> {
+  const { data, error } = await supabase()
+    .from("score_tokens")
+    .update({ current_match_id: null })
+    .eq("created_by", userId)
+    .eq("current_match_id", matchId)
     .select(TOKEN_COLUMNS)
     .maybeSingle();
   if (error) throw error;
