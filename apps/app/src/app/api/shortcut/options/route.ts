@@ -26,7 +26,11 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
   if (!match) {
     return Response.json(
-      { error: "Match not found", spoken: "Partido no encontrado." },
+      {
+        ok: false,
+        error: "Match not found",
+        spoken: "Partido no encontrado.",
+      },
       { status: 404 }
     );
   }
@@ -77,6 +81,7 @@ export async function GET(request: NextRequest) {
   );
 
   return Response.json({
+    ok: true,
     match: { id: matchId },
     eventOptions: Object.keys(events),
     events,

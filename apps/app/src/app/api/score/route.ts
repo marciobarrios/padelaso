@@ -18,16 +18,37 @@ export async function POST(request: NextRequest) {
   try {
     body = (await request.json()) as ScoreRequestBody;
   } catch {
-    return Response.json({ error: "Body must be JSON" }, { status: 400 });
+    return Response.json(
+      {
+        ok: false,
+        error: "Body must be JSON",
+        spoken: "No pude leer los datos enviados por el atajo.",
+      },
+      { status: 400 }
+    );
   }
 
   const team = body.team;
   const delta = body.delta ?? 1;
   if (team !== 1 && team !== 2) {
-    return Response.json({ error: "team must be 1 or 2" }, { status: 400 });
+    return Response.json(
+      {
+        ok: false,
+        error: "team must be 1 or 2",
+        spoken: "El equipo no es válido. Revisa el cuerpo del atajo.",
+      },
+      { status: 400 }
+    );
   }
   if (!Number.isFinite(delta) || delta < -10 || delta > 10) {
-    return Response.json({ error: "delta must be between -10 and 10" }, { status: 400 });
+    return Response.json(
+      {
+        ok: false,
+        error: "delta must be between -10 and 10",
+        spoken: "El cambio de puntuación no es válido.",
+      },
+      { status: 400 }
+    );
   }
 
   const admin = createAdminSupabaseClient();
@@ -39,7 +60,17 @@ export async function POST(request: NextRequest) {
   });
   if (error) {
     const status = error.code === "P0002" ? 404 : 500;
-    return Response.json({ error: error.message }, { status });
+    return Response.json(
+      {
+        ok: false,
+        error: error.message,
+        spoken:
+          status === 404
+            ? "No encuentro el partido activo."
+            : "No pude actualizar el marcador.",
+      },
+      { status }
+    );
   }
 
   const updatedSets = data as MatchSet[];
@@ -49,6 +80,7 @@ export async function POST(request: NextRequest) {
   const spoken = score;
 
   return Response.json({
+    ok: true,
     match: { id: matchId },
     sets: updatedSets,
     score,

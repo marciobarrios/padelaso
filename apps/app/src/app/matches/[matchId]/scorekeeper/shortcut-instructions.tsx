@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Copy, Check, Download } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function UrlBlock({ url, label }: { url: string; label?: string }) {
+function CopyValue({
+  value,
+  label,
+  copyLabel,
+}: {
+  value: string;
+  label: string;
+  copyLabel: string;
+}) {
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
@@ -16,38 +26,140 @@ export function UrlBlock({ url, label }: { url: string; label?: string }) {
   );
 
   async function copy() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setFailed(false);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+      setFailed(true);
+    }
   }
 
   return (
-    <div className="space-y-1.5">
-      {label && (
-        <p className="text-xs font-medium text-foreground/80">{label}</p>
-      )}
-      <pre className="p-2 rounded bg-muted text-xs overflow-x-auto whitespace-pre-wrap break-all">
-        {url}
-      </pre>
-      <Button size="sm" onClick={copy} className="w-full">
+    <div role="group" aria-label={label} className="space-y-2">
+      <code className="block select-all break-all rounded-md bg-muted p-3 text-sm">
+        {value}
+      </code>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={copy}
+        className="min-h-11 w-full touch-manipulation"
+      >
         {copied ? (
           <>
-            <Check className="size-3.5 mr-1.5" /> Copiado
+            <Check aria-hidden="true" /> Copiado
           </>
         ) : (
           <>
-            <Copy className="size-3.5 mr-1.5" /> Copiar URL
+            <Copy aria-hidden="true" /> {copyLabel}
           </>
         )}
       </Button>
+      <p role="status" className="min-h-4 text-xs text-foreground/80">
+        {failed
+          ? "No se pudo copiar. Selecciona el texto y cópialo manualmente."
+          : copied
+            ? "Listo para pegar en Atajos."
+            : null}
+      </p>
     </div>
   );
 }
 
-// The tap-driven Apple Watch recipe. Pure presentation given the three token
-// URLs, so it can be previewed in isolation without the auth/provider stack.
+function UrlBlock({ url, label }: { url: string; label: string }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-foreground/80">{label}</p>
+      <CopyValue key={url} value={url} label={label} copyLabel="Copiar URL" />
+    </div>
+  );
+}
+
+// Everyone downloads the same signed, token-free template. The personal token
+// stays on this screen and is entered in Shortcuts during setup.
 export function ShortcutSetupInstructions({
+  token,
+  scoreUrl,
+  eventsUrl,
+  optionsUrl,
+}: {
+  token: string;
+  scoreUrl: string;
+  eventsUrl: string;
+  optionsUrl: string;
+}) {
+  return (
+    <div className="space-y-5">
+      <section className="space-y-2">
+        <h3 className="font-medium">1 · Copia tu token</h3>
+        <p className="text-foreground/80">
+          Es tu clave personal para conectar el atajo. No la compartas.
+        </p>
+        <CopyValue
+          key={token}
+          value={token}
+          label="Token de Padelaso"
+          copyLabel="Copiar token"
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="font-medium">2 · Añade el atajo en tu iPhone</h3>
+        <a
+          href="/shortcuts/Padelaso.shortcut"
+          download="Padelaso.shortcut"
+          className={cn(buttonVariants({ variant: "secondary" }), "min-h-11 w-full touch-manipulation")}
+        >
+          <Download aria-hidden="true" /> Añadir atajo
+        </a>
+        <p className="text-foreground/80">
+          Abre el archivo descargado y pega tu token cuando Atajos lo pida.
+          El menú, las URLs y los avisos de error ya están configurados.
+        </p>
+      </section>
+
+      <p className="rounded-md bg-muted p-3 text-xs leading-relaxed text-foreground/80">
+        Solo tienes que configurarlo una vez. El mismo token sirve para los
+        próximos partidos y el atajo está preparado para el Apple Watch.
+      </p>
+
+      <details className="border-t border-border">
+        <summary className="min-h-11 cursor-pointer py-3 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          Ayuda y configuración manual
+        </summary>
+        <div className="space-y-5 pt-2">
+          <section className="space-y-1.5">
+            <h4 className="font-medium">¿Ya tienes un atajo instalado?</h4>
+            <p className="text-foreground/80">
+              Añade esta versión para tener los avisos de error. Tu atajo anterior
+              no se actualiza solo. Puedes conservarlo hasta comprobar que el
+              nuevo funciona, usando el mismo token.
+            </p>
+          </section>
+          <section className="space-y-1.5">
+            <h4 className="font-medium">En el Apple Watch</h4>
+            <p className="text-foreground/80">
+              Abre Atajos en el reloj y elige <em>Padelaso</em>. Si no aparece,
+              revisa en el iPhone que sus ajustes tengan activado <strong>Mostrar
+              en Apple Watch</strong>. También puedes añadirlo a tu esfera.
+            </p>
+          </section>
+          <ManualShortcutInstructions
+            scoreUrl={scoreUrl}
+            eventsUrl={eventsUrl}
+            optionsUrl={optionsUrl}
+          />
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function ManualShortcutInstructions({
   scoreUrl,
   eventsUrl,
   optionsUrl,
@@ -59,10 +171,10 @@ export function ShortcutSetupInstructions({
   return (
     <>
       <section className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          1 · Estructura del atajo (sólo la primera vez)
+        <p className="text-xs font-medium uppercase tracking-wider text-foreground/80">
+          Crear el atajo manualmente (opcional)
         </p>
-        <ol className="list-decimal list-outside pl-5 space-y-1.5 text-muted-foreground marker:text-foreground/60">
+        <ol className="list-decimal list-outside pl-5 space-y-1.5 text-foreground/80 marker:text-foreground/60">
           <li>
             iPhone → <strong>Atajos</strong> → <strong>+</strong> nuevo →
             nómbralo <em>&ldquo;Padelaso&rdquo;</em>.
@@ -85,10 +197,10 @@ export function ShortcutSetupInstructions({
       </section>
 
       <section className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          2 · Bajo la etiqueta 🔵 Punto azul (3 acciones)
+        <p className="text-xs font-medium uppercase tracking-wider text-foreground/80">
+          2 · Bajo la etiqueta 🔵 Punto azul
         </p>
-        <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
+        <ol className="list-decimal list-outside pl-5 space-y-2 text-foreground/80 marker:text-foreground/60">
           <li>
             <strong>Obtener contenidos de URL</strong> — pega la URL del
             marcador (abajo). Toca <strong>Mostrar más</strong>:
@@ -108,83 +220,67 @@ export function ShortcutSetupInstructions({
             </ul>
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> — en{" "}
-            <code>Diccionario</code> elige la variable{" "}
-            <strong>Contenido de URL</strong> (salida del paso 1), y en{" "}
-            <code>Clave</code> escribe <code>score</code>.
+            <strong>Obtener valor del diccionario</strong> con clave <code>spoken</code>
+            y diccionario = salida <strong>Contenido de URL</strong> de esa petición.
           </li>
           <li>
-            <strong>Mostrar contenido</strong> (<em>Show Content</em>) con la
-            salida del paso 2. El
-            marcador actualizado aparece directamente dentro de Atajos en el
-            Watch, sin voz ni notificaciones.
+            Usa <strong>Mostrar contenido</strong> con ese valor. Contiene el
+            marcador actualizado o el mensaje de error; no necesitas una condición.
           </li>
         </ol>
-        <p className="text-muted-foreground">
-          Si la petición falla, Atajos se detiene antes de mostrar el resultado
-          y enseña el error de <strong>Obtener contenidos de URL</strong>. Si ya
-          tienes el atajo creado, cambia la clave <code>spoken</code> por{" "}
-          <code>score</code> y sustituye <strong>Mostrar notificación</strong> por{" "}
-          <strong>Mostrar contenido</strong> (<em>Show Content</em>).
-        </p>
         <UrlBlock url={scoreUrl} label="URL del marcador (ramas azul y roja)" />
       </section>
 
       <section className="space-y-1.5">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-medium uppercase tracking-wider text-foreground/80">
           3 · Bajo la etiqueta 🔴 Punto rojo
         </p>
-        <p className="text-muted-foreground">
-          Usa las mismas 3 acciones de la rama azul: <strong>Obtener contenidos
-          de URL</strong>, <strong>Obtener valor del diccionario</strong> con la
-          clave <code>score</code> y <strong>Mostrar contenido</strong>. Cambia
-          sólo <code>team</code> a <code>2</code>.
+        <p className="text-foreground/80">
+          Duplica las acciones de la rama azul. Cambia sólo{" "}
+          <code>team</code> a <code>2</code>.
         </p>
       </section>
 
       <section className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          4 · Bajo la etiqueta ⭐ Evento (8 acciones, sin dictado)
+        <p className="text-xs font-medium uppercase tracking-wider text-foreground/80">
+          4 · Bajo la etiqueta ⭐ Evento (sin dictado)
         </p>
-        <p className="text-muted-foreground">
+        <p className="text-foreground/80">
           Registrar un evento son 3 toques: menú → evento → jugador. Las listas
           vienen del servidor con los eventos más usados primero. No hacen falta
-          pasos de conversión: guarda cada <strong>Ítem seleccionado</strong> y
-          envíalo directamente a la API.
+          pasos de conversión, pero hay que comprobar tanto la descarga de las
+          opciones como el guardado final.
         </p>
-        <ol className="list-decimal list-outside pl-5 space-y-2 text-muted-foreground marker:text-foreground/60">
+        <ol className="list-decimal list-outside pl-5 space-y-2 text-foreground/80 marker:text-foreground/60">
           <li>
             <strong>Obtener contenidos de URL</strong> — pega la URL de opciones
             (abajo). Método <code>GET</code> (el valor por defecto), sin
             cabeceras ni cuerpo.
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>eventOptions</code>; en <code>Diccionario</code>, la variable{" "}
-            <strong>Contenido de URL</strong> (paso 1).
+            Guarda la salida como variable <code>respuestaOpciones</code>, obtén
+            su clave <code>error</code> y añade <strong>Si no tiene ningún valor</strong>. Pon
+            los pasos 3 a 8 dentro de esa rama. En <strong>Si no</strong>, obtén
+            <code>spoken</code> de <code>respuestaOpciones</code> y usa
+            <strong> Mostrar alerta</strong>.
           </li>
           <li>
-            <strong>Seleccionar de la lista</strong> sobre la salida del paso 2. En
-            el Watch verás sólo los eventos con su emoji, ordenados de más a
-            menos usados.
+            Dentro de <strong>Si</strong>, obtén <code>eventOptions</code> de
+            <code>respuestaOpciones</code> y usa <strong>Seleccionar de la
+            lista</strong>. En el Watch verás los eventos con su emoji.
           </li>
           <li>
-            <strong>Definir variable</strong> <code>evento</code> con el{" "}
-            <strong>Ítem seleccionado</strong> del paso 3. La API convertirá este
+            <strong>Definir variable</strong> <code>evento</code> con el
+            <strong> Ítem seleccionado</strong>. La API convertirá este
             nombre visible al código interno.
           </li>
           <li>
-            <strong>Obtener valor del diccionario</strong> → <code>Clave</code>{" "}
-            = <code>playerOptions</code>; en <code>Diccionario</code>, otra vez{" "}
-            <strong>Contenido de URL</strong> del paso 1.
+            Obtén <code>playerOptions</code> de <code>respuestaOpciones</code> y
+            usa <strong>Seleccionar de la lista</strong>.
           </li>
           <li>
-            <strong>Seleccionar de la lista</strong> sobre la salida del paso 5. En
-            el Watch verás sólo el emoji y nombre de los jugadores del partido.
-          </li>
-          <li>
-            <strong>Definir variable</strong> <code>jugador</code> con el{" "}
-            <strong>Ítem seleccionado</strong> del paso 6. La API resolverá el
+            <strong>Definir variable</strong> <code>jugador</code> con el
+            <strong> Ítem seleccionado</strong>. La API resolverá el
             identificador sin mostrarlo.
           </li>
           <li>
@@ -196,21 +292,23 @@ export function ShortcutSetupInstructions({
             <code>playerOption</code> = variable <code>jugador</code>. Escribe
             ambas claves respetando exactamente las mayúsculas.
           </li>
+          <li>
+            Guarda esa salida como <code>respuestaEvento</code>, obtén su clave
+            <code>error</code> y añade <strong>Si tiene algún valor</strong>. Dentro, obtén
+            <code>spoken</code> de <code>respuestaEvento</code> y usa
+            <strong> Mostrar alerta</strong>. Si no hay error, no hace falta
+            añadir ninguna acción: el éxito queda silencioso.
+          </li>
         </ol>
-        <p className="text-muted-foreground">
-          La petición del paso 8 es la última acción: éxito silencioso y error
-          visible sólo si algo falla. En un atajo existente, elimina los dos
-          pasos de confirmación que venían después.
-        </p>
         <UrlBlock url={optionsUrl} label="URL de opciones → paso 1" />
-        <UrlBlock url={eventsUrl} label="URL de eventos → paso 8" />
+        <UrlBlock url={eventsUrl} label="URL de eventos → petición final" />
       </section>
 
       <section className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-medium uppercase tracking-wider text-foreground/80">
           5 · En el Apple Watch
         </p>
-        <ol className="list-decimal list-outside pl-5 space-y-1.5 text-muted-foreground marker:text-foreground/60">
+        <ol className="list-decimal list-outside pl-5 space-y-1.5 text-foreground/80 marker:text-foreground/60">
           <li>
             En los ajustes del atajo (icono de la cabecera), activa{" "}
             <strong>Mostrar en Apple Watch</strong>.
@@ -228,7 +326,7 @@ export function ShortcutSetupInstructions({
         </ol>
       </section>
 
-      <p className="text-xs text-muted-foreground border-t border-border pt-3">
+      <p className="text-xs text-foreground/80 border-t border-border pt-3">
         <strong>Extras opcionales</strong>: en el cuerpo JSON del marcador,{" "}
         <code>delta = -1</code> deshace un punto y <code>newSet = true</code>{" "}
         abre un set nuevo (puedes añadirlos como opciones extra del menú). La URL

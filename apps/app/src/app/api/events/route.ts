@@ -46,7 +46,11 @@ export async function POST(request: NextRequest) {
     body = (await request.json()) as EventRequestBody;
   } catch {
     return Response.json(
-      { error: "Body must be JSON", spoken: "Cuerpo de la petición no válido." },
+      {
+        ok: false,
+        error: "Body must be JSON",
+        spoken: "Cuerpo de la petición no válido.",
+      },
       { status: 400 }
     );
   }
@@ -60,7 +64,11 @@ export async function POST(request: NextRequest) {
     const roster = await fetchMatchRoster(admin, matchId);
     if (!roster) {
       return Response.json(
-        { error: "Match not found", spoken: "Partido no encontrado." },
+        {
+          ok: false,
+          error: "Match not found",
+          spoken: "Partido no encontrado.",
+        },
         { status: 404 }
       );
     }
@@ -68,6 +76,7 @@ export async function POST(request: NextRequest) {
     if (!result.ok) {
       return Response.json(
         {
+          ok: false,
           error: result.error,
           understood: result.understood,
           spoken: spokenForResolveError(result.error),
@@ -88,12 +97,17 @@ export async function POST(request: NextRequest) {
       .single();
     if (error) {
       return Response.json(
-        { error: error.message, spoken: "Error al guardar el evento." },
+        {
+          ok: false,
+          error: error.message,
+          spoken: "Error al guardar el evento.",
+        },
         { status: 500 }
       );
     }
 
     return Response.json({
+      ok: true,
       match: { id: matchId },
       id: inserted.id,
       type: result.type,
@@ -118,7 +132,11 @@ export async function POST(request: NextRequest) {
     resolvedRoster = await fetchMatchRoster(admin, matchId);
     if (!resolvedRoster) {
       return Response.json(
-        { error: "Match not found", spoken: "Partido no encontrado." },
+        {
+          ok: false,
+          error: "Match not found",
+          spoken: "Partido no encontrado.",
+        },
         { status: 404 }
       );
     }
@@ -133,6 +151,7 @@ export async function POST(request: NextRequest) {
     if (!type) {
       return Response.json(
         {
+          ok: false,
           error: `Unknown event option: ${eventOption}`,
           spoken: "Tipo de evento desconocido.",
         },
@@ -142,6 +161,7 @@ export async function POST(request: NextRequest) {
     if (!playerId) {
       return Response.json(
         {
+          ok: false,
           error: `Unknown player option: ${playerOption}`,
           spoken: "El jugador no está en este partido.",
         },
@@ -154,6 +174,7 @@ export async function POST(request: NextRequest) {
   if (!playerId || !type) {
     return Response.json(
       {
+        ok: false,
         error:
           "playerId and type, or eventOption and playerOption, are required",
         spoken: "Faltan datos del evento.",
@@ -164,6 +185,7 @@ export async function POST(request: NextRequest) {
   if (!VALID_EVENT_TYPES.has(type)) {
     return Response.json(
       {
+        ok: false,
         error: `Unknown event type: ${type}`,
         spoken: "Tipo de evento desconocido.",
       },
@@ -174,7 +196,11 @@ export async function POST(request: NextRequest) {
   const roster = resolvedRoster ?? (await fetchMatchRoster(admin, matchId));
   if (!roster) {
     return Response.json(
-      { error: "Match not found", spoken: "Partido no encontrado." },
+      {
+        ok: false,
+        error: "Match not found",
+        spoken: "Partido no encontrado.",
+      },
       { status: 404 }
     );
   }
@@ -182,6 +208,7 @@ export async function POST(request: NextRequest) {
   if (!matchPlayers.has(playerId)) {
     return Response.json(
       {
+        ok: false,
         error: "playerId is not part of this match",
         spoken: "El jugador no está en este partido.",
       },
@@ -201,7 +228,11 @@ export async function POST(request: NextRequest) {
     .single();
   if (error) {
     return Response.json(
-      { error: error.message, spoken: "Error al guardar el evento." },
+      {
+        ok: false,
+        error: error.message,
+        spoken: "Error al guardar el evento.",
+      },
       { status: 500 }
     );
   }
@@ -211,6 +242,7 @@ export async function POST(request: NextRequest) {
   const eventLabel = getEventConfig(type).label;
 
   return Response.json({
+    ok: true,
     match: { id: matchId },
     id: inserted.id,
     type,
