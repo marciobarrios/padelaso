@@ -103,6 +103,9 @@ function SetupView({ matchId }: { matchId: string }) {
 
   async function rotate() {
     if (!userId) return;
+    if (!window.confirm(
+      "El token actual dejará de funcionar. Tendrás que pegar el nuevo en tu atajo. ¿Regenerar token?"
+    )) return;
     setBusy(true);
     try {
       const t = await rotateScoreToken(userId);
@@ -114,6 +117,9 @@ function SetupView({ matchId }: { matchId: string }) {
 
   async function revoke() {
     if (!userId) return;
+    if (!window.confirm(
+      "Tu atajo dejará de funcionar hasta que crees otro token y lo configures. ¿Revocar token?"
+    )) return;
     setBusy(true);
     try {
       await revokeScoreToken(userId);
@@ -206,15 +212,9 @@ function SetupView({ matchId }: { matchId: string }) {
               <h2 className="font-heading text-lg font-bold">
                 ⌚ Atajo para Apple Watch
               </h2>
-              <p className="text-muted-foreground">
-                Un único atajo que se lanza con un toque (sin Siri ni
-                dictado): menú → punto o evento. Al sumar un punto muestra el
-                marcador actualizado dentro de Atajos; los eventos terminan en
-                silencio. Atajos también muestra cualquier fallo de la petición.
-                Móntalo una sola vez: las URLs no cambian entre partidos,
-                cada nuevo partido en vivo activa el atajo automáticamente
-                para el marcador correcto. Al terminar, desactívalo con el botón
-                de abajo; el token se conserva para el próximo partido.
+              <p className="text-foreground/80">
+                Suma puntos y registra eventos desde el reloj, sin Siri ni
+                dictado. Añade el atajo ya preparado y conecta tu token una sola vez.
               </p>
             </div>
 
@@ -223,7 +223,7 @@ function SetupView({ matchId }: { matchId: string }) {
                 <Loader2 className="size-4 animate-spin mr-2" /> Cargando…
               </Button>
             ) : !token ? (
-              <Button onClick={createToken} disabled={busy} className="w-full">
+              <Button onClick={createToken} disabled={busy} className="min-h-11 w-full">
                 {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                 Crear token permanente
               </Button>
@@ -231,64 +231,74 @@ function SetupView({ matchId }: { matchId: string }) {
               <div className="space-y-5">
                 {tokenStatus && <TokenStatusBanner status={tokenStatus} />}
 
-                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground border-b border-border pb-3">
-                  <span>
-                    Token permanente
-                    {token.lastUsedAt
-                      ? ` · Último uso: ${new Date(token.lastUsedAt).toLocaleString("es-ES", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}`
-                      : " · Sin uso todavía"}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={rotate}
-                      disabled={busy}
-                    >
-                      <RefreshCw className="size-3.5 mr-1" /> Rotar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={revoke}
-                      disabled={busy}
-                    >
-                      <Trash2 className="size-3.5 mr-1" /> Revocar
-                    </Button>
-                  </div>
-                </div>
-
                 {tokenStatus !== "here" && (
                   <Button
                     variant="outline"
                     onClick={pointAtThisMatch}
                     disabled={busy}
-                    className="w-full"
+                    className="min-h-11 w-full"
                   >
                     Apuntar a este partido
                   </Button>
                 )}
+
+                <ShortcutSetupInstructions
+                  token={token.token}
+                  scoreUrl={scoreUrl}
+                  eventsUrl={eventsUrl}
+                  optionsUrl={optionsUrl}
+                />
 
                 {tokenStatus === "here" && (
                   <Button
                     variant="outline"
                     onClick={finishLiveMatch}
                     disabled={busy}
-                    className="w-full"
+                    className="min-h-11 w-full"
                   >
                     <Square className="size-3.5 mr-1.5" />
                     Finalizar partido en directo
                   </Button>
                 )}
 
-                <ShortcutSetupInstructions
-                  scoreUrl={scoreUrl}
-                  eventsUrl={eventsUrl}
-                  optionsUrl={optionsUrl}
-                />
+                <details className="border-t border-border">
+                  <summary className="min-h-11 cursor-pointer py-3 text-foreground/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                    Gestionar token
+                  </summary>
+                  <div className="space-y-3 pt-1">
+                    <p className="text-xs text-foreground/80">
+                      No caduca. No hace falta regenerarlo entre partidos.
+                      {token.lastUsedAt
+                        ? ` Último uso: ${new Date(token.lastUsedAt).toLocaleString("es-ES", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}.`
+                        : " Sin uso todavía."}
+                    </p>
+                    <p className="text-xs text-foreground/80">
+                      Si lo regeneras, pega el nuevo token al principio del
+                      atajo. Si lo revocas, el atajo dejará de funcionar.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={rotate}
+                        disabled={busy}
+                        className="min-h-11"
+                      >
+                        <RefreshCw aria-hidden="true" /> Regenerar token
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={revoke}
+                        disabled={busy}
+                        className="min-h-11"
+                      >
+                        <Trash2 aria-hidden="true" /> Revocar token
+                      </Button>
+                    </div>
+                  </div>
+                </details>
               </div>
             )}
           </CardContent>
