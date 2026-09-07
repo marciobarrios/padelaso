@@ -1,10 +1,23 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { GeistSans } from "geist/font/sans";
 import { GeistPixelSquare } from "geist/font/pixel";
 import "./globals.css";
 
 const siteUrl = "https://padelaso.com";
+const themeScript = `
+  (function () {
+    var preference;
+    try {
+      preference = window.localStorage.getItem("padelaso-theme");
+    } catch (error) {}
+    var theme = preference === "light" || preference === "dark"
+      ? preference
+      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = theme;
+  })();
+`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -42,8 +55,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="es"
       className={`${GeistSans.variable} ${GeistPixelSquare.variable}`}
+      suppressHydrationWarning
     >
       <body>
+        <Script id="theme-preference" strategy="beforeInteractive">
+          {themeScript}
+        </Script>
         {children}
         <Analytics />
       </body>
