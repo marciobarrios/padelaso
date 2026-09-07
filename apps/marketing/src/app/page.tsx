@@ -50,7 +50,7 @@ const structuredData = {
 function AppLink({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <a
-      className={`inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-sm border-2 border-ink bg-button px-[21px] font-[750] text-button-ink shadow-[5px_5px_0_var(--color-orange)] transition-[transform,box-shadow] duration-150 ease-[ease] hover:shadow-[3px_3px_0_var(--color-orange)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus motion-safe:hover:[transform:translate(2px,2px)] motion-reduce:transition-none ${className}`}
+      className={`inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-sm border-2 border-button-border bg-button px-[21px] font-[750] text-button-ink shadow-[5px_5px_0_var(--color-orange)] transition-[transform,box-shadow] duration-150 ease-[ease] hover:shadow-[3px_3px_0_var(--color-orange)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus motion-safe:hover:[transform:translate(2px,2px)] motion-reduce:transition-none ${className}`}
       href={appUrl}
     >
       {children}
@@ -134,7 +134,7 @@ export default function Home() {
             className="absolute size-[430px] rounded-full border-2 border-ink bg-acid shadow-[17px_17px_0_var(--color-mint)] max-[560px]:size-[330px]"
             aria-hidden="true"
           />
-          <span className="absolute top-[45px] right-[14px] z-20 border-2 border-ink bg-orange px-3.5 pt-2.5 pb-2 font-pixel font-extrabold text-white shadow-[5px_5px_0_var(--color-ink)] [transform:rotate(7deg)]">
+          <span className="absolute top-[45px] right-[14px] z-20 border-2 border-acid-ink bg-orange px-3.5 pt-2.5 pb-2 font-pixel font-extrabold text-acid-ink shadow-[5px_5px_0_var(--color-ink)] [transform:rotate(7deg)]">
             ¡Puntazo!
           </span>
           <div
@@ -151,7 +151,7 @@ export default function Home() {
       </section>
 
       <div
-        className="overflow-hidden border-y-2 border-ink bg-orange py-[13px] pt-[15px] font-pixel text-lg font-extrabold tracking-[0.06em] whitespace-nowrap text-white"
+        className="overflow-hidden border-y-2 border-acid-ink bg-orange py-[13px] pt-[15px] font-pixel text-lg font-extrabold tracking-[0.06em] whitespace-nowrap text-acid-ink"
         aria-hidden="true"
       >
         <div className="flex w-max will-change-transform motion-safe:animate-[ticker_35s_linear_infinite]">

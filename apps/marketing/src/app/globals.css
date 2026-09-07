@@ -11,6 +11,7 @@
   --color-line: var(--border-subtle);
   --color-card: var(--surface-card);
   --color-button: var(--surface-button);
+  --color-button-border: var(--border-button);
   --color-button-ink: var(--text-button);
   --color-focus: var(--focus-ring);
   --color-showcase: var(--surface-showcase);
@@ -25,6 +26,7 @@
   --surface-page: #f6efde;
   --surface-card: #fbf6e9;
   --surface-button: #14291f;
+  --border-button: #14291f;
   --surface-showcase: #14291f;
   --text-primary: #14291f;
   --text-secondary: #3f5148;
@@ -44,7 +46,8 @@
   color-scheme: dark;
   --surface-page: #0d1712;
   --surface-card: #14231b;
-  --surface-button: #eef3e9;
+  --surface-button: #d7ff54;
+  --border-button: #102018;
   --surface-showcase: #07100b;
   --text-primary: #eef3e9;
   --text-secondary: #b4c2b9;
@@ -55,7 +58,7 @@
   --accent-acid-ink: #14291f;
   --accent-orange: #ff7643;
   --accent-mint: #397b60;
-  --border-subtle: rgb(238 243 233 / 20%);
+  --border-subtle: rgb(238 243 233 / 36%);
   --focus-ring: #ffffff;
   --phone-shadow: rgb(0 0 0 / 42%);
 }
@@ -69,7 +72,8 @@
     color-scheme: dark;
     --surface-page: #0d1712;
     --surface-card: #14231b;
-    --surface-button: #eef3e9;
+    --surface-button: #d7ff54;
+    --border-button: #102018;
     --surface-showcase: #07100b;
     --text-primary: #eef3e9;
     --text-secondary: #b4c2b9;
@@ -80,7 +84,7 @@
     --accent-acid-ink: #14291f;
     --accent-orange: #ff7643;
     --accent-mint: #397b60;
-    --border-subtle: rgb(238 243 233 / 20%);
+    --border-subtle: rgb(238 243 233 / 36%);
     --focus-ring: #ffffff;
     --phone-shadow: rgb(0 0 0 / 42%);
   }
