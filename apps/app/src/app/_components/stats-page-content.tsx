@@ -13,6 +13,7 @@ import {
 import { useGroup } from "@/components/group/group-provider";
 import {
   calculatePlayerStats,
+  getMinimumMatchesForRanking,
   getRankedPlayerStats,
   getEventLeaderboards,
   getEventRecords,
@@ -87,7 +88,13 @@ export function StatsPageContent() {
     }))
     .filter((s) => s.stats.matches > 0);
 
-  const rankedStats = getRankedPlayerStats(playerStats.map(({ stats }) => stats));
+  const minimumMatchesForRanking = getMinimumMatchesForRanking(
+    timeFilteredMatches.length,
+  );
+  const rankedStats = getRankedPlayerStats(
+    playerStats.map(({ stats }) => stats),
+    minimumMatchesForRanking,
+  );
   const statsByPlayer = new Map(
     playerStats.map(({ player, stats }) => [player.id, { player, stats }]),
   );
@@ -193,6 +200,7 @@ export function StatsPageContent() {
               matches={timeFilteredMatches}
               playerMap={playerMap}
               allStats={allStats}
+              minimumMatchesForRanking={minimumMatchesForRanking}
               mvpRankings={mvpRankings}
               funAwards={funAwards}
               selectedPlayer={selectedPlayer}

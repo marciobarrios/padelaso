@@ -20,7 +20,14 @@ export interface PlayerStats {
 }
 
 export const RANKING_CONFIDENCE_MATCHES = 5;
-export const MIN_MATCHES_FOR_RANKING = 10;
+export const MAX_MATCHES_FOR_RANKING = 10;
+
+export function getMinimumMatchesForRanking(groupMatches: number): number {
+  return Math.min(
+    MAX_MATCHES_FOR_RANKING,
+    Math.max(1, Math.ceil(groupMatches / 2)),
+  );
+}
 
 export interface RankedPlayerStats extends PlayerStats {
   rankingScore: number;
@@ -29,6 +36,7 @@ export interface RankedPlayerStats extends PlayerStats {
 
 export function getRankedPlayerStats(
   stats: PlayerStats[],
+  minimumMatches = MAX_MATCHES_FOR_RANKING,
 ): RankedPlayerStats[] {
   const totalWins = stats.reduce((sum, player) => sum + player.wins, 0);
   const totalDecidedMatches = stats.reduce(
@@ -44,7 +52,7 @@ export function getRankedPlayerStats(
       rankingScore:
         (player.wins + groupWinRate * RANKING_CONFIDENCE_MATCHES) /
         (player.matches + RANKING_CONFIDENCE_MATCHES),
-      provisional: player.matches < MIN_MATCHES_FOR_RANKING,
+      provisional: player.matches < minimumMatches,
     }))
     .sort(
       (a, b) =>

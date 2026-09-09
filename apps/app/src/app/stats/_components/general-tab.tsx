@@ -8,7 +8,6 @@ import { MatchCard } from "@/components/match/match-card";
 import { getEventConfig } from "@padelaso/domain/events";
 import {
   getRecentForm,
-  MIN_MATCHES_FOR_RANKING,
   type PlayerStats,
   type RankedPlayerStats,
   type FunAwardResult,
@@ -33,6 +32,7 @@ interface GeneralTabProps {
   matches: Match[];
   playerMap: Map<PlayerId, Player>;
   allStats: { player: Player; stats: RankedPlayerStats }[];
+  minimumMatchesForRanking: number;
   mvpRankings: { playerId: PlayerId; count: number }[];
   funAwards: FunAwardResult[];
   selectedPlayer: PlayerId | null;
@@ -44,6 +44,7 @@ export function GeneralTab({
   matches,
   playerMap,
   allStats,
+  minimumMatchesForRanking,
   mvpRankings,
   funAwards,
   selectedPlayer,
@@ -246,7 +247,8 @@ export function GeneralTab({
           {provisionalStats.length > 0 && (
             <div className={establishedStats.length > 0 ? "mt-5" : undefined}>
               <p className="text-xs font-medium text-muted-foreground mb-2">
-                Provisionales · menos de {MIN_MATCHES_FOR_RANKING} partidos
+                Provisionales · menos de {minimumMatchesForRanking}{" "}
+                {minimumMatchesForRanking === 1 ? "partido" : "partidos"}
               </p>
               {renderRanking(provisionalStats, true)}
             </div>
