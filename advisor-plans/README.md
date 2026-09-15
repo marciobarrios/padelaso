@@ -12,22 +12,22 @@ Effort: S = hours; M = roughly a day; L = several days, including relevant verif
 
 **Prioritized findings**
 
-| # | Finding | Category | Impact | Effort | Fix risk | Confidence |
-|---|---|---|---|---|---|---|
-| 1 | Close the direct membership insertion gap | Security | High | M | Medium | High |
-| 2 | Update the vulnerable Next.js dependency | Dependencies / security | High | S–M | Medium | High |
-| 3 | Authorize and complete player deletion atomically | Correctness / data integrity | High | M | Medium | High |
-| 4 | Add a behavioral verification baseline | Tests / tooling | High | M | Low | High |
-| 5 | End Shortcut access when group membership ends | Security | High | M | Low | High |
-| 6 | Fetch only the datasets each page uses | Performance / architecture | High | S | Low | High |
-| 7 | Use one freshness policy for hydrated matches | Performance / caching | Medium | S | Medium | High |
-| 8 | Make match creation atomic and safe to retry | Correctness / efficiency | High | M | Medium | High |
-| 9 | Distinguish failed reads from empty data | Correctness / resilience | High | M | Low | High |
-| 10 | Seed auth and group providers with server state | Performance / loading quality | Medium | M | Medium | High |
-| 11 | Bound history reads and use compact event aggregates | Performance / scalability | Medium, increasing with history | M–L | Medium | High |
-| 12 | Let the fourth participant cast a first vote | Correctness | Medium | S | Low | High |
-| 13 | Make populated-group deletion match its confirmation text | Correctness | Medium | M | Medium | High |
-| 14 | Apply the selected period to MVP statistics | Correctness / statistics | Medium | S | Low | High |
+| # | Finding | Status | Category | Impact | Effort | Fix risk | Confidence |
+|---|---|---|---|---|---|---|---|
+| 1 | Close the direct membership insertion gap | Done ([#71](https://github.com/marciobarrios/padelaso/pull/71)) | Security | High | M | Medium | High |
+| 2 | Update the vulnerable Next.js dependency | Pending | Dependencies / security | High | S–M | Medium | High |
+| 3 | Authorize and complete player deletion atomically | Pending | Correctness / data integrity | High | M | Medium | High |
+| 4 | Add a behavioral verification baseline | Pending | Tests / tooling | High | M | Low | High |
+| 5 | End Shortcut access when group membership ends | Pending | Security | High | M | Low | High |
+| 6 | Fetch only the datasets each page uses | Pending | Performance / architecture | High | S | Low | High |
+| 7 | Use one freshness policy for hydrated matches | Pending | Performance / caching | Medium | S | Medium | High |
+| 8 | Make match creation atomic and safe to retry | Pending | Correctness / efficiency | High | M | Medium | High |
+| 9 | Distinguish failed reads from empty data | Pending | Correctness / resilience | High | M | Low | High |
+| 10 | Seed auth and group providers with server state | Pending | Performance / loading quality | Medium | M | Medium | High |
+| 11 | Bound history reads and use compact event aggregates | Pending | Performance / scalability | Medium, increasing with history | M–L | Medium | High |
+| 12 | Let the fourth participant cast a first vote | Pending | Correctness | Medium | S | Low | High |
+| 13 | Make populated-group deletion match its confirmation text | Pending | Correctness | Medium | M | Medium | High |
+| 14 | Apply the selected period to MVP statistics | Pending | Correctness / statistics | Medium | S | Low | High |
 
 **1. Close the direct membership insertion gap**
 
@@ -173,4 +173,4 @@ Server token refresh deserves an expiry-flow check: [apps/app/src/lib/supabase-s
 - Claiming an index is missing or that production truncates at a specific row count: no live query plans or API row-cap settings were available.
 - Claiming marketing's missing direct compiler-plugin declaration proves a broken build: the lockfile already records the peer in the resolved Next.js package. Isolated dependency resolution/build verification is needed before calling this a failure.
 
-All findings are unimplemented. Select items by number for self-contained implementation plans.
+Finding 1 is complete via [PR #71](https://github.com/marciobarrios/padelaso/pull/71). The remaining findings are pending; select them by number for self-contained implementation plans.
