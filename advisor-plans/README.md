@@ -17,7 +17,7 @@ Effort: S = hours; M = roughly a day; L = several days, including relevant verif
 | 1 | Close the direct membership insertion gap | Done ([#71](https://github.com/marciobarrios/padelaso/pull/71)) | Security | High | M | Medium | High |
 | 2 | Update the vulnerable Next.js dependency | Pending | Dependencies / security | High | S–M | Medium | High |
 | 3 | Authorize and complete player deletion atomically | Pending | Correctness / data integrity | High | M | Medium | High |
-| 4 | Add a behavioral verification baseline | Pending | Tests / tooling | High | M | Low | High |
+| 4 | Add a behavioral verification baseline | Done | Tests / tooling | High | M | Low | High |
 | 5 | End Shortcut access when group membership ends | Pending | Security | High | M | Low | High |
 | 6 | Fetch only the datasets each page uses | Pending | Performance / architecture | High | S | Low | High |
 | 7 | Use one freshness policy for hydrated matches | Pending | Performance / caching | Medium | S | Medium | High |
