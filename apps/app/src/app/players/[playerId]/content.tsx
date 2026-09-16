@@ -43,6 +43,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
   const [editKey, setEditKey] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteMounted, setDeleteMounted] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [unlinkMounted, setUnlinkMounted] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
   const linkedPlayer = allPlayers.find((p) => p.userId === user?.id);
   const userAlreadyLinked = !!linkedPlayer;
   const isOwnPlayer = !!user && player?.userId === user.id;
+  const canDelete = !!user && player?.createdBy === user.id;
   const canLinkSelf =
     player &&
     !player.userId &&
@@ -65,16 +67,21 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     user !== null;
 
   async function handleDelete() {
-    await deletePlayer(playerId);
-    if (activeGroup?.id) {
-      invalidate(
-        keys.players(activeGroup.id),
-        keys.matches(activeGroup.id),
-        keys.playerMatches(playerId),
-        keys.playerEvents(playerId)
-      );
+    setDeleteError(null);
+    try {
+      await deletePlayer(playerId);
+      if (activeGroup?.id) {
+        invalidate(
+          keys.players(activeGroup.id),
+          keys.matches(activeGroup.id),
+          keys.playerMatches(playerId),
+          keys.playerEvents(playerId)
+        );
+      }
+      router.replace("/players");
+    } catch {
+      setDeleteError("No se pudo eliminar el jugador. Inténtalo de nuevo.");
     }
-    router.replace("/players");
   }
 
   async function handleLinkSelf() {
@@ -139,13 +146,15 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
             >
               <Pencil className="size-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => { setDeleteMounted(true); setDeleteOpen(true); }}
-            >
-              <Trash2 className="size-4 text-destructive" />
-            </Button>
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { setDeleteMounted(true); setDeleteOpen(true); }}
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            )}
           </div>
         }
       />
@@ -161,6 +170,12 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
             </Badge>
           )}
         </div>
+
+        {deleteError && (
+          <p className="text-sm text-destructive text-center" role="alert">
+            {deleteError}
+          </p>
+        )}
 
         {/* Account linking section */}
         {user && (
@@ -296,7 +311,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
           onOpenChange={setEditOpen}
         />
       )}
-      {deleteMounted && (
+      {canDelete && deleteMounted && (
         <ConfirmDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
