@@ -80,16 +80,16 @@ export const matchAll = {
 type SWRKey = readonly (string | undefined)[];
 
 /** Revalidate one or more SWR keys. Pass exact keys or a predicate function. */
-export function invalidate(
+export async function invalidate(
   ...keyPatterns: (SWRKey | ((key: unknown) => boolean))[]
-) {
-  for (const pattern of keyPatterns) {
-    if (typeof pattern === "function") {
-      mutate(pattern, undefined, { revalidate: true });
-    } else {
-      mutate(pattern);
-    }
-  }
+): Promise<void> {
+  await Promise.all(
+    keyPatterns.map((pattern) =>
+      typeof pattern === "function"
+        ? mutate(pattern, undefined, { revalidate: true })
+        : mutate(pattern),
+    ),
+  );
 }
 
 function getSupabase() {

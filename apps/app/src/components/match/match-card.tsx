@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Player, Match, PlayerId } from "@padelaso/domain/types";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { DeletedPlayerAvatar } from "@/components/players/deleted-player-avatar";
 import { getSetWins, dateFormatter } from "@/lib/utils";
+import { getMatchTeamLabel, getMatchTeamSlots } from "@/lib/match-team";
 
 interface MatchCardProps {
   match: Match;
@@ -13,8 +15,8 @@ interface MatchCardProps {
 }
 
 export function MatchCard({ match, playerMap, highlightPlayerId }: MatchCardProps) {
-  const team1Players = match.team1.map((id) => playerMap.get(id));
-  const team2Players = match.team2.map((id) => playerMap.get(id));
+  const team1Slots = getMatchTeamSlots(match.team1, playerMap);
+  const team2Slots = getMatchTeamSlots(match.team2, playerMap);
 
   let creatorName: string | undefined;
   if (match.createdBy) {
@@ -68,15 +70,21 @@ export function MatchCard({ match, playerMap, highlightPlayerId }: MatchCardProp
             {/* Team 1 */}
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-1">
-                {team1Players.map(
-                  (p, i) =>
-                    p && (
-                      <PlayerAvatar key={i} emoji={p.emoji} name={p.name} size="sm" />
-                    )
+                {team1Slots.map(({ id, player }, i) =>
+                  player ? (
+                    <PlayerAvatar
+                      key={id ?? i}
+                      emoji={player.emoji}
+                      name={player.name}
+                      size="sm"
+                    />
+                  ) : (
+                    <DeletedPlayerAvatar key={id ?? `deleted-${i}`} />
+                  ),
                 )}
               </div>
               <div className="text-sm">
-                {team1Players.map((p) => p?.name ?? "?").join(" · ")}
+                {getMatchTeamLabel(team1Slots)}
               </div>
             </div>
 
@@ -90,15 +98,21 @@ export function MatchCard({ match, playerMap, highlightPlayerId }: MatchCardProp
             {/* Team 2 */}
             <div className="flex-1 space-y-1 text-right">
               <div className="flex items-center gap-1 justify-end">
-                {team2Players.map(
-                  (p, i) =>
-                    p && (
-                      <PlayerAvatar key={i} emoji={p.emoji} name={p.name} size="sm" />
-                    )
+                {team2Slots.map(({ id, player }, i) =>
+                  player ? (
+                    <PlayerAvatar
+                      key={id ?? i}
+                      emoji={player.emoji}
+                      name={player.name}
+                      size="sm"
+                    />
+                  ) : (
+                    <DeletedPlayerAvatar key={id ?? `deleted-${i}`} />
+                  ),
                 )}
               </div>
               <div className="text-sm">
-                {team2Players.map((p) => p?.name ?? "?").join(" · ")}
+                {getMatchTeamLabel(team2Slots)}
               </div>
             </div>
           </div>

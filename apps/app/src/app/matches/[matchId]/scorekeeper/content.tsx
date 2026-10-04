@@ -27,6 +27,7 @@ import { getBrowserClient } from "@/lib/supabase";
 import { EVENT_CONFIGS } from "@padelaso/domain/events";
 import { MatchSet, MatchEventType, ScoreToken } from "@padelaso/domain/types";
 import { ShortcutSetupInstructions } from "./shortcut-instructions";
+import { MatchGroupMismatch } from "@/components/match/match-group-mismatch";
 
 export function ScorekeeperContent({
   matchId,
@@ -36,6 +37,7 @@ export function ScorekeeperContent({
   pinned: boolean;
 }) {
   const { match, loaded: matchLoaded } = useMatch(matchId);
+  const { activeGroup } = useGroup();
 
   if (!matchLoaded) {
     return (
@@ -53,6 +55,10 @@ export function ScorekeeperContent({
         </p>
       </MobileShell>
     );
+  }
+
+  if (activeGroup && match.groupId !== activeGroup.id) {
+    return <MatchGroupMismatch groupId={match.groupId} title="Scorekeeper" />;
   }
 
   if (pinned) {
