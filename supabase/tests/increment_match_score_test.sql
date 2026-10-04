@@ -2,6 +2,17 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
+CREATE FUNCTION pg_temp.local_db_connection_string()
+RETURNS text
+LANGUAGE sql
+AS $function$
+  SELECT format(
+    'hostaddr=127.0.0.1 port=%s dbname=%L user=postgres password=postgres options=-csearch_path=',
+    current_setting('port'),
+    current_database()
+  );
+$function$;
+
 SELECT plan(7);
 
 INSERT INTO auth.users (id, email)
@@ -103,7 +114,7 @@ DO $setup$
 BEGIN
   PERFORM extensions.dblink_connect(
     'score_setup',
-    'dbname=' || current_database()
+    pg_temp.local_db_connection_string()
   );
   PERFORM extensions.dblink_exec(
     'score_setup',
@@ -128,11 +139,11 @@ BEGIN
   PERFORM extensions.dblink_disconnect('score_setup');
   PERFORM extensions.dblink_connect(
     'score_one',
-    'dbname=' || current_database()
+    pg_temp.local_db_connection_string()
   );
   PERFORM extensions.dblink_connect(
     'score_two',
-    'dbname=' || current_database()
+    pg_temp.local_db_connection_string()
   );
 END;
 $setup$;
@@ -186,7 +197,7 @@ SELECT is(
   (
     SELECT sets
     FROM extensions.dblink(
-      'dbname=' || current_database(),
+      pg_temp.local_db_connection_string(),
       $query$
         SELECT sets
         FROM public.matches
@@ -204,7 +215,7 @@ BEGIN
   PERFORM extensions.dblink_disconnect('score_two');
   PERFORM extensions.dblink_connect(
     'score_cleanup',
-    'dbname=' || current_database()
+    pg_temp.local_db_connection_string()
   );
   PERFORM extensions.dblink_exec(
     'score_cleanup',
