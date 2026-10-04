@@ -2,6 +2,9 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
+-- The disposable local stack uses trust authentication for loopback traffic.
+-- dblink_connect_u is required because the pgTAP runner is not a superuser;
+-- every target and query below is fixed to this test database.
 CREATE FUNCTION pg_temp.local_db_connection_string()
 RETURNS text
 LANGUAGE sql
@@ -112,7 +115,7 @@ RESET ROLE;
 
 DO $setup$
 BEGIN
-  PERFORM extensions.dblink_connect(
+  PERFORM extensions.dblink_connect_u(
     'score_setup',
     pg_temp.local_db_connection_string()
   );
@@ -137,11 +140,11 @@ BEGIN
     $sql$
   );
   PERFORM extensions.dblink_disconnect('score_setup');
-  PERFORM extensions.dblink_connect(
+  PERFORM extensions.dblink_connect_u(
     'score_one',
     pg_temp.local_db_connection_string()
   );
-  PERFORM extensions.dblink_connect(
+  PERFORM extensions.dblink_connect_u(
     'score_two',
     pg_temp.local_db_connection_string()
   );
@@ -196,14 +199,8 @@ $concurrent$;
 SELECT is(
   (
     SELECT sets
-    FROM extensions.dblink(
-      pg_temp.local_db_connection_string(),
-      $query$
-        SELECT sets
-        FROM public.matches
-        WHERE id = '30000000-0000-0000-0000-000000000012'
-      $query$
-    ) AS result(sets jsonb)
+    FROM public.matches
+    WHERE id = '30000000-0000-0000-0000-000000000012'
   ),
   '[{"team1Score": 2, "team2Score": 0}]'::jsonb,
   'concurrent score increments are both preserved'
@@ -213,7 +210,7 @@ DO $cleanup$
 BEGIN
   PERFORM extensions.dblink_disconnect('score_one');
   PERFORM extensions.dblink_disconnect('score_two');
-  PERFORM extensions.dblink_connect(
+  PERFORM extensions.dblink_connect_u(
     'score_cleanup',
     pg_temp.local_db_connection_string()
   );
