@@ -2,16 +2,17 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
--- The disposable local stack uses trust authentication for loopback traffic.
--- dblink_connect_u is required because the pgTAP runner is not a superuser;
--- every target and query below is fixed to this test database.
+-- Reuse the password-authenticated address through which pgTAP reached the
+-- local database. Loopback uses trust authentication, which dblink rejects
+-- for non-superusers even when a password appears in the connection string.
 CREATE FUNCTION pg_temp.local_db_connection_string()
 RETURNS text
 LANGUAGE sql
 AS $function$
   SELECT format(
-    'hostaddr=127.0.0.1 port=%s dbname=%L user=postgres password=postgres options=-csearch_path=',
-    current_setting('port'),
+    'hostaddr=%s port=%s dbname=%L user=postgres password=postgres options=-csearch_path=',
+    inet_server_addr(),
+    inet_server_port(),
     current_database()
   );
 $function$;
@@ -115,7 +116,7 @@ RESET ROLE;
 
 DO $setup$
 BEGIN
-  PERFORM extensions.dblink_connect_u(
+  PERFORM extensions.dblink_connect(
     'score_setup',
     pg_temp.local_db_connection_string()
   );
@@ -140,11 +141,11 @@ BEGIN
     $sql$
   );
   PERFORM extensions.dblink_disconnect('score_setup');
-  PERFORM extensions.dblink_connect_u(
+  PERFORM extensions.dblink_connect(
     'score_one',
     pg_temp.local_db_connection_string()
   );
-  PERFORM extensions.dblink_connect_u(
+  PERFORM extensions.dblink_connect(
     'score_two',
     pg_temp.local_db_connection_string()
   );
@@ -210,7 +211,7 @@ DO $cleanup$
 BEGIN
   PERFORM extensions.dblink_disconnect('score_one');
   PERFORM extensions.dblink_disconnect('score_two');
-  PERFORM extensions.dblink_connect_u(
+  PERFORM extensions.dblink_connect(
     'score_cleanup',
     pg_temp.local_db_connection_string()
   );
