@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { DeletedPlayerAvatar } from "@/components/players/deleted-player-avatar";
+import { MatchGroupMismatch } from "@/components/match/match-group-mismatch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pencil, Plus, Trash2, Radio } from "lucide-react";
@@ -22,6 +24,7 @@ import { buildPlayerMap, getSetWins } from "@/lib/utils";
 import { MatchVoting } from "@/components/match/match-voting";
 import { VOTE_CONFIGS } from "@padelaso/domain/events";
 import { dateFormatter } from "@/lib/utils";
+import { getMatchTeamLabel, getMatchTeamSlots } from "@/lib/match-team";
 
 const EditMatchDialog = dynamic(() =>
   import("@/components/match/edit-match-dialog").then((m) => ({ default: m.EditMatchDialog }))
@@ -44,7 +47,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   const { match, loaded: matchLoaded } = useMatch(matchId);
   const { events, loaded: eventsLoaded } = useMatchEvents(matchId);
   const votes = useMatchVotes(matchId);
-  const { players } = usePlayers(activeGroup?.id);
+  const { players, loaded: playersLoaded } = usePlayers(activeGroup?.id);
   const currentUserPlayerId =
     players.find((p) => p.userId === user?.id)?.id ?? null;
   const [editOpen, setEditOpen] = useState(false);
@@ -148,9 +151,21 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
     );
   }
 
+  if (activeGroup && match.groupId !== activeGroup.id) {
+    return <MatchGroupMismatch groupId={match.groupId} />;
+  }
+
+  if (!playersLoaded) {
+    return (
+      <MobileShell>
+        <PageHeader title="Partido" back />
+      </MobileShell>
+    );
+  }
+
   const playerMap = buildPlayerMap(players);
-  const team1Players = match.team1.map((id) => playerMap.get(id));
-  const team2Players = match.team2.map((id) => playerMap.get(id));
+  const team1Slots = getMatchTeamSlots(match.team1, playerMap);
+  const team2Slots = getMatchTeamSlots(match.team2, playerMap);
   const { team1Wins, team2Wins } = getSetWins(match.sets);
 
   return (
@@ -190,20 +205,24 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
               {/* Team 1 */}
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  {team1Players.map(
-                    (p, i) =>
-                      p && (
-                        <PlayerAvatar
-                          key={i}
-                          emoji={p.emoji}
-                          name={p.name}
-                          size="md"
-                        />
-                      )
+                  {team1Slots.map(({ id, player }, i) =>
+                    player ? (
+                      <PlayerAvatar
+                        key={id ?? i}
+                        emoji={player.emoji}
+                        name={player.name}
+                        size="md"
+                      />
+                    ) : (
+                      <DeletedPlayerAvatar
+                        key={id ?? `deleted-${i}`}
+                        size="md"
+                      />
+                    ),
                   )}
                 </div>
                 <div className="text-sm">
-                  {team1Players.map((p) => p?.name ?? "?").join(" · ")}
+                  {getMatchTeamLabel(team1Slots)}
                 </div>
               </div>
 
@@ -240,20 +259,24 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
               {/* Team 2 */}
               <div className="flex-1 space-y-2 items-end text-right">
                 <div className="flex items-center gap-2 justify-end">
-                  {team2Players.map(
-                    (p, i) =>
-                      p && (
-                        <PlayerAvatar
-                          key={i}
-                          emoji={p.emoji}
-                          name={p.name}
-                          size="md"
-                        />
-                      )
+                  {team2Slots.map(({ id, player }, i) =>
+                    player ? (
+                      <PlayerAvatar
+                        key={id ?? i}
+                        emoji={player.emoji}
+                        name={player.name}
+                        size="md"
+                      />
+                    ) : (
+                      <DeletedPlayerAvatar
+                        key={id ?? `deleted-${i}`}
+                        size="md"
+                      />
+                    ),
                   )}
                 </div>
                 <div className="text-sm">
-                  {team2Players.map((p) => p?.name ?? "?").join(" · ")}
+                  {getMatchTeamLabel(team2Slots)}
                 </div>
               </div>
             </div>
@@ -264,8 +287,12 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
                 <span className="text-sm text-primary font-medium">
                   🏆{" "}
                   {team1Wins > team2Wins
-                    ? team1Players.map((p) => p?.name).join(" y ")
-                    : team2Players.map((p) => p?.name).join(" y ")}
+                    ? team1Slots
+                        .map(({ player }) => player?.name ?? "Jugador eliminado")
+                        .join(" y ")
+                    : team2Slots
+                        .map(({ player }) => player?.name ?? "Jugador eliminado")
+                        .join(" y ")}
                 </span>
               </div>
             )}

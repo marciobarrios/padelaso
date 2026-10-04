@@ -77,7 +77,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     }
 
     if (activeGroup?.id) {
-      invalidate(
+      await invalidate(
         keys.players(activeGroup.id),
         keys.matches(activeGroup.id),
         keys.allMatchEvents(activeGroup.id),
@@ -92,6 +92,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
       console.warn("[player-delete revalidation]", error);
     }
     router.replace("/players");
+    router.refresh();
   }
 
   async function handleLinkSelf() {
