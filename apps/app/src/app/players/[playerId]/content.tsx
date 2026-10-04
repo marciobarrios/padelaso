@@ -21,6 +21,7 @@ import {
 import { useGroup } from "@/components/group/group-provider";
 import { deletePlayer, linkPlayerToUser, unlinkPlayerFromUser } from "@/lib/supabase-mutations";
 import { useAuth } from "@/components/auth/auth-provider";
+import { revalidateGroupData } from "@/lib/server-actions";
 import { getEventConfig } from "@padelaso/domain/events";
 import { MatchEventType } from "@padelaso/domain/types";
 import { calculatePlayerStats, getPartnerStats } from "@padelaso/domain/stats";
@@ -70,18 +71,27 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
     setDeleteError(null);
     try {
       await deletePlayer(playerId);
-      if (activeGroup?.id) {
-        invalidate(
-          keys.players(activeGroup.id),
-          keys.matches(activeGroup.id),
-          keys.playerMatches(playerId),
-          keys.playerEvents(playerId)
-        );
-      }
-      router.replace("/players");
     } catch {
       setDeleteError("No se pudo eliminar el jugador. Inténtalo de nuevo.");
+      return;
     }
+
+    if (activeGroup?.id) {
+      invalidate(
+        keys.players(activeGroup.id),
+        keys.matches(activeGroup.id),
+        keys.allMatchEvents(activeGroup.id),
+        keys.allMatchVotes(activeGroup.id),
+        keys.playerMatches(playerId),
+        keys.playerEvents(playerId)
+      );
+    }
+    try {
+      await revalidateGroupData();
+    } catch (error) {
+      console.warn("[player-delete revalidation]", error);
+    }
+    router.replace("/players");
   }
 
   async function handleLinkSelf() {

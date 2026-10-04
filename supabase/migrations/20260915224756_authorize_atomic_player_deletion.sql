@@ -1,6 +1,11 @@
 -- Player deletion must go through this transaction so authorization is
 -- checked before match history is rewritten. Direct table deletion would
 -- leave player UUIDs behind in the matches.team1/team2 arrays.
+--
+-- Rollout order: deploy the RPC-calling application before applying this
+-- migration. The new application fails safely while the RPC is unavailable;
+-- applying this first would let an old client rewrite matches before its
+-- now-revoked direct player DELETE fails.
 
 drop policy if exists "Creator can delete player in group" on public.players;
 revoke delete on table public.players from public, anon, authenticated;
