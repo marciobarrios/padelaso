@@ -9,10 +9,13 @@
     "dev:marketing": "turbo --cache-dir=.turbo/cache dev --filter=@padelaso/marketing",
     "build": "turbo --cache-dir=.turbo/cache build",
     "lint": "turbo --cache-dir=.turbo/cache lint",
+    "test": "turbo --cache-dir=.turbo/cache test",
+    "test:db": "supabase test db",
     "typecheck": "turbo --cache-dir=.turbo/cache typecheck",
-    "check": "turbo --cache-dir=.turbo/cache lint typecheck build"
+    "check": "turbo --cache-dir=.turbo/cache lint typecheck build test && pnpm test:db"
   },
   "devDependencies": {
+    "supabase": "2.117.0",
     "turbo": "^2.8.0",
     "typescript": "^5"
   }

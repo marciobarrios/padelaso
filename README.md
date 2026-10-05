@@ -16,7 +16,8 @@ packages/
 ├── eslint-config/          # Shared Next.js ESLint configuration
 └── typescript-config/      # Shared TypeScript configuration
 supabase/
-└── migrations/             # Shared database schema history
+├── migrations/             # Shared database schema history
+└── tests/                  # pgTAP policy and mutation coverage
 ```
 
 The product uses **Next.js 16**, **React 19**, **TypeScript**, **Supabase**,
@@ -30,6 +31,7 @@ on Vercel while Turborepo coordinates local and CI tasks.
 - Node.js 20 or newer
 - pnpm 11.20.0 (pinned in the root `package.json`)
 - A Supabase project for the authenticated application
+- Docker or Podman for the local Supabase test stack
 
 Install all workspaces:
 
@@ -56,8 +58,21 @@ pnpm dev:all             # Both applications
 pnpm lint                # Lint every relevant workspace
 pnpm typecheck           # Type-check the dependency graph
 pnpm build               # Build every workspace
-pnpm check               # Lint, type-check, and build
+pnpm test                # Run domain and component behavior tests
+pnpm test:db             # Run pgTAP against the local Supabase stack
+pnpm check               # Lint, type-check, build, and run every test
 ```
+
+Database tests require the disposable local stack to be running:
+
+```bash
+pnpm exec supabase start
+pnpm test:db
+pnpm exec supabase stop
+```
+
+`pnpm check` includes `pnpm test:db`, so start the local stack before running the
+complete gate. CI creates and tears down its own stack automatically.
 
 Run a single workspace directly when needed:
 
