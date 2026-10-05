@@ -126,42 +126,23 @@ export async function updatePlayer(
 }
 
 export async function deletePlayer(playerId: PlayerId) {
-  // Remove this player from any match team arrays (no FK cascade for array elements)
-  const { data: matches } = await supabase()
-    .from("matches")
-    .select("id, team1, team2")
-    .or(`team1.cs.{${playerId}},team2.cs.{${playerId}}`);
+  const { data, error } = await supabase().rpc("delete_player_atomic", {
+    p_player_id: playerId,
+  });
+  if (error) throw error;
 
-  if (matches) {
-    const updates = matches
-      .map((match) => {
-        const payload: Record<string, PlayerId[]> & { id: string } = { id: match.id };
-        if ((match.team1 as PlayerId[]).includes(playerId)) {
-          payload.team1 = (match.team1 as PlayerId[]).filter((id) => id !== playerId);
-        }
-        if ((match.team2 as PlayerId[]).includes(playerId)) {
-          payload.team2 = (match.team2 as PlayerId[]).filter((id) => id !== playerId);
-        }
-        return payload;
-      })
-      .filter((u) => u.team1 !== undefined || u.team2 !== undefined);
-
-    await Promise.all(
-      updates.map((u) =>
-        supabase()
-          .from("matches")
-          .update({ team1: u.team1, team2: u.team2 })
-          .eq("id", u.id)
-      )
-    );
+  const result = data as Record<string, unknown> | null;
+  if (
+    result?.player_id !== playerId ||
+    typeof result.updated_matches !== "number"
+  ) {
+    throw new Error("Player deletion returned an invalid result");
   }
 
-  // match_events with this player_id will cascade delete via FK
-  const { error } = await supabase()
-    .from("players")
-    .delete()
-    .eq("id", playerId);
-  if (error) throw error;
+  return {
+    playerId: result.player_id as PlayerId,
+    updatedMatches: result.updated_matches,
+  };
 }
 
 // ---------- Matches ----------
