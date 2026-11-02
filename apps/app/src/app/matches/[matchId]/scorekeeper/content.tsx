@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -427,8 +428,11 @@ function PinnedScorer({ matchId }: { matchId: string }) {
           () => invalidate(keys.match(matchId))
         )
         .subscribe((status, err) => {
-          if (status === "SUBSCRIBED") return;
+          if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
           console.warn("[pinned realtime]", status, err);
+          Sentry.captureException(err ?? new Error("Realtime subscription failed"), {
+            tags: { operation: "pinned-realtime", status },
+          });
         });
     }
     function close() {

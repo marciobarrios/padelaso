@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -90,6 +91,7 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
       await revalidateGroupData();
     } catch (error) {
       console.warn("[player-delete revalidation]", error);
+      Sentry.captureException(error, { tags: { operation: "player-delete-revalidation" } });
     }
     router.replace("/players");
     router.refresh();

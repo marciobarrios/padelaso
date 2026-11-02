@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -82,8 +83,11 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
           }
         )
         .subscribe((status, err) => {
-          if (status === "SUBSCRIBED") return;
+          if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
           console.warn("[match-live realtime]", status, err);
+          Sentry.captureException(err ?? new Error("Realtime subscription failed"), {
+            tags: { operation: "match-live-realtime", status },
+          });
         });
     }
     function close() {
