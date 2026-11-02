@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 
 export interface VerifiedToken {
@@ -61,6 +62,7 @@ export async function requireActiveMatch(
     verified = await verifyTokenAndGetMatch(token);
   } catch (error) {
     console.error("[shortcut token authorization]", error);
+    Sentry.captureException(error, { tags: { operation: "shortcut-token-authorization" } });
     return Response.json(
       {
         ok: false,
