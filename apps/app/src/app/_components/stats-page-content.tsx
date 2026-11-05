@@ -35,6 +35,7 @@ import { GeneralTab } from "@/app/stats/_components/general-tab";
 import { ParejasTab } from "@/app/stats/_components/parejas-tab";
 import { EventosTab } from "@/app/stats/_components/eventos-tab";
 import { StatsPageSkeleton } from "@/components/layout/skeletons";
+import { PlayerCardDialog } from "@/components/players/player-card-dialog";
 
 export function StatsPageContent() {
   const { activeGroup } = useGroup();
@@ -152,7 +153,13 @@ export function StatsPageContent() {
   }
 
   return (
-    <>
+    <PlayerCardDialog
+      key={activeGroup?.id}
+      players={players}
+      matches={timeFilteredMatches}
+      events={timeFilteredEvents}
+      period={timeRange === "all" ? "Todo el historial" : `Últimos ${timeRange === "30d" ? 30 : 90} días`}
+    >
       <PageHeader
         title="Stats"
         action={
@@ -228,6 +235,6 @@ export function StatsPageContent() {
           </TabsContent>
         </Tabs>
       </div>
-    </>
+    </PlayerCardDialog>
   );
 }

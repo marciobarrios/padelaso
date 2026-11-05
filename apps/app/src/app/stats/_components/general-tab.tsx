@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { PlayerCardTrigger } from "@/components/players/player-card-dialog";
 import { MatchCard } from "@/components/match/match-card";
 import { getEventConfig } from "@padelaso/domain/events";
 import {
@@ -66,57 +67,59 @@ export function GeneralTab({
     <div className="space-y-2">
       {entries.map(({ player, stats }, i) => (
         <Card key={player.id}>
-          <CardContent className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-2.5 p-3 sm:gap-x-3">
-            <span className="w-5 text-center text-lg font-heading font-bold text-muted-foreground sm:w-6">
-              {provisional ? "—" : i + 1}
-            </span>
-            <PlayerAvatar emoji={player.emoji} size="sm" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{player.name}</p>
-              <div className="flex min-w-0 items-center gap-2">
-                <p className="truncate text-xs text-muted-foreground">
-                  {stats.wins}V {stats.losses}D · {stats.matches} partidos
-                </p>
-                <RecentFormDots playerId={player.id} matches={matches} />
+          <CardContent className="p-0">
+            <PlayerCardTrigger player={player} className="grid w-full grid-cols-[auto_auto_minmax(0,1fr)_auto] gap-x-2.5 p-3 sm:gap-x-3">
+              <span className="w-5 text-center text-lg font-heading font-bold text-muted-foreground sm:w-6">
+                {provisional ? "—" : i + 1}
+              </span>
+              <PlayerAvatar emoji={player.emoji} size="sm" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{player.name}</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-xs text-muted-foreground">
+                    {stats.wins}V {stats.losses}D · {stats.matches} partidos
+                  </p>
+                  <RecentFormDots playerId={player.id} matches={matches} />
+                </div>
               </div>
-            </div>
-            <div className="ml-0.5 shrink-0 text-right">
-              <p className="flex items-baseline justify-end gap-1 tabular-nums">
-                <span className="text-xs text-muted-foreground">Índice</span>
-                <span className="text-base font-semibold text-foreground">
-                  {Math.round(stats.rankingScore * 100)}
-                </span>
-              </p>
-              <p className="flex items-center justify-end gap-1.5 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                <span
-                  aria-label={`${Math.round(stats.winRate * 100)}% de victorias`}
-                >
-                  <span aria-hidden="true">
-                    {Math.round(stats.winRate * 100)}%V
+              <div className="ml-0.5 shrink-0 text-right">
+                <p className="flex items-baseline justify-end gap-1 tabular-nums">
+                  <span className="text-xs text-muted-foreground">Índice</span>
+                  <span className="text-base font-semibold text-foreground">
+                    {Math.round(stats.rankingScore * 100)}
                   </span>
-                </span>
-                {stats.currentStreak !== 0 && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span
-                      aria-label={`Racha de ${Math.abs(stats.currentStreak)} ${
-                        stats.currentStreak > 0 ? "victorias" : "derrotas"
-                      }`}
-                      className={
-                        stats.currentStreak > 0
-                          ? "text-primary"
-                          : "text-destructive"
-                      }
-                    >
-                      <span aria-hidden="true">
-                        {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
-                        {Math.abs(stats.currentStreak)}
-                      </span>
+                </p>
+                <p className="flex items-center justify-end gap-1.5 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                  <span
+                    aria-label={`${Math.round(stats.winRate * 100)}% de victorias`}
+                  >
+                    <span aria-hidden="true">
+                      {Math.round(stats.winRate * 100)}%V
                     </span>
-                  </>
-                )}
-              </p>
-            </div>
+                  </span>
+                  {stats.currentStreak !== 0 && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span
+                        aria-label={`Racha de ${Math.abs(stats.currentStreak)} ${
+                          stats.currentStreak > 0 ? "victorias" : "derrotas"
+                        }`}
+                        className={
+                          stats.currentStreak > 0
+                            ? "text-primary"
+                            : "text-destructive"
+                        }
+                      >
+                        <span aria-hidden="true">
+                          {stats.currentStreak > 0 ? "🔥" : "💀"}{" "}
+                          {Math.abs(stats.currentStreak)}
+                        </span>
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+            </PlayerCardTrigger>
           </CardContent>
         </Card>
       ))}
@@ -129,7 +132,7 @@ export function GeneralTab({
       {selectedPlayer && selectedPlayerStats && selectedPlayerObj && (
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-3 mb-3">
+            <PlayerCardTrigger player={selectedPlayerObj} className="mb-3 w-full gap-3">
               <PlayerAvatar emoji={selectedPlayerObj.emoji} size="md" />
               <div>
                 <p className="font-medium">{selectedPlayerObj.name}</p>
@@ -137,7 +140,7 @@ export function GeneralTab({
                   Estadísticas personales
                 </p>
               </div>
-            </div>
+            </PlayerCardTrigger>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
                 <p className="text-2xl font-heading font-bold">
@@ -235,10 +238,10 @@ export function GeneralTab({
                     <span className="text-lg font-heading font-bold w-6 text-center text-muted-foreground">
                       {i + 1}
                     </span>
-                    <PlayerAvatar emoji={p.emoji} size="sm" />
-                    <p className="flex-1 font-medium text-sm truncate">
-                      {p.name}
-                    </p>
+                    <PlayerCardTrigger player={p} className="flex-1 gap-3">
+                      <PlayerAvatar emoji={p.emoji} size="sm" />
+                      <span className="truncate text-sm font-medium">{p.name}</span>
+                    </PlayerCardTrigger>
                     <Badge variant="secondary">
                       {mvp.count} voto{mvp.count !== 1 ? "s" : ""}
                     </Badge>
@@ -283,7 +286,7 @@ export function GeneralTab({
                             className="flex items-center justify-between"
                           >
                             {!selectedPlayer ? (
-                              <div className="flex items-center gap-1.5">
+                              <PlayerCardTrigger player={player} className="gap-1.5">
                                 <PlayerAvatar
                                   emoji={player.emoji}
                                   size="sm"
@@ -292,7 +295,7 @@ export function GeneralTab({
                                 <span className="text-xs truncate">
                                   {player.name}
                                 </span>
-                              </div>
+                              </PlayerCardTrigger>
                             ) : (
                               <span />
                             )}

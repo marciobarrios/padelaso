@@ -7,7 +7,8 @@
     "./types": "./src/types.ts",
     "./events": "./src/events.ts",
     "./matches": "./src/matches.ts",
-    "./stats": "./src/stats.ts"
+    "./stats": "./src/stats.ts",
+    "./player-card": "./src/player-card.ts"
   },
   "scripts": {
     "build": "tsc",
