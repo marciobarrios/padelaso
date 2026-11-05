@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { PlayerCardTrigger } from "@/components/players/player-card-dialog";
 import { getEventConfig } from "@padelaso/domain/events";
 import type {
   EventLeaderboard,
@@ -89,37 +90,39 @@ export function EventosTab({
         return (
           <Card key={lb.type}>
             <CardContent className="p-0">
-              <button
-                className="w-full p-3 flex items-center gap-3 text-left"
-                onClick={() =>
-                  setExpandedEvent(isExpanded ? null : lb.type)
-                }
-              >
-                <span className="text-2xl">{config.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{config.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {lb.totalCount} total
-                  </p>
-                </div>
+              <div className="flex items-center gap-3 p-3">
+                <button
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
+                  aria-expanded={isExpanded}
+                  aria-label={`Clasificación de ${config.label}`}
+                  onClick={() => setExpandedEvent(isExpanded ? null : lb.type)}
+                >
+                  <span className="text-2xl">{config.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">{config.label}</span>
+                    <span className="block text-xs text-muted-foreground">{lb.totalCount} total</span>
+                  </span>
+                  {isExpanded ? (
+                    <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                  )}
+                </button>
                 {topPlayer && (
-                  <div className="flex items-center gap-1.5">
+                  <PlayerCardTrigger player={topPlayer} className="max-w-1/2 gap-1.5">
                     <PlayerAvatar emoji={topPlayer.emoji} size="sm" />
                     <span className="text-sm font-medium truncate">
                       {topPlayer.name}
                     </span>
                     <CountRate entry={top} />
-                  </div>
+                  </PlayerCardTrigger>
                 )}
-                {isExpanded ? (
-                  <ChevronUp className="size-4 text-muted-foreground shrink-0" />
-                ) : (
-                  <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-                )}
-              </button>
+              </div>
 
               {/* Expanded — record + full player list */}
               <div
+                inert={!isExpanded}
+                aria-hidden={!isExpanded}
                 className="grid transition-[grid-template-rows] duration-200 ease-out"
                 style={{
                   gridTemplateRows: isExpanded ? "1fr" : "0fr",
@@ -131,9 +134,9 @@ export function EventosTab({
                       <span aria-hidden>🏆</span>
                       <span>
                         Récord:{" "}
-                        <span className="font-medium text-foreground">
+                        <PlayerCardTrigger player={recordPlayer} className="inline-flex min-h-0 font-medium text-foreground underline underline-offset-2">
                           {recordPlayer.name}
-                        </span>{" "}
+                        </PlayerCardTrigger>{" "}
                         · {record.count} en un partido (
                         {formatRecordDate(record.date)})
                       </span>
@@ -151,14 +154,10 @@ export function EventosTab({
                           <span className="text-sm font-heading font-bold w-5 text-center text-muted-foreground">
                             {idx + 1}
                           </span>
-                          <PlayerAvatar
-                            emoji={p.emoji}
-                            size="sm"
-                            className="size-6 text-sm"
-                          />
-                          <span className="flex-1 text-sm truncate">
-                            {p.name}
-                          </span>
+                          <PlayerCardTrigger player={p} className="flex-1 gap-3">
+                            <PlayerAvatar emoji={p.emoji} size="sm" className="size-6 text-sm" />
+                            <span className="truncate text-sm">{p.name}</span>
+                          </PlayerCardTrigger>
                           <CountRate entry={entry} />
                         </div>
                       );

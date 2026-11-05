@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { PlayerTradingCard } from "@/components/players/player-trading-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -172,17 +173,16 @@ export function PlayerProfileContent({ playerId }: { playerId: string }) {
         }
       />
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Avatar and name */}
-        <div className="flex flex-col items-center gap-2">
-          <PlayerAvatar emoji={player.emoji} size="lg" />
-          <h2 className="text-xl font-bold">{player.name}</h2>
-          {player.userId && (
+        <PlayerTradingCard player={player} matches={playerMatches} events={playerEvents} />
+
+        {player.userId && (
+          <div className="flex justify-center">
             <Badge variant="secondary" className="gap-1">
               <UserCheck className="size-3" />
               Cuenta vinculada
             </Badge>
-          )}
-        </div>
+          </div>
+        )}
 
         {deleteError && (
           <p className="text-sm text-destructive text-center" role="alert">

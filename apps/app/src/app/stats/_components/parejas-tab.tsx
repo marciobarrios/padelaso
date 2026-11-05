@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { PlayerCardTrigger } from "@/components/players/player-card-dialog";
 import type { PairStats, HeadToHeadStats } from "@padelaso/domain/stats";
 import type { Player, PlayerId } from "@padelaso/domain/types";
 
@@ -60,14 +61,15 @@ export function ParejasTab({
                     <span className="text-lg font-heading font-bold w-6 text-center text-muted-foreground">
                       {i + 1}
                     </span>
-                    <div className="flex -space-x-2">
-                      <PlayerAvatar emoji={p1.emoji} size="sm" />
-                      <PlayerAvatar emoji={p2.emoji} size="sm" />
-                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {p1.name} y {p2.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-x-1">
+                        {[p1, p2].map((player) => (
+                          <PlayerCardTrigger key={player.id} player={player} className="gap-1.5">
+                            <PlayerAvatar emoji={player.emoji} size="sm" />
+                            <span className="truncate text-sm font-medium">{player.name}</span>
+                          </PlayerCardTrigger>
+                        ))}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {pair.wins}V {pair.losses}D · {pair.matches}{" "}
                         partidos
@@ -121,40 +123,26 @@ export function ParejasTab({
                   <CardContent className="p-3 space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1.5">
-                        <div className="flex -space-x-1.5">
-                          <PlayerAvatar
-                            emoji={p1a.emoji}
-                            size="sm"
-                            className="size-6 text-xs"
-                          />
-                          <PlayerAvatar
-                            emoji={p1b.emoji}
-                            size="sm"
-                            className="size-6 text-xs"
-                          />
+                        <div className="min-w-0">
+                          {[p1a, p1b].map((player) => (
+                            <PlayerCardTrigger key={player.id} player={player} className="max-w-28 gap-1.5">
+                              <PlayerAvatar emoji={player.emoji} size="sm" className="size-6 text-xs" />
+                              <span className="truncate text-xs font-medium">{player.name}</span>
+                            </PlayerCardTrigger>
+                          ))}
                         </div>
-                        <span className="font-medium text-xs truncate max-w-[80px]">
-                          {p1a.name} y {p1b.name}
-                        </span>
                       </div>
                       <span className="text-xs text-muted-foreground font-medium">
                         {h2h.pair1Wins} - {h2h.pair2Wins}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-xs truncate max-w-[80px] text-right">
-                          {p2a.name} y {p2b.name}
-                        </span>
-                        <div className="flex -space-x-1.5">
-                          <PlayerAvatar
-                            emoji={p2a.emoji}
-                            size="sm"
-                            className="size-6 text-xs"
-                          />
-                          <PlayerAvatar
-                            emoji={p2b.emoji}
-                            size="sm"
-                            className="size-6 text-xs"
-                          />
+                        <div className="min-w-0">
+                          {[p2a, p2b].map((player) => (
+                            <PlayerCardTrigger key={player.id} player={player} className="max-w-28 gap-1.5">
+                              <PlayerAvatar emoji={player.emoji} size="sm" className="size-6 text-xs" />
+                              <span className="truncate text-xs font-medium">{player.name}</span>
+                            </PlayerCardTrigger>
+                          ))}
                         </div>
                       </div>
                     </div>
