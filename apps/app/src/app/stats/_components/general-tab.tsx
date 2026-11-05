@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PlayerAvatar } from "@/components/players/player-avatar";
@@ -56,6 +57,7 @@ export function GeneralTab({
     : null;
   const establishedStats = allStats.filter(({ stats }) => !stats.provisional);
   const provisionalStats = allStats.filter(({ stats }) => stats.provisional);
+  const visibleAwards = funAwards.filter((award) => award.leaders.length > 0);
 
   const renderRanking = (
     entries: typeof allStats,
@@ -160,62 +162,6 @@ export function GeneralTab({
         </Card>
       )}
 
-      {/* Logros */}
-      {funAwards.some((a) => a.leaders.length > 0) && (
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Logros
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {funAwards.map((award) => {
-              if (award.leaders.length === 0) return null;
-              return (
-                <Card key={award.title}>
-                  <CardContent className="p-3 text-center space-y-1.5">
-                    <p className="text-2xl">{award.emoji}</p>
-                    <p className="text-xs font-medium">{award.title}</p>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {getAwardDescription(award.events)}
-                    </p>
-                    <div className="space-y-1">
-                      {award.leaders.map((leader) => {
-                        const player = playerMap.get(leader.playerId);
-                        if (!player) return null;
-                        return (
-                          <div
-                            key={leader.playerId}
-                            className="flex items-center justify-between"
-                          >
-                            {!selectedPlayer ? (
-                              <div className="flex items-center gap-1.5">
-                                <PlayerAvatar
-                                  emoji={player.emoji}
-                                  size="sm"
-                                  className="size-5 text-xs"
-                                />
-                                <span className="text-xs truncate">
-                                  {player.name}
-                                </span>
-                              </div>
-                            ) : (
-                              <span />
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {leader.count}{" "}
-                              {leader.count === 1 ? "vez" : "veces"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Win rate leaderboard OR player matches */}
       {selectedPlayer ? (
         <div>
@@ -285,6 +231,68 @@ export function GeneralTab({
             })}
           </div>
         </div>
+      )}
+
+      {/* Logros */}
+      {visibleAwards.length > 0 && (
+        <details className="group/awards border-t border-border">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md py-3 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+            <h2 className="text-sm font-medium uppercase tracking-wider">
+              Logros
+            </h2>
+            <span className="text-xs tabular-nums">({visibleAwards.length})</span>
+            <ChevronDown
+              aria-hidden="true"
+              className="ml-auto size-4 shrink-0 group-open/awards:rotate-180"
+            />
+          </summary>
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            {visibleAwards.map((award) => {
+              return (
+                <Card key={award.title}>
+                  <CardContent className="p-3 text-center space-y-1.5">
+                    <p className="text-2xl">{award.emoji}</p>
+                    <p className="text-xs font-medium">{award.title}</p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {getAwardDescription(award.events)}
+                    </p>
+                    <div className="space-y-1">
+                      {award.leaders.map((leader) => {
+                        const player = playerMap.get(leader.playerId);
+                        if (!player) return null;
+                        return (
+                          <div
+                            key={leader.playerId}
+                            className="flex items-center justify-between"
+                          >
+                            {!selectedPlayer ? (
+                              <div className="flex items-center gap-1.5">
+                                <PlayerAvatar
+                                  emoji={player.emoji}
+                                  size="sm"
+                                  className="size-5 text-xs"
+                                />
+                                <span className="text-xs truncate">
+                                  {player.name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span />
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {leader.count}{" "}
+                              {leader.count === 1 ? "vez" : "veces"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </details>
       )}
     </div>
   );
