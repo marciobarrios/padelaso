@@ -191,24 +191,41 @@ export function GeneralTab({
           </p>
           {establishedStats.length > 0 && renderRanking(establishedStats, false)}
           {provisionalStats.length > 0 && (
-            <div className={establishedStats.length > 0 ? "mt-5" : undefined}>
-              <p className="text-xs font-medium text-muted-foreground mb-2">
-                Provisionales · menos de {minimumMatchesForRanking}{" "}
-                {minimumMatchesForRanking === 1 ? "partido" : "partidos"}
-              </p>
-              {renderRanking(provisionalStats, true)}
-            </div>
+            <details
+              className={`group/provisional border-t border-border${establishedStats.length > 0 ? " mt-5" : ""}`}
+            >
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md py-3 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 text-xs font-medium">
+                  Provisionales · menos de {minimumMatchesForRanking}{" "}
+                  {minimumMatchesForRanking === 1 ? "partido" : "partidos"}
+                </span>
+                <span className="text-xs tabular-nums">
+                  ({provisionalStats.length})
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="ml-auto size-4 shrink-0 group-open/provisional:rotate-180"
+                />
+              </summary>
+              <div className="pt-1">{renderRanking(provisionalStats, true)}</div>
+            </details>
           )}
         </div>
       )}
 
       {/* MVP Rankings */}
       {mvpRankings.length > 0 && (
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            🏆 MVP
-          </h2>
-          <div className="space-y-2">
+        <details className="group/mvp border-t border-border">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md py-3 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+            <h2 className="text-sm font-medium uppercase tracking-wider">
+              🏆 MVP
+            </h2>
+            <ChevronDown
+              aria-hidden="true"
+              className="ml-auto size-4 shrink-0 group-open/mvp:rotate-180"
+            />
+          </summary>
+          <div className="space-y-2 pt-1">
             {mvpRankings.slice(0, 3).map((mvp, i) => {
               const p = playerMap.get(mvp.playerId);
               if (!p) return null;
@@ -230,7 +247,7 @@ export function GeneralTab({
               );
             })}
           </div>
-        </div>
+        </details>
       )}
 
       {/* Logros */}
