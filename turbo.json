@@ -33,6 +33,25 @@
         "SENTRY_PROJECT",
         "SENTRY_AUTH_TOKEN"
       ]
+    },
+    "@padelaso/mobile#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "env": [
+        "EXPO_PUBLIC_APP_ENV",
+        "EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+      ],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+    },
+    "@padelaso/mobile#dev": {
+      "cache": false,
+      "persistent": true,
+      "env": [
+        "EXPO_PUBLIC_APP_ENV",
+        "EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+      ]
     }
   }
 }

@@ -1,0 +1,1 @@
+Geist Regular and Geist Mono Regular are unmodified TTF assets from Vercel `geist@1.9.1`, distributed under the included SIL Open Font License (`OFL.txt`). Vendored assets let the native app load fonts offline without importing the package's Next.js runtime entrypoints.

@@ -54,3 +54,13 @@ next-env.d.ts
 
 # playwright mcp (per-session debug snapshots and console logs)
 .playwright-mcp/
+
+# Expo generated projects and local state
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/expo-env.d.ts
+!apps/mobile/.env.example
+*.keystore
+*.mobileprovision
+*.p12
