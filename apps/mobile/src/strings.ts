@@ -1,0 +1,27 @@
+export const es = {
+  app: "Padelaso",
+  home: "Partidos",
+  details: "Partido de ejemplo",
+  settings: "Configuración",
+  subtitle: "La pista es vuestra.",
+  sample: "Datos de ejemplo",
+  sampleHint:
+    "Explora un partido de muestra. Tus partidos reales llegarán al conectar tu cuenta.",
+  openMatch: "Ver partido",
+  court: "Pista 3",
+  result: "Resultado por sets",
+  events: "Momentos del partido",
+  loading: "Preparando la pista…",
+  error: "No hemos podido abrir esta pantalla.",
+  retry: "Reintentar",
+  back: "Volver a partidos",
+  missing: "Este partido no está disponible.",
+  environment: "Entorno",
+  development: "Desarrollo",
+  test: "Pruebas",
+  backendReady: "Backend configurado",
+  backendSample: "Modo de ejemplo sin conexión",
+  backendInvalid: "Revisa la configuración pública del entorno.",
+  settingsHint:
+    "Esta versión muestra datos de ejemplo. La conexión de cuentas y partidos se añadirá en una próxima versión.",
+} as const;

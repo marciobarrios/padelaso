@@ -2,15 +2,15 @@
 
 Padelaso is a playful match tracker for groups of friends who play padel. This
 repository is a pnpm/Turborepo monorepo containing the public marketing site,
-the authenticated product, and framework-neutral game logic that can later be
-used by mobile clients.
+the authenticated product, an Expo mobile app, and shared framework-neutral game logic.
 
 ## Workspace
 
 ```text
 apps/
 ├── app/                    # Next.js product → app.padelaso.com
-└── marketing/              # Next.js landing page → padelaso.com
+├── marketing/              # Next.js landing page → padelaso.com
+└── mobile/                 # Expo iOS/Android development client
 packages/
 ├── domain/                 # Types, events, scoring and statistics
 ├── eslint-config/          # Shared Next.js ESLint configuration
@@ -28,7 +28,7 @@ on Vercel while Turborepo coordinates local and CI tasks.
 
 ### Prerequisites
 
-- Node.js 20 or newer
+- Node.js 22.13 or newer (Node 22 LTS recommended)
 - pnpm 11.20.0 (pinned in the root `package.json`)
 - A Supabase project for the authenticated application
 - Docker or Podman for the local Supabase test stack
@@ -54,7 +54,10 @@ use the administrative client. Never expose it with a `NEXT_PUBLIC_` prefix.
 ```bash
 pnpm dev                 # Product at http://localhost:3000
 pnpm dev:marketing       # Marketing at http://localhost:3001
-pnpm dev:all             # Both applications
+pnpm dev:all             # All applications, including Metro
+pnpm dev:mobile          # Metro for an installed native development client
+pnpm mobile:ios          # Compile/install an iOS development client
+pnpm mobile:android      # Compile/install an Android development client
 pnpm lint                # Lint every relevant workspace
 pnpm typecheck           # Type-check the dependency graph
 pnpm build               # Build every workspace
@@ -98,8 +101,9 @@ import { calculatePlayerStats } from "@padelaso/domain/stats";
 ```
 
 Browser utilities, database mapping, authentication, and UI components remain
-inside `apps/app`. A future mobile app should be added as `apps/mobile` and can
-consume the domain package without inheriting web-only code.
+inside `apps/app`. The Expo app in `apps/mobile` consumes this package directly without web runtime imports.
+See [the mobile setup guide](apps/mobile/README.md) for native toolchains,
+development builds, backend settings, and native-source ownership.
 
 ## Deployment
 
