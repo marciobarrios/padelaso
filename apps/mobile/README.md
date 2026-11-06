@@ -6,6 +6,13 @@ No Next.js components, server routes or web environment files are imported.
 The current screens use offline sample data, including when a backend is
 configured. Authentication and real data access belong to MAR-47/MAR-45.
 
+The MAR-44 feasibility prototype adds an Apple Watch companion and a native
+test setup form in **Configuración**. See [WATCH-SPIKE.md](WATCH-SPIKE.md) for
+first-time Apple account/device setup, signing and TestFlight instructions.
+The locally signed build passed the locked-iPhone scoring/event experiment.
+See [WATCH-VALIDATION.md](WATCH-VALIDATION.md) for captured evidence and the
+remaining TestFlight and resilience checks.
+
 ## Pinned toolchain
 
 - Expo SDK **58.0.23**, React Native **0.88.1**, React **19.3.0**
@@ -155,7 +162,7 @@ hand-written sources outside them:
 
 - `modules/`: app-owned Expo modules, Swift/Kotlin and module configuration
 - `plugins/`: Expo config plugins and templates for generated-project changes
-- `targets/`: future Watch target and Swift source (target proof is MAR-44)
+- `targets/`: Watch target, Swift source and shared native probe code (MAR-44)
 
 Create a module with `pnpm dlx create-expo-module@latest --local` from this app
 directory; commit its complete source/configuration. Expo autolinks local
