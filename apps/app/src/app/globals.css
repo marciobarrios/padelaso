@@ -4,6 +4,24 @@
 
 @custom-variant dark (&:is([data-theme$="-dark"] *));
 
+html.home-pull-to-refresh,
+.home-pull-to-refresh body,
+.home-pull-to-refresh main {
+  overscroll-behavior-y: none;
+}
+
+.home-refresh-indicator {
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-refresh-indicator {
+    transform: none !important;
+    transition-property: opacity;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

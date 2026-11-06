@@ -133,42 +133,52 @@ export function useGroupMembers(groupId: GroupId | undefined): GroupMember[] {
 
 export function usePlayers(
   groupId?: GroupId
-): { players: Player[]; loaded: boolean } {
-  const { data, isLoading } = useSWR(
+): { players: Player[]; loaded: boolean; refresh: () => Promise<unknown> } {
+  const fetchPlayers = async () => {
+    const { data, error } = await getSupabase()
+      .from("players")
+      .select("*")
+      .eq("group_id", groupId!)
+      .order("name");
+    if (error) throw error;
+    return data?.map(mapPlayer) ?? [];
+  };
+  const { data, isLoading, mutate } = useSWR(
     groupId ? keys.players(groupId) : null,
-    async () => {
-      const { data } = await getSupabase()
-        .from("players")
-        .select("*")
-        .eq("group_id", groupId!)
-        .order("name");
-      return data?.map(mapPlayer) ?? [];
-    }
+    fetchPlayers
   );
 
-  return { players: data ?? [], loaded: !isLoading };
+  return {
+    players: data ?? [], loaded: !isLoading,
+    refresh: () => groupId ? mutate(fetchPlayers(), { revalidate: false }) : Promise.resolve(),
+  };
 }
 
 export function useMatches(
   groupId?: GroupId
-): { matches: Match[]; loaded: boolean } {
-  const { data, isLoading } = useSWR(
+): { matches: Match[]; loaded: boolean; refresh: () => Promise<unknown> } {
+  const fetchMatches = async () => {
+    const { data, error } = await getSupabase()
+      .from("matches")
+      .select("*")
+      .eq("group_id", groupId!)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data?.map(mapMatch) ?? [];
+  };
+  const { data, isLoading, mutate } = useSWR(
     groupId ? keys.matches(groupId) : null,
-    async () => {
-      const { data } = await getSupabase()
-        .from("matches")
-        .select("*")
-        .eq("group_id", groupId!)
-        .order("created_at", { ascending: false });
-      return data?.map(mapMatch) ?? [];
-    },
+    fetchMatches,
     {
       dedupingInterval: 0,
       revalidateOnMount: true,
     }
   );
 
-  return { matches: data ?? [], loaded: !isLoading };
+  return {
+    matches: data ?? [], loaded: !isLoading,
+    refresh: () => groupId ? mutate(fetchMatches(), { revalidate: false }) : Promise.resolve(),
+  };
 }
 
 export function useMatch(id: MatchId): {
