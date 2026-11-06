@@ -33,6 +33,17 @@
       "ios": {
         "simulator": true
       }
+    },
+    "watch-testflight": {
+      "developmentClient": false,
+      "distribution": "store",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "test"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
     }
   }
 }

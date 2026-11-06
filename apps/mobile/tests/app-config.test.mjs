@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createRequire } from "node:module";
 
 async function withEnvironment(values, operation) {
   const previous = Object.fromEntries(
@@ -57,4 +58,20 @@ test("build config blocks unexpected public variables", async () => {
       );
     },
   );
+});
+
+test("Watch target follows the phone signing team and bundle namespace", async () => {
+  const require = createRequire(import.meta.url);
+  const targetConfig = require("../targets/watch/expo-target.config.js");
+  for (const environment of ["development", "test"]) {
+    await withEnvironment({ EXPO_PUBLIC_APP_ENV: environment, APPLE_TEAM_ID: "TESTTEAM01", IOS_BUILD_NUMBER: "7" }, async () => {
+      const config = (await import(`../app.config.ts?watch-${environment}`)).default;
+      const target = targetConfig(config);
+      assert.equal(config.ios.appleTeamId, "TESTTEAM01");
+      assert.equal(config.ios.buildNumber, "7");
+      assert.equal(target.appleTeamId, "TESTTEAM01");
+      assert.equal(target.bundleIdentifier, ".watch");
+      assert.equal(target.type, "watch");
+    });
+  }
 });

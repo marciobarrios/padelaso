@@ -64,3 +64,5 @@ apps/mobile/expo-env.d.ts
 *.keystore
 *.mobileprovision
 *.p12
+apps/mobile/.build/
+apps/mobile/targets/watch/Assets.xcassets/

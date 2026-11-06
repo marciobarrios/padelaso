@@ -2,6 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# apple-targets' Xcode parser uses an old plist package. Keep its XML parser
+# patched without changing the SDK's separate plist dependency graph.
+overrides:
+  "@expo/plist@0.0.18>@xmldom/xmldom": "0.8.15"
+
 allowBuilds:
   "@sentry/cli": true
   esbuild: true
