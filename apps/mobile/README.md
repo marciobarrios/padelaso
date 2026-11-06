@@ -11,7 +11,8 @@ test setup form in **Configuración**. See [WATCH-SPIKE.md](WATCH-SPIKE.md) for
 first-time Apple account/device setup, signing and TestFlight instructions.
 The locally signed build passed the locked-iPhone scoring/event experiment.
 See [WATCH-VALIDATION.md](WATCH-VALIDATION.md) for captured evidence and the
-remaining TestFlight and resilience checks.
+remaining TestFlight (MAR-55) and resilience/accessibility checks (MAR-56).
+MAR-44's revised local feasibility scope is complete.
 
 ## Pinned toolchain
 

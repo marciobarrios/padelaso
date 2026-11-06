@@ -3,10 +3,12 @@
 The device run used working-tree sources on base `faea8db`; the implementation
 is preserved in commit `5fbeb974d847475b1f2cb16f96c6019b439f86f2` (publication
 cleanup removed only a trailing blank line from the tested Swift sources).
-This document records
-local build and incremental physical-device evidence; MAR-44's full
-TestFlight/physical-device criteria remain pending. Local development signing
-and installation are verified below.
+This document records the completed local build and physical-device proof for
+MAR-44's revised scope. On 6 November 2026, the owner approved transferring
+the first TestFlight build/install to [MAR-55](https://linear.app/marciobarrios/issue/MAR-55)
+and the remaining physical resilience/accessibility matrix to
+[MAR-56](https://linear.app/marciobarrios/issue/MAR-56). These follow-up requirements
+remain unrun. Local development signing and installation are verified below.
 A hosted test match was prepared through the web UI with owner approval as
 recorded below. The owner reported the Watch's server confirmation for one
 score action and one event action, confirmed the iPhone stayed locked during
@@ -127,8 +129,8 @@ the successful combined command selects the platform by destination instead.
 - **TestFlight:** no distribution archive, validated upload, processed build or
   TestFlight install exists. The configured profile has not been submitted.
   The owner prefers to defer TestFlight until the iOS app is further along;
-  prioritize local signed physical-device testing first. MAR-44's original
-  distribution criterion remains pending.
+  MAR-55 now owns the original first-TestFlight distribution criterion,
+  including paid-team/App Store Connect setup and physical beta installation.
 - **Transport:** test setup now uses origin `https://app.padelaso.com` and match
   `179c413d-7ee9-4f8c-9923-8ae599946d63`: **Marcio Barrios + Alberto** versus
   **Anders + Enric**, in the existing **Test** group. The owner approved
@@ -153,7 +155,8 @@ the successful combined command selects the platform by destination instead.
   **0.1.0 / 3**. The lock state is owner-reported; the screenshot corroborates
   the final web result, without an independent database query or device video.
   Background, wrist-down, loss and relaunch scenarios in
-  [WATCH-SPIKE.md](WATCH-SPIKE.md) remain pending.
+  [WATCH-SPIKE.md](WATCH-SPIKE.md) remain pending under MAR-56; retryable
+  mutations continue to require MAR-46's reliable command backend.
 
 - **Setup error investigation:** the owner reported the native form already
   showed an old generic failure when reopened, then cleared its token field

@@ -1,7 +1,7 @@
 # MAR-44: iPhone and Apple Watch feasibility proof
 
 This test-only prototype passed the core physical locked-phone experiment on
-locally signed Release build 3; the full MAR-44 acceptance is still pending.
+locally signed Release build 3, completing MAR-44's revised local feasibility scope.
 It adds a SwiftUI Watch app, a native iPhone setup form, and one application-level
 attempt each for a score increment and an event. The normal phone screens
 still show offline sample data. Check hosted results in the existing web app.
@@ -9,10 +9,11 @@ still show offline sample data. Check hosted results in the existing web app.
 The locally signed Release build ran on the physical iPhone and paired Watch:
 one score increment and one event were reconciled on the web while the owner
 confirmed the iPhone remained locked. Defer TestFlight until the iOS app is
-further along.
-This keeps the Watch/signing/locked-phone feasibility check early without
-requiring beta distribution yet. The original MAR-44 TestFlight acceptance
-criterion remains pending; a local install does not complete that criterion.
+further along. On 6 November 2026, the owner approved separating this completed
+local proof from distribution and release validation: [MAR-55](https://linear.app/marciobarrios/issue/MAR-55)
+owns the first TestFlight build/install, and [MAR-56](https://linear.app/marciobarrios/issue/MAR-56)
+owns the remaining physical resilience/accessibility matrix. Those requirements
+remain unrun; a local install does not complete TestFlight acceptance.
 
 ## First-time setup
 
@@ -41,7 +42,7 @@ Start here if you only have the simulator configured:
    Capabilities**, using automatic signing. Record the team ID from Xcode or
    your developer account in local `APPLE_TEAM_ID` before regeneration. Do
    not make persistent signing changes only inside the generated project.
-5. To satisfy MAR-44's **TestFlight** criterion, enroll in the paid
+5. Later, to satisfy MAR-55's **TestFlight** criterion, enroll in the paid
    [Apple Developer Program](https://developer.apple.com/programs/enroll/),
    or join an existing enrolled team with app/signing/upload permissions.
    Accept Apple's agreements and create the iOS app record in App Store
@@ -279,7 +280,7 @@ new disposable match. A different Watch/app identity or wiped device has a
 different ledger; it is not server idempotency. No durable production command
 queue should be built on this mechanism. MAR-46/MAR-53 own that work.
 
-## Physical acceptance record — partial
+## Physical acceptance record and follow-up ownership
 
 Use fresh disposable matches for destructive scenarios. For each case, record
 phone/Watch models and OS versions, Xcode, Expo/native package versions,
@@ -289,15 +290,16 @@ Screenshots must exclude credentials. Do not mark an unrun case passed.
 
 | Scenario | Evidence required | Current result |
 | --- | --- | --- |
-| TestFlight install | Signed phone build embeds Watch app; physical Watch installs/launches | Deferred by owner; local development installs and launches verified |
+| TestFlight install | Signed phone build embeds Watch app; physical Watch installs/launches | Deferred to MAR-55; local development installs and launches verified |
 | Context transfer | Correct UUID on Watch and matching phone receipt | Passed locally: owner report plus iPhone diagnostic receipt, stage confirmed |
-| Phone backgrounded | One score increment and one event visible on web | Pending |
+| Phone backgrounded | One score increment and one event visible on web | Pending · MAR-56 |
 | Phone locked | Same proof without opening phone JS | Passed locally on build 3: owner confirmed lock state; web screenshot shows 0–0 → 1–0 and one Ace for Marcio Barrios |
-| Wrist down during request | Observe completion/suspension; verify web before another action | Pending |
-| Watch relaunch | Setup/attempt outcomes retained; no second POST | Pending |
-| Temporary network loss before preflight | No mutation; read can be tried after reconnection | Pending |
-| Loss after POST / lost response | Unknown remains disabled after relaunch; reconcile on web | Pending |
-| Token revocation / active match switch | Actions rejected or preflight blocks drift; note switch race | Pending |
+| Wrist down during request | Observe completion/suspension; verify web before another action | Pending · MAR-56 |
+| Watch relaunch/restart | Setup/attempt outcomes retained; no second POST | Pending · MAR-56 |
+| Temporary network loss before preflight | No mutation; read can be tried after reconnection | Pending · MAR-56 |
+| Loss after POST / lost response | Unknown remains disabled after relaunch; reconcile on web | Pending · MAR-56; reliable retries require MAR-46 |
+| Token revocation / active match switch | Actions rejected or preflight blocks drift; note switch race | Pending · MAR-56; production lifecycle belongs to MAR-52 |
+| Accessibility | VoiceOver/TalkBack, larger text, touch targets and other device checks | Pending · MAR-56 |
 
 Local build/test results and the captured web evidence are in
 [WATCH-VALIDATION.md](WATCH-VALIDATION.md). The physical run used iPhone 18 Pro /
@@ -305,11 +307,12 @@ iOS 27.0.1 and Apple Watch Series 11 / watchOS 27.0, with Personal Team
 development signing, version 0.1.0 / build 3. The device run used working-tree
 sources on base `faea8db`; implementation commit `5fbeb97` preserves them with
 only trailing-whitespace cleanup. Wi-Fi/Bluetooth/cellular routing and wrist
-state were not separately
-captured; this verifies the locked-phone flow, not independent cellular use.
-MAR-44 stays open until the signed physical TestFlight and hosted mutation
-evidence exists. A PR containing this partial proof should say `Refs
-MAR-44`, never `Fixes MAR-44`.
+state were not separately captured. Independent cellular use was not tested.
+MAR-44's revised acceptance is complete: local signed installs/launches, native
+context receipt, locked-phone hosted mutations, documented versions/commands,
+and regeneration ownership. PR #83 uses `Fixes MAR-44`. The original first
+TestFlight requirement remains in MAR-55; the unrun matrix above remains in
+MAR-56. Completing the feasibility issue does not waive those release gates.
 
 References: [Apple account and Personal Team limits](https://developer.apple.com/help/account/basics/about-your-developer-account),
 [Developer Mode](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device),
