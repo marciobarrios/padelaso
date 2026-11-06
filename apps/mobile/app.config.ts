@@ -24,16 +24,27 @@ if (key && !/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) {
   );
 }
 
+const projectId = process.env.EAS_PROJECT_ID;
+if (projectId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
+  throw new Error("EAS_PROJECT_ID must be the real Expo project UUID.");
+}
+
 const config: ExpoConfig = {
   name: environment === "test" ? "Padelaso Test" : "Padelaso Dev",
   slug: "padelaso",
+  ...(projectId ? { extra: { eas: { projectId } } } : {}),
   version: "0.1.0",
+  icon: "./assets/app-icon.png",
   scheme: environment === "test" ? "padelaso-test" : "padelaso-dev",
   orientation: "portrait",
   userInterfaceStyle: "dark",
   platforms: ["ios", "android"],
   backgroundColor: "#121410",
   ios: {
+    ...(process.env.APPLE_TEAM_ID
+      ? { appleTeamId: process.env.APPLE_TEAM_ID }
+      : {}),
+    buildNumber: process.env.IOS_BUILD_NUMBER ?? "1",
     bundleIdentifier: `com.padelaso.mobile.${environment === "test" ? "test" : "dev"}`,
     supportsTablet: true,
     infoPlist: {
@@ -50,6 +61,8 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-font",
     ["expo-splash-screen", { backgroundColor: "#121410" }],
+    "@bacons/apple-targets",
+    "./plugins/with-watch-build-number",
   ],
 };
 export default config;

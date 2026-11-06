@@ -12,15 +12,19 @@
     "typecheck": "tsc --noEmit",
     "doctor": "expo install --check",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "native:generate": "expo prebuild"
+    "native:generate": "expo prebuild",
+    "watch:verify-project": "node scripts/verify-watch-project.cjs",
+    "watch:test": "swift test"
   },
   "dependencies": {
+    "@bacons/apple-targets": "5.0.0",
     "@padelaso/domain": "workspace:*",
     "expo": "58.0.23",
     "expo-constants": "58.0.15",
     "expo-dev-client": "58.0.18",
     "expo-font": "58.0.11",
     "expo-linking": "58.0.16",
+    "expo-modules-core": "58.0.30",
     "expo-router": "58.0.30",
     "expo-splash-screen": "58.0.13",
     "expo-status-bar": "58.0.4",
