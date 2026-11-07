@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "matchId": "match-a",
+  "sessionId": "session-a",
+  "commandId": "6afac532-8e54-4f71-a7b6-93ce236c2488",
+  "clientId": "watch-a",
+  "sequence": 1,
+  "expectedRevision": 3,
+  "createdAt": "2026-11-07T12:00:00.000Z",
+  "expiresAt": "2026-11-08T12:00:00.000Z",
+  "kind": "score.delta",
+  "setId": "set-b",
+  "team": 1,
+  "delta": 1
+}

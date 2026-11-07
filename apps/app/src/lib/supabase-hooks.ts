@@ -1,5 +1,7 @@
 "use client";
 
+import { listMatches } from "@padelaso/data/queries";
+
 import useSWR, { mutate } from "swr";
 import { getBrowserClient } from "./supabase";
 import {
@@ -157,15 +159,7 @@ export function usePlayers(
 export function useMatches(
   groupId?: GroupId
 ): { matches: Match[]; loaded: boolean; refresh: () => Promise<unknown> } {
-  const fetchMatches = async () => {
-    const { data, error } = await getSupabase()
-      .from("matches")
-      .select("*")
-      .eq("group_id", groupId!)
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data?.map(mapMatch) ?? [];
-  };
+  const fetchMatches = () => listMatches(getSupabase(), groupId!);
   const { data, isLoading, mutate } = useSWR(
     groupId ? keys.matches(groupId) : null,
     fetchMatches,
