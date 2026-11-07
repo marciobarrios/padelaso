@@ -1,3 +1,4 @@
+import { incrementMatchScore as incrementScore } from "@padelaso/data/queries";
 import { getBrowserClient } from "./supabase";
 import { PlayerId, MatchId, MatchSet, MatchEventType, MatchEventId, GroupId, Group, VoteType, ScoreToken } from "@padelaso/domain/types";
 
@@ -206,14 +207,7 @@ export async function incrementMatchScore(
   delta: number,
   newSet = false
 ): Promise<MatchSet[]> {
-  const { data, error } = await supabase().rpc("increment_match_score", {
-    p_match_id: matchId,
-    p_team: team,
-    p_delta: delta,
-    p_new_set: newSet,
-  });
-  if (error) throw error;
-  return data as MatchSet[];
+  return incrementScore(supabase(), matchId, team, delta, newSet);
 }
 
 export async function deleteMatch(matchId: MatchId) {

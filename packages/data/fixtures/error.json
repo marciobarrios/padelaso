@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "commandId": "6afac532-8e54-4f71-a7b6-93ce236c2488",
+  "occurredAt": "2026-11-07T12:00:00.000Z",
+  "code": "AUTH_EXPIRED",
+  "message": "Authenticate again",
+  "retryAfterMs": null,
+  "canonicalRevision": null
+}

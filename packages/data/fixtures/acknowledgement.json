@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "matchId": "match-a",
+  "sessionId": "session-a",
+  "commandId": "6afac532-8e54-4f71-a7b6-93ce236c2488",
+  "status": "replayed",
+  "appliedRevision": 3,
+  "acknowledgedAt": "2026-11-07T12:00:00.000Z",
+  "snapshot": {
+    "version": 1,
+    "matchId": "match-a",
+    "sessionId": "session-a",
+    "groupId": "group-a",
+    "revision": 3,
+    "generatedAt": "2026-11-07T12:00:00.000Z",
+    "authorizationExpiresAt": null,
+    "date": "2026-11-07T12:00:00.000Z",
+    "courtNumber": null,
+    "roster": [
+      {
+        "id": "ana",
+        "name": "Ana",
+        "emoji": "\ud83c\udfbe"
+      },
+      {
+        "id": "pablo",
+        "name": "Pablo",
+        "emoji": "\u26a1"
+      }
+    ],
+    "team1": [
+      "ana"
+    ],
+    "team2": [
+      "pablo"
+    ],
+    "sets": [
+      {
+        "id": "set-a",
+        "team1Score": 6,
+        "team2Score": 4
+      },
+      {
+        "id": "set-b",
+        "team1Score": 2,
+        "team2Score": 3
+      }
+    ],
+    "activeSetId": "set-b",
+    "events": [
+      {
+        "id": "event-a",
+        "playerId": "ana",
+        "type": "ace",
+        "sequence": 1,
+        "createdAt": "2026-11-07T12:00:00.000Z"
+      }
+    ]
+  }
+}

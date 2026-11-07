@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@padelaso/domain"],
+  transpilePackages: ["@padelaso/domain", "@padelaso/data"],
   htmlLimitedBots: /.*/,
   reactCompiler: true,
   experimental: {

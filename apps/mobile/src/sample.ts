@@ -1,3 +1,4 @@
+import { mapMatch } from "@padelaso/data/mappers";
 import { buildPlayerMap, getSetWins } from "@padelaso/domain/matches";
 import { EVENT_CONFIGS } from "@padelaso/domain/events";
 import type { Match, Player } from "@padelaso/domain/types";
@@ -15,12 +16,12 @@ export const players: Player[] = [
   { id: "lucia", name: "Lucía", emoji: "🔥", groupId: "demo", createdAt: date },
   { id: "pablo", name: "Pablo", emoji: "🚀", groupId: "demo", createdAt: date },
 ];
-export const sampleMatch: Match = {
+export const sampleMatch: Match = mapMatch({
   id: "ejemplo",
   date,
-  createdAt: date,
-  groupId: "demo",
-  courtNumber: 3,
+  created_at: date,
+  group_id: "demo",
+  court_number: 3,
   team1: ["ana", "marcio"],
   team2: ["lucia", "pablo"],
   sets: [
@@ -28,7 +29,7 @@ export const sampleMatch: Match = {
     { team1Score: 3, team2Score: 6 },
     { team1Score: 6, team2Score: 2 },
   ],
-};
+});
 const playerMap = buildPlayerMap(players);
 export const teamNames = [sampleMatch.team1, sampleMatch.team2].map((team) =>
   team.map((id) => playerMap.get(id)?.name).join(" y "),
