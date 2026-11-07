@@ -62,7 +62,7 @@ describe("refreshing home data", () => {
     expect(screen.getByText("Partido new")).toBeTruthy();
     expect(query.mock.calls).toEqual(expect.arrayContaining([["matches", "group-a"], ["players", "group-a"]]));
     expect(query).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole("status").textContent).toBe("Inicio actualizado");
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Inicio actualizado"));
   });
 
   it("keeps cached data on failure, waits for both requests, and can retry", async () => {
@@ -84,7 +84,7 @@ describe("refreshing home data", () => {
     query.mockResolvedValue({ data: [], error: null });
     fireEvent.click(button);
     await screen.findByText("0 partidos · 0 jugadores");
-    expect(screen.getByRole("status").textContent).toBe("Inicio actualizado");
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Inicio actualizado"));
   });
 
   it("does not apply a previous group's pending refresh state to the new home", async () => {
