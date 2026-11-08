@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EVENT_CONFIGS } from '@padelaso/domain/events';
+import { EVENT_CONFIGS, EVENT_MAP } from '@padelaso/domain/events';
 
 const id = z.string().min(1).max(128);
 const integer = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -7,6 +7,7 @@ const timestamp = z.iso.datetime();
 export const setSchema = z.object({ team1Score: integer, team2Score: integer });
 export const scoreSchema = z.array(setSchema);
 const eventType = z.enum(EVENT_CONFIGS.map(event => event.type));
+const historicalEventType = z.enum([...EVENT_MAP.keys()]);
 const envelope = { version: z.literal(1), matchId: id, sessionId: id };
 export const snapshotSchema = z.object({
   ...envelope, groupId: id, revision: integer, generatedAt: timestamp,
@@ -15,7 +16,7 @@ export const snapshotSchema = z.object({
   roster: z.array(z.object({ id, name: z.string(), emoji: z.string() })),
   team1: z.array(id), team2: z.array(id),
   sets: z.array(setSchema.extend({ id })), activeSetId: id.nullable(),
-  events: z.array(z.object({ id, playerId: id, type: eventType,
+  events: z.array(z.object({ id, playerId: id, type: historicalEventType,
     sequence: integer, createdAt: timestamp })),
 }).superRefine((value, ctx) => {
   const roster = new Set(value.roster.map(p => p.id));

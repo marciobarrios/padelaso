@@ -19,6 +19,26 @@ function client(payload: unknown, status = 200) {
   });
 }
 describe('portable native contract', () => {
+  it('loads matches after their creator is deleted and normalizes missing creators', async () => {
+    expect(mapMatch({ ...row, created_by: null }).createdBy).toBeUndefined();
+    expect(mapMatch(row).createdBy).toBeUndefined();
+    expect(mapMatch({ ...row, created_by: 'creator-a' }).createdBy).toBe('creator-a');
+    const matches = await listMatches(client([row, { ...row, id: 'orphaned', created_by: null }]), fixture.groupId);
+    expect(matches.map(match => match.id)).toEqual([fixture.matchId, 'orphaned']);
+    expect(matches[1].createdBy).toBeUndefined();
+    expect(() => mapMatch({ ...row, created_by: 42 })).toThrow();
+  });
+  it('reads retired events in snapshots and acknowledgements without allowing new ones', () => {
+    const snapshot = { ...fixture, events: fixture.events.map(event => ({ ...event, type: 'bola_fuera' })) };
+    expect(snapshotSchema.parse(snapshot)).toEqual(snapshot);
+    expect(acknowledgementSchema.parse({ ...ackFixture, snapshot }).snapshot).toEqual(snapshot);
+    const { kind, setId, team, delta, ...base } = command;
+    void kind; void setId; void team; void delta;
+    const eventCommand = { ...base, kind: 'event.create', eventId: 'event-new', playerId: 'ana' };
+    expect(commandSchema.safeParse({ ...eventCommand, type: 'ace' }).success).toBe(true);
+    expect(commandSchema.safeParse({ ...eventCommand, type: 'bola_fuera' }).success).toBe(false);
+    expect(snapshotSchema.safeParse({ ...snapshot, events: [{ ...snapshot.events[0], type: 'unknown' }] }).success).toBe(false);
+  });
   it('round trips Unicode, nulls, score transforms and win statistics', () => {
     const snapshot = snapshotSchema.parse(JSON.parse(JSON.stringify(fixture)));
     expect(snapshot).toEqual(fixture);

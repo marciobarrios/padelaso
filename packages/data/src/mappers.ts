@@ -18,7 +18,7 @@ export function mapPlayer(row: Record<string, unknown>): Player {
 const matchRow = z.object({
   id: z.string().min(1), date: z.string().min(1), court_number: z.number().int().nullable().optional(),
   team1: z.array(z.string()), team2: z.array(z.string()), sets: scoreSchema,
-  group_id: z.string().min(1), created_by: z.string().optional(), created_at: z.string().min(1),
+  group_id: z.string().min(1), created_by: z.string().nullish(), created_at: z.string().min(1),
 });
 
 export function mapMatch(input: unknown): Match {
@@ -31,7 +31,7 @@ export function mapMatch(input: unknown): Match {
     team2: row.team2 as string[],
     sets: row.sets as Match["sets"],
     groupId: row.group_id as string,
-    createdBy: row.created_by as string,
+    createdBy: row.created_by ?? undefined,
     createdAt: row.created_at as string,
   };
 }

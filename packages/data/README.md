@@ -10,6 +10,9 @@ not connected to production. Web SWR keys, invalidation and server auth stay loc
 `/contracts` exports Zod validators and inferred types. Parse unknown JSON before
 using it. Match rows and legacy score RPC responses are validated at the extracted
 boundaries. Other existing mappers retain their trusted database-row behavior.
+Match creators may be null after account deletion and map to `undefined` in the
+domain model. Snapshots accept historical event types, including retired ones;
+event creation commands accept only the currently active event vocabulary.
 
 ## Native v1 semantics
 
