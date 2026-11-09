@@ -60,7 +60,7 @@ AS $function$
   SELECT public.native_apply_command(command) FROM pg_temp.sent WHERE name = p_name;
 $function$;
 
-SELECT plan(57);
+SELECT plan(60);
 
 INSERT INTO auth.users (id, email)
 VALUES
@@ -95,14 +95,33 @@ VALUES (
   '20000000-0000-0000-0000-000000000021'
 );
 
+-- A second match, with the user's Shortcut token repointed to it. Nothing below
+-- may touch it, whatever the token selects.
+INSERT INTO public.matches (id, team1, team2, sets, created_by, group_id)
+VALUES (
+  '30000000-0000-0000-0000-000000000023',
+  ARRAY['50000000-0000-0000-0000-000000000021']::uuid[],
+  ARRAY['50000000-0000-0000-0000-000000000022']::uuid[],
+  '[{"team1Score": 1, "team2Score": 1}]',
+  '10000000-0000-0000-0000-000000000021',
+  '20000000-0000-0000-0000-000000000021'
+);
+
+INSERT INTO public.score_tokens (token, created_by, current_match_id)
+VALUES (
+  'native-test-token',
+  '10000000-0000-0000-0000-000000000021',
+  '30000000-0000-0000-0000-000000000023'
+);
+
 SELECT is(
-  (SELECT cardinality(set_ids) FROM public.native_match_state WHERE match_id = '30000000-0000-0000-0000-000000000021'),
+  (SELECT cardinality(set_ids) FROM native_private.match_state WHERE match_id = '30000000-0000-0000-0000-000000000021'),
   2,
   'a new match gets one stable ID per existing set'
 );
 
 -- Fixed identities keep the assertions below readable.
-UPDATE public.native_match_state
+UPDATE native_private.match_state
 SET session_id = '40000000-0000-0000-0000-000000000021', set_ids = ARRAY['set-1', 'set-2']
 WHERE match_id = '30000000-0000-0000-0000-000000000021';
 
@@ -494,14 +513,14 @@ SELECT is(
 -- Authorization
 -- ------------------------------------------------------------
 SELECT throws_ok(
-  $$ SELECT * FROM public.native_command_receipts $$,
+  $$ SELECT * FROM native_private.command_receipts $$,
   '42501',
   NULL,
   'receipts cannot be read directly'
 );
 
 SELECT throws_ok(
-  $$ UPDATE public.native_match_state SET revision = 0 $$,
+  $$ UPDATE native_private.match_state SET revision = 0 $$,
   '42501',
   NULL,
   'scoring state cannot be written directly'
@@ -558,6 +577,32 @@ SELECT is(
 SET LOCAL request.jwt.claim.sub = '10000000-0000-0000-0000-000000000021';
 
 -- ------------------------------------------------------------
+-- Match binding
+-- ------------------------------------------------------------
+SELECT is(
+  public.native_apply_command(pg_temp.command(
+    'a0000000-0000-0000-0000-000000000021', 21, 0,
+    '{"kind": "score.correct", "setId": "set-1", "score": {"team1Score": 0, "team2Score": 0}}',
+    '30000000-0000-0000-0000-000000000023',
+    '40000000-0000-0000-0000-000000000021'
+  )) ->> 'code',
+  'STALE_SESSION',
+  'match A''s session cannot be used against match B'
+);
+
+SELECT is(
+  (SELECT sets FROM public.matches WHERE id = '30000000-0000-0000-0000-000000000023'),
+  '[{"team1Score": 1, "team2Score": 1}]'::jsonb,
+  'commands for match A never changed the match the token selects'
+);
+
+SELECT is(
+  (public.native_match_snapshot('30000000-0000-0000-0000-000000000023') ->> 'revision')::integer,
+  0,
+  'the selected match stays at its original revision'
+);
+
+-- ------------------------------------------------------------
 -- Session replacement
 -- ------------------------------------------------------------
 SELECT isnt(
@@ -605,7 +650,7 @@ BEGIN
         '[{"team1Score": 0, "team2Score": 0}]',
         '20000000-0000-0000-0000-000000000022'
       );
-      UPDATE public.native_match_state
+      UPDATE native_private.match_state
       SET session_id = '40000000-0000-0000-0000-000000000022', set_ids = ARRAY['only']
       WHERE match_id = '30000000-0000-0000-0000-000000000022';
     $sql$

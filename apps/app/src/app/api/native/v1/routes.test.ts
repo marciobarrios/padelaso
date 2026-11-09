@@ -32,7 +32,7 @@ function post(body: string, headers: Record<string, string> = { authorization: "
 }
 
 function stubDatabase(payload: unknown, status = 200) {
-  const database = vi.fn(async (..._args: Parameters<typeof fetch>) =>
+  const database = vi.fn<typeof fetch>(async () =>
     new Response(JSON.stringify(payload), {
       status,
       headers: { "Content-Type": "application/json" },

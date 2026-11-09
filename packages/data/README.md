@@ -103,3 +103,28 @@ nullable canonical revision and nullable retry delay; messages are not control f
 Foundation JSONDecoder/JSONSerialization. Tests cover serialization, score transforms,
 win statistics, malformed input, and injected Supabase HTTP responses. Authorization
 and database concurrency are covered by `supabase/tests/native_commands_test.sql`.
+`pnpm test:integration` runs the native and Shortcut route handlers against the local
+Supabase stack, with real JWTs (`pnpm exec supabase start` first).
+
+## Rollout and rollback
+
+Migration `20261109090000_native_scoring_commands` is additive, so deployed web and
+Shortcut code keeps working before and after it. Apply it before enabling any native
+client. Until it is applied, the `/v1` routes return `INTERNAL_ERROR` and change nothing.
+Shortcut routes keep their request and response contracts and are still not idempotent.
+
+Supabase migrations only roll forward, so to revert, first disable native clients:
+dropping receipts removes deduplication for any command still being retried. Then ship
+a new migration containing:
+
+```sql
+drop function public.native_apply_command(jsonb);
+drop function public.native_replace_scoring_session(text);
+drop function public.native_match_snapshot(text);
+drop schema native_private cascade; -- also drops the triggers on matches and match_events
+alter table public.match_events drop column sequence;
+```
+
+This permanently deletes receipts, session and set identities, revisions and event
+sequences. Scores and events themselves are untouched, and re-applying the forward
+migration creates new identities, so clients must fetch a new snapshot.

@@ -7,7 +7,7 @@
 -- keep working: triggers make their changes visible as new revisions, so a native
 -- client holding an older revision must resynchronize instead of silently rebasing.
 --
--- Rollout: additive. Old deployments keep writing the same columns.
+-- Rollout and rollback are documented in packages/data/README.md.
 
 -- ------------------------------------------------------------
 -- Stable event order
@@ -41,9 +41,15 @@ end;
 $$;
 
 -- ------------------------------------------------------------
--- Server-owned state. RLS without policies: reachable only through the RPCs.
+-- Server-owned state, in a schema PostgREST does not expose. Supabase advises
+-- against security definer functions in exposed schemas, so only the three RPCs
+-- at the end of this file are public, as deliberate entry points. Nothing is
+-- granted on this schema: callers reach it only through those functions.
 -- ------------------------------------------------------------
-create table public.native_match_state (
+create schema native_private;
+revoke all on schema native_private from public;
+
+create table native_private.match_state (
   match_id uuid primary key references public.matches(id) on delete cascade,
   session_id uuid not null default gen_random_uuid(),
   revision bigint not null default 0,
@@ -51,7 +57,7 @@ create table public.native_match_state (
   set_ids text[] not null default '{}'
 );
 
-create table public.native_command_receipts (
+create table native_private.command_receipts (
   user_id uuid not null references auth.users(id) on delete cascade,
   command_id uuid not null,
   match_id uuid not null references public.matches(id) on delete cascade,
@@ -61,11 +67,11 @@ create table public.native_command_receipts (
   primary key (user_id, command_id)
 );
 
-create index idx_native_command_receipts_match_id
-  on public.native_command_receipts(match_id);
+create index idx_command_receipts_match_id
+  on native_private.command_receipts(match_id);
 
 -- Keyed by user so one account cannot advance another account's client ordering.
-create table public.native_client_sequences (
+create table native_private.client_sequences (
   user_id uuid not null references auth.users(id) on delete cascade,
   match_id uuid not null references public.matches(id) on delete cascade,
   session_id uuid not null,
@@ -74,16 +80,12 @@ create table public.native_client_sequences (
   primary key (user_id, session_id, client_id)
 );
 
-create index idx_native_client_sequences_match_id
-  on public.native_client_sequences(match_id);
+create index idx_client_sequences_match_id
+  on native_private.client_sequences(match_id);
 
-alter table public.native_match_state enable row level security;
-alter table public.native_command_receipts enable row level security;
-alter table public.native_client_sequences enable row level security;
-
-revoke all on table public.native_match_state from public, anon, authenticated;
-revoke all on table public.native_command_receipts from public, anon, authenticated;
-revoke all on table public.native_client_sequences from public, anon, authenticated;
+alter table native_private.match_state enable row level security;
+alter table native_private.command_receipts enable row level security;
+alter table native_private.client_sequences enable row level security;
 
 -- ------------------------------------------------------------
 -- Keep state in step with every writer
@@ -91,7 +93,7 @@ revoke all on table public.native_client_sequences from public, anon, authentica
 -- Set identity follows position: writers that only grow or shrink the array keep
 -- earlier IDs. Any such write also bumps the revision, so a command based on the
 -- previous positions is rejected as stale.
-create function public.native_fit_set_ids(p_set_ids text[], p_length integer)
+create function native_private.fit_set_ids(p_set_ids text[], p_length integer)
 returns text[]
 language sql
 volatile
@@ -103,7 +105,7 @@ as $$
   );
 $$;
 
-create function public.native_set_count(p_sets jsonb)
+create function native_private.set_count(p_sets jsonb)
 returns integer
 language sql
 immutable
@@ -112,40 +114,40 @@ as $$
   select case when jsonb_typeof(p_sets) = 'array' then jsonb_array_length(p_sets) else 0 end;
 $$;
 
-insert into public.native_match_state (match_id, set_ids)
-select id, public.native_fit_set_ids('{}', public.native_set_count(sets))
+insert into native_private.match_state (match_id, set_ids)
+select id, native_private.fit_set_ids('{}', native_private.set_count(sets))
 from public.matches;
 
-create function public.native_on_match_insert()
+create function native_private.on_match_insert()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-  insert into public.native_match_state (match_id, set_ids)
-  values (new.id, public.native_fit_set_ids('{}', public.native_set_count(new.sets)));
+  insert into native_private.match_state (match_id, set_ids)
+  values (new.id, native_private.fit_set_ids('{}', native_private.set_count(new.sets)));
   return null;
 end;
 $$;
 
-create function public.native_on_match_update()
+create function native_private.on_match_update()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-  update public.native_match_state
+  update native_private.match_state
   set
     revision = revision + 1,
-    set_ids = public.native_fit_set_ids(set_ids, public.native_set_count(new.sets))
+    set_ids = native_private.fit_set_ids(set_ids, native_private.set_count(new.sets))
   where match_id = new.id;
   return null;
 end;
 $$;
 
-create function public.native_on_match_event_change()
+create function native_private.on_match_event_change()
 returns trigger
 language plpgsql
 security definer
@@ -153,7 +155,7 @@ set search_path = ''
 as $$
 begin
   -- Finds no row while a match delete cascades. Nothing is left to version then.
-  update public.native_match_state
+  update native_private.match_state
   set revision = revision + 1
   where match_id = coalesce(new.match_id, old.match_id);
   return null;
@@ -162,7 +164,7 @@ $$;
 
 create trigger native_match_inserted
   after insert on public.matches
-  for each row execute function public.native_on_match_insert();
+  for each row execute function native_private.on_match_insert();
 
 create trigger native_match_updated
   after update on public.matches
@@ -175,16 +177,16 @@ create trigger native_match_updated
     or old.court_number is distinct from new.court_number
     or old.group_id is distinct from new.group_id
   )
-  execute function public.native_on_match_update();
+  execute function native_private.on_match_update();
 
 create trigger native_match_event_changed
   after insert or delete on public.match_events
-  for each row execute function public.native_on_match_event_change();
+  for each row execute function native_private.on_match_event_change();
 
 -- ------------------------------------------------------------
 -- Wire helpers
 -- ------------------------------------------------------------
-create function public.native_timestamp(p_value timestamptz)
+create function native_private.timestamp(p_value timestamptz)
 returns text
 language sql
 stable
@@ -193,7 +195,7 @@ as $$
   select to_char(p_value at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
 $$;
 
-create function public.native_error(
+create function native_private.error(
   p_command_id text,
   p_code text,
   p_message text,
@@ -207,7 +209,7 @@ as $$
   select jsonb_build_object(
     'version', 1,
     'commandId', p_command_id,
-    'occurredAt', public.native_timestamp(clock_timestamp()),
+    'occurredAt', native_private.timestamp(clock_timestamp()),
     'code', p_code,
     'message', p_message,
     'retryAfterMs', p_retry_after_ms,
@@ -215,7 +217,7 @@ as $$
   );
 $$;
 
-create function public.native_try_uuid(p_value text)
+create function native_private.try_uuid(p_value text)
 returns uuid
 language plpgsql
 immutable
@@ -228,7 +230,7 @@ exception when data_exception then
 end;
 $$;
 
-create function public.native_try_timestamp(p_value text)
+create function native_private.try_timestamp(p_value text)
 returns timestamptz
 language plpgsql
 stable
@@ -245,7 +247,7 @@ end;
 $$;
 
 -- Volatile so a read inside the command function sees that command's own writes.
-create function public.native_build_snapshot(p_match_id uuid)
+create function native_private.build_snapshot(p_match_id uuid)
 returns jsonb
 language sql
 volatile
@@ -257,9 +259,9 @@ as $$
     'sessionId', state.session_id,
     'groupId', m.group_id,
     'revision', state.revision,
-    'generatedAt', public.native_timestamp(clock_timestamp()),
+    'generatedAt', native_private.timestamp(clock_timestamp()),
     'authorizationExpiresAt', null,
-    'date', public.native_timestamp(m.date),
+    'date', native_private.timestamp(m.date),
     'courtNumber', m.court_number,
     'roster', (
       select coalesce(
@@ -302,7 +304,7 @@ as $$
             'playerId', event.player_id,
             'type', event.type,
             'sequence', event.sequence,
-            'createdAt', public.native_timestamp(event.created_at)
+            'createdAt', native_private.timestamp(event.created_at)
           )
           order by event.sequence
         ),
@@ -313,7 +315,7 @@ as $$
     )
   )
   from public.matches as m
-  join public.native_match_state as state on state.match_id = m.id
+  join native_private.match_state as state on state.match_id = m.id
   where m.id = p_match_id;
 $$;
 
@@ -322,7 +324,7 @@ $$;
 -- through PostgREST and so validates the shape itself. Event type vocabulary
 -- stays in @padelaso/domain and is enforced by Zod: direct table inserts already
 -- accept any type under RLS, so this RPC gives no additional capability.
-create function public.native_command_is_well_formed(c jsonb)
+create function native_private.command_is_well_formed(c jsonb)
 returns boolean
 language plpgsql
 immutable
@@ -418,26 +420,26 @@ set search_path = ''
 as $$
 declare
   v_user_id uuid := (select auth.uid());
-  v_match_id uuid := public.native_try_uuid(p_match_id);
+  v_match_id uuid := native_private.try_uuid(p_match_id);
   v_group_id uuid;
 begin
   if v_user_id is null then
-    return public.native_error(null, 'AUTH_EXPIRED', 'Authenticate again');
+    return native_private.error(null, 'AUTH_EXPIRED', 'Authenticate again');
   end if;
 
   select group_id into v_group_id from public.matches where id = v_match_id;
   if not found then
-    return public.native_error(null, 'NOT_FOUND', 'Match not found');
+    return native_private.error(null, 'NOT_FOUND', 'Match not found');
   end if;
 
   if not exists (
     select 1 from public.group_members
     where group_id = v_group_id and user_id = v_user_id
   ) then
-    return public.native_error(null, 'FORBIDDEN', 'Not a member of this match''s group');
+    return native_private.error(null, 'FORBIDDEN', 'Not a member of this match''s group');
   end if;
 
-  return public.native_build_snapshot(v_match_id);
+  return native_private.build_snapshot(v_match_id);
 end;
 $$;
 
@@ -450,33 +452,33 @@ set lock_timeout = '3s'
 as $$
 declare
   v_user_id uuid := (select auth.uid());
-  v_match_id uuid := public.native_try_uuid(p_match_id);
+  v_match_id uuid := native_private.try_uuid(p_match_id);
   v_group_id uuid;
 begin
   if v_user_id is null then
-    return public.native_error(null, 'AUTH_EXPIRED', 'Authenticate again');
+    return native_private.error(null, 'AUTH_EXPIRED', 'Authenticate again');
   end if;
 
   begin
     select group_id into v_group_id from public.matches where id = v_match_id for update;
     if not found then
-      return public.native_error(null, 'NOT_FOUND', 'Match not found');
+      return native_private.error(null, 'NOT_FOUND', 'Match not found');
     end if;
 
     if not exists (
       select 1 from public.group_members
       where group_id = v_group_id and user_id = v_user_id
     ) then
-      return public.native_error(null, 'FORBIDDEN', 'Not a member of this match''s group');
+      return native_private.error(null, 'FORBIDDEN', 'Not a member of this match''s group');
     end if;
 
-    update public.native_match_state
+    update native_private.match_state
     set session_id = gen_random_uuid(), revision = revision + 1
     where match_id = v_match_id;
 
-    return public.native_build_snapshot(v_match_id);
+    return native_private.build_snapshot(v_match_id);
   exception when lock_not_available or deadlock_detected then
-    return public.native_error(null, 'IN_FLIGHT', 'Match is busy', null, 1000);
+    return native_private.error(null, 'IN_FLIGHT', 'Match is busy', null, 1000);
   end;
 end;
 $$;
@@ -502,8 +504,8 @@ declare
   v_team1 uuid[];
   v_team2 uuid[];
   v_sets jsonb;
-  v_state public.native_match_state%rowtype;
-  v_receipt public.native_command_receipts%rowtype;
+  v_state native_private.match_state%rowtype;
+  v_receipt native_private.command_receipts%rowtype;
   v_expected_revision bigint;
   v_sequence bigint;
   v_last_sequence bigint;
@@ -517,10 +519,10 @@ declare
   v_applied_revision bigint;
 begin
   if jsonb_typeof(p_command) is distinct from 'object' then
-    return public.native_error(null, 'INVALID_REQUEST', 'Command must be a JSON object');
+    return native_private.error(null, 'INVALID_REQUEST', 'Command must be a JSON object');
   end if;
 
-  v_command_id := public.native_try_uuid(p_command ->> 'commandId');
+  v_command_id := native_private.try_uuid(p_command ->> 'commandId');
   if v_command_id is not null and jsonb_typeof(p_command -> 'commandId') = 'string' then
     v_command_text := p_command ->> 'commandId';
   else
@@ -528,35 +530,35 @@ begin
   end if;
 
   if v_user_id is null then
-    return public.native_error(v_command_text, 'AUTH_EXPIRED', 'Authenticate again');
+    return native_private.error(v_command_text, 'AUTH_EXPIRED', 'Authenticate again');
   end if;
 
   if (p_command -> 'version') is distinct from '1'::jsonb then
-    return public.native_error(v_command_text, 'UNSUPPORTED_VERSION', 'Unsupported command version');
+    return native_private.error(v_command_text, 'UNSUPPORTED_VERSION', 'Unsupported command version');
   end if;
 
-  if v_command_id is null or not public.native_command_is_well_formed(p_command) then
-    return public.native_error(v_command_text, 'INVALID_REQUEST', 'Malformed command');
+  if v_command_id is null or not native_private.command_is_well_formed(p_command) then
+    return native_private.error(v_command_text, 'INVALID_REQUEST', 'Malformed command');
   end if;
 
-  v_created_at := public.native_try_timestamp(p_command ->> 'createdAt');
-  v_expires_at := public.native_try_timestamp(p_command ->> 'expiresAt');
+  v_created_at := native_private.try_timestamp(p_command ->> 'createdAt');
+  v_expires_at := native_private.try_timestamp(p_command ->> 'expiresAt');
   if v_created_at is null or v_expires_at is null
     or v_expires_at <= v_created_at
     or v_expires_at - v_created_at > interval '24 hours'
     -- createdAt is client-supplied. Without this bound, a future-dated command
     -- could outlive its receipt and then be applied a second time.
     or v_expires_at > v_now + interval '24 hours 5 minutes' then
-    return public.native_error(v_command_text, 'INVALID_REQUEST', 'Invalid command lifetime');
+    return native_private.error(v_command_text, 'INVALID_REQUEST', 'Invalid command lifetime');
   end if;
 
   -- Checked before the receipt lookup, so the outcome is the same whether or not
   -- the receipt has been evicted.
   if v_expires_at <= v_now then
-    return public.native_error(v_command_text, 'COMMAND_EXPIRED', 'Command expired');
+    return native_private.error(v_command_text, 'COMMAND_EXPIRED', 'Command expired');
   end if;
 
-  v_match_id := public.native_try_uuid(p_command ->> 'matchId');
+  v_match_id := native_private.try_uuid(p_command ->> 'matchId');
   v_kind := p_command ->> 'kind';
   v_expected_revision := (p_command ->> 'expectedRevision')::bigint;
   v_sequence := (p_command ->> 'sequence')::bigint;
@@ -573,7 +575,7 @@ begin
     for update;
 
     if not found then
-      return public.native_error(v_command_text, 'NOT_FOUND', 'Match not found');
+      return native_private.error(v_command_text, 'NOT_FOUND', 'Match not found');
     end if;
 
     -- Before replay as well: a removed member cannot read through a retry.
@@ -581,30 +583,30 @@ begin
       select 1 from public.group_members
       where group_id = v_group_id and user_id = v_user_id
     ) then
-      return public.native_error(v_command_text, 'FORBIDDEN', 'Not a member of this match''s group');
+      return native_private.error(v_command_text, 'FORBIDDEN', 'Not a member of this match''s group');
     end if;
 
     select * into strict v_state
-    from public.native_match_state
+    from native_private.match_state
     where match_id = v_match_id
     for update;
 
-    delete from public.native_command_receipts
+    delete from native_private.command_receipts
     where user_id = v_user_id and retain_until < v_now;
 
     select * into v_receipt
-    from public.native_command_receipts
+    from native_private.command_receipts
     where user_id = v_user_id and command_id = v_command_id;
 
     if found and v_receipt.payload <> p_command then
-      return public.native_error(
+      return native_private.error(
         v_command_text, 'COMMAND_ID_REUSED', 'Command ID was used with a different payload',
         v_state.revision
       );
     end if;
 
     if (p_command ->> 'sessionId') is distinct from v_state.session_id::text then
-      return public.native_error(
+      return native_private.error(
         v_command_text, 'STALE_SESSION', 'Scoring session was replaced', v_state.revision
       );
     end if;
@@ -617,25 +619,25 @@ begin
         'commandId', v_command_text,
         'status', 'replayed',
         'appliedRevision', v_receipt.applied_revision,
-        'acknowledgedAt', public.native_timestamp(clock_timestamp()),
-        'snapshot', public.native_build_snapshot(v_match_id)
+        'acknowledgedAt', native_private.timestamp(clock_timestamp()),
+        'snapshot', native_private.build_snapshot(v_match_id)
       );
     end if;
 
     if v_expected_revision <> v_state.revision then
-      return public.native_error(
+      return native_private.error(
         v_command_text, 'STALE_REVISION', 'Match changed; resynchronize', v_state.revision
       );
     end if;
 
     select last_sequence into v_last_sequence
-    from public.native_client_sequences
+    from native_private.client_sequences
     where user_id = v_user_id
       and session_id = v_state.session_id
       and client_id = p_command ->> 'clientId';
 
     if v_last_sequence is not null and v_sequence <= v_last_sequence then
-      return public.native_error(
+      return native_private.error(
         v_command_text, 'OUT_OF_ORDER', 'Command sequence is not newer than the last applied',
         v_state.revision
       );
@@ -648,7 +650,7 @@ begin
       when 'score.delta', 'score.correct' then
         v_set_index := array_position(v_state.set_ids, v_set_id);
         if v_set_index is null or (v_kind = 'score.delta' and v_set_index <> v_set_count) then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'STALE_SET', 'Set is not the expected scoring target', v_state.revision
           );
         end if;
@@ -666,7 +668,7 @@ begin
           );
           -- The legacy RPC and existing readers store scores as int.
           if v_score > 2147483647 then
-            return public.native_error(
+            return native_private.error(
               v_command_text, 'INVALID_REQUEST', 'Score is too large', v_state.revision
             );
           end if;
@@ -677,22 +679,22 @@ begin
 
       when 'set.create' then
         if (p_command ->> 'afterSetId') is distinct from v_state.set_ids[v_set_count] then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'STALE_SET', 'Predecessor is not the latest set', v_state.revision
           );
         end if;
         if v_set_id = any(v_state.set_ids) then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'INVALID_REQUEST', 'Set ID already exists', v_state.revision
           );
         end if;
         if v_set_count >= 100 then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'INVALID_REQUEST', 'Match set limit reached', v_state.revision
           );
         end if;
         -- IDs first, so the match trigger keeps this client-chosen ID.
-        update public.native_match_state
+        update native_private.match_state
         set set_ids = set_ids || v_set_id
         where match_id = v_match_id;
         update public.matches
@@ -700,20 +702,20 @@ begin
         where id = v_match_id;
 
       when 'event.create' then
-        v_event_id := public.native_try_uuid(p_command ->> 'eventId');
-        v_player_id := public.native_try_uuid(p_command ->> 'playerId');
+        v_event_id := native_private.try_uuid(p_command ->> 'eventId');
+        v_player_id := native_private.try_uuid(p_command ->> 'playerId');
         if v_event_id is null then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'INVALID_REQUEST', 'Event ID must be a UUID', v_state.revision
           );
         end if;
         if v_player_id is null or not (v_player_id = any(v_team1 || v_team2)) then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'INVALID_REQUEST', 'Player is not part of this match', v_state.revision
           );
         end if;
         if exists (select 1 from public.match_events where id = v_event_id) then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'INVALID_REQUEST', 'Event ID already exists', v_state.revision
           );
         end if;
@@ -721,11 +723,11 @@ begin
         values (v_event_id, v_match_id, v_player_id, p_command ->> 'type', v_user_id);
 
       when 'event.undo' then
-        v_event_id := public.native_try_uuid(p_command ->> 'eventId');
+        v_event_id := native_private.try_uuid(p_command ->> 'eventId');
         delete from public.match_events
         where id = v_event_id and match_id = v_match_id;
         if not found then
-          return public.native_error(
+          return native_private.error(
             v_command_text, 'NOT_FOUND', 'Event not found', v_state.revision
           );
         end if;
@@ -734,11 +736,11 @@ begin
     -- Triggers advanced the revision. A clamped or identical score writes nothing,
     -- so it is acknowledged at the unchanged revision.
     select revision into strict v_applied_revision
-    from public.native_match_state
+    from native_private.match_state
     where match_id = v_match_id;
 
     -- Retained at least 48 hours and past expiry plus clock skew.
-    insert into public.native_command_receipts (
+    insert into native_private.command_receipts (
       user_id, command_id, match_id, payload, applied_revision, retain_until
     )
     values (
@@ -753,7 +755,7 @@ begin
       raise exception 'command id reused' using errcode = 'PN001';
     end if;
 
-    insert into public.native_client_sequences (
+    insert into native_private.client_sequences (
       user_id, match_id, session_id, client_id, last_sequence
     )
     values (
@@ -769,31 +771,24 @@ begin
       'commandId', v_command_text,
       'status', 'applied',
       'appliedRevision', v_applied_revision,
-      'acknowledgedAt', public.native_timestamp(clock_timestamp()),
-      'snapshot', public.native_build_snapshot(v_match_id)
+      'acknowledgedAt', native_private.timestamp(clock_timestamp()),
+      'snapshot', native_private.build_snapshot(v_match_id)
     );
   exception
     when sqlstate 'PN001' then
-      return public.native_error(
+      return native_private.error(
         v_command_text, 'COMMAND_ID_REUSED', 'Command ID was used with a different payload'
       );
     when lock_not_available or deadlock_detected then
-      return public.native_error(v_command_text, 'IN_FLIGHT', 'Match is busy; retry', null, 1000);
+      return native_private.error(v_command_text, 'IN_FLIGHT', 'Match is busy; retry', null, 1000);
   end;
 end;
 $$;
 
-revoke all on function public.native_fit_set_ids(text[], integer) from public, anon, authenticated;
-revoke all on function public.native_set_count(jsonb) from public, anon, authenticated;
-revoke all on function public.native_on_match_insert() from public, anon, authenticated;
-revoke all on function public.native_on_match_update() from public, anon, authenticated;
-revoke all on function public.native_on_match_event_change() from public, anon, authenticated;
-revoke all on function public.native_timestamp(timestamptz) from public, anon, authenticated;
-revoke all on function public.native_error(text, text, text, bigint, bigint) from public, anon, authenticated;
-revoke all on function public.native_try_uuid(text) from public, anon, authenticated;
-revoke all on function public.native_try_timestamp(text) from public, anon, authenticated;
-revoke all on function public.native_build_snapshot(uuid) from public, anon, authenticated;
-revoke all on function public.native_command_is_well_formed(jsonb) from public, anon, authenticated;
+revoke all on all functions in schema native_private from public;
+
+-- Security definer on purpose: these write state callers have no access to, after
+-- checking auth.uid() and group membership themselves (Supabase lint 0029, option 3).
 revoke all on function public.native_match_snapshot(text) from public, anon, authenticated;
 revoke all on function public.native_replace_scoring_session(text) from public, anon, authenticated;
 revoke all on function public.native_apply_command(jsonb) from public, anon, authenticated;
