@@ -11,8 +11,9 @@
     "lint": "turbo --cache-dir=.turbo/cache lint",
     "test": "turbo --cache-dir=.turbo/cache test",
     "test:db": "supabase test db",
+    "test:integration": "pnpm --filter @padelaso/app test:integration",
     "typecheck": "turbo --cache-dir=.turbo/cache typecheck",
-    "check": "turbo --cache-dir=.turbo/cache lint typecheck build test && pnpm test:db",
+    "check": "turbo --cache-dir=.turbo/cache lint typecheck build test && pnpm test:db && pnpm test:integration",
     "dev:mobile": "turbo --cache-dir=.turbo/cache dev --filter=@padelaso/mobile",
     "mobile:ios": "pnpm --filter @padelaso/mobile ios",
     "mobile:android": "pnpm --filter @padelaso/mobile android"
