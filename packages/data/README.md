@@ -108,7 +108,7 @@ Supabase stack, with real JWTs (`pnpm exec supabase start` first).
 
 ## Rollout and rollback
 
-Migration `20261109090000_native_scoring_commands` is additive, so deployed web and
+Migration `20261109113655_native_scoring_commands` is additive, so deployed web and
 Shortcut code keeps working before and after it. Apply it before enabling any native
 client. Until it is applied, the `/v1` routes return `INTERNAL_ERROR` and change nothing.
 Shortcut routes keep their request and response contracts and are still not idempotent.
