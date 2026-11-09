@@ -3,8 +3,12 @@
 Native iOS/Android foundation for MAR-43. Expo Router screens consume
 `@padelaso/domain` directly: sample match teams, set wins and event labels.
 No Next.js components, server routes or web environment files are imported.
-The current screens use offline sample data, including when a backend is
-configured. Authentication and real data access belong to MAR-47/MAR-45.
+Without backend settings the app shows offline sample data. With a configured
+backend, MAR-47 adds Google system-browser sign-in, native Apple sign-in on iOS,
+secure persistent sessions, explicit provider linking, and protected routes.
+The account screen reads existing groups/player associations. Match/invite
+links are checked against the backend before showing data or accepting an invite.
+See [AUTH.md](AUTH.md) for setup, recovery behavior and validation status.
 
 The MAR-44 feasibility prototype adds an Apple Watch companion and a native
 test setup form in **Configuración**. See [WATCH-SPIKE.md](WATCH-SPIKE.md) for
@@ -110,11 +114,13 @@ Only these public names are supported in `apps/mobile/.env.local`:
 | Name | Values |
 | --- | --- |
 | `EXPO_PUBLIC_APP_ENV` | `development` (default) or `test` |
-| `EXPO_PUBLIC_SUPABASE_URL` | HTTPS origin of a non-production backend, or blank |
+| `EXPO_PUBLIC_SUPABASE_URL` | HTTPS origin of the selected backend, or blank |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Corresponding `sb_publishable_…` client key, or blank |
 
 Set both backend fields or neither. Use a separate test project for shared
-QA; use a development project for developer work. Settings checks URL/key
+QA; prefer a development project for developer work. For MAR-47 the user explicitly
+selected the existing Padelaso project to preserve and test existing identities.
+Settings checks URL/key
 shape and shows a generic Spanish error for incomplete/invalid configuration.
 It does not verify backend connectivity. Configuration never displays keys or
 raw exceptions. Client keys are public by design; server authorization/RLS
@@ -131,7 +137,7 @@ Test builds have a different app name, bundle/package identifier and URL scheme
 local native build, change `EXPO_PUBLIC_APP_ENV`, regenerate the native project
 and rebuild; stop/restart Metro with the same environment. Environment labels
 do not prove which backend you selected: verify the URL belongs to the intended
-non-production project before setting it. Do not use `NODE_ENV` to select a backend.
+project before setting it. Do not use `NODE_ENV` to select a backend.
 
 ## Optional cloud development builds
 
@@ -203,7 +209,7 @@ pnpm --filter @padelaso/mobile exec expo config --type public
 pnpm --filter @padelaso/mobile exec pnpm dlx expo-doctor@1.21.6
 ```
 
-On a physical iPhone and Android emulator/device, verify:
+With blank backend settings, on a physical iPhone and Android emulator/device, verify:
 
 1. Launch the installed development client and open Metro's project.
 2. Home shows the sample teams and domain-derived **2 – 1** result.

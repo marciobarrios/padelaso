@@ -2,11 +2,15 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Action, Body, Card, Heading, Screen } from "../../components/ui";
 import { sampleEvents, sampleMatch, teamNames } from "../../sample";
 import { es } from "../../strings";
+import { useAuth } from "../../auth/provider";
+import { LinkedMatch } from "../../auth/linked-match";
 
 export { RouteError as ErrorBoundary } from "../../components/route-error";
 
 export default function MatchScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { state } = useAuth();
+  if (state.session) return <LinkedMatch key={id} id={id} />;
   if (id !== sampleMatch.id)
     return (
       <Screen>

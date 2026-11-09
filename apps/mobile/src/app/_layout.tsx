@@ -6,15 +6,26 @@ import { ActivityIndicator, View } from "react-native";
 import { Body, styles } from "../components/ui";
 import { theme } from "../theme";
 import { es } from "../strings";
+import { AuthProvider, useAuth } from "../auth/provider";
+import { settings } from "../config/settings";
 
 export { RouteError as ErrorBoundary } from "../components/route-error";
 
 export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <Navigation />
+    </AuthProvider>
+  );
+}
+
+function Navigation() {
+  const { state } = useAuth();
   const [loaded, error] = useFonts({
     Geist: require("../../assets/fonts/Geist-Regular.ttf"),
     GeistMono: require("../../assets/fonts/GeistMono-Regular.ttf"),
   });
-  if (!loaded && !error) {
+  if ((!loaded && !error) || state.status === "loading") {
     return (
       <SafeAreaProvider>
         <View
@@ -40,6 +51,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack
+        key={`${state.session?.user.id ?? "signed-out"}:${state.revision}`}
         screenOptions={{
           headerStyle: { backgroundColor: theme.color.background },
           headerTintColor: theme.color.text,
@@ -50,9 +62,21 @@ export default function RootLayout() {
           },
         }}
       >
-        <Stack.Screen name="index" options={{ title: es.app }} />
-        <Stack.Screen name="matches/[id]" options={{ title: es.details }} />
-        <Stack.Screen name="settings" options={{ title: es.settings }} />
+        <Stack.Protected
+          guard={state.status === "ready" || settings.status === "sample"}
+        >
+          <Stack.Screen name="index" options={{ title: es.app }} />
+          <Stack.Screen name="matches/[id]" options={{ title: "Partido" }} />
+          <Stack.Screen name="join/[code]" options={{ title: "Invitación" }} />
+          <Stack.Screen name="settings" options={{ title: es.settings }} />
+        </Stack.Protected>
+        <Stack.Protected guard={state.status !== "ready"}>
+          <Stack.Screen
+            name="sign-in"
+            options={{ title: "Entrar en Padelaso" }}
+          />
+        </Stack.Protected>
+        <Stack.Screen name="auth/callback" options={{ title: "Acceso" }} />
       </Stack>
     </SafeAreaProvider>
   );

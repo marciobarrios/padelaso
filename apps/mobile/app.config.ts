@@ -47,6 +47,7 @@ const config: ExpoConfig = {
     buildNumber: process.env.IOS_BUILD_NUMBER ?? "1",
     bundleIdentifier: `com.padelaso.mobile.${environment === "test" ? "test" : "dev"}`,
     supportsTablet: true,
+    usesAppleSignIn: true,
     infoPlist: {
       CFBundleDevelopmentRegion: "es",
       CFBundleLocalizations: ["es"],
@@ -60,6 +61,9 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-font",
+    "expo-secure-store",
+    "expo-web-browser",
+    "expo-apple-authentication",
     ["expo-splash-screen", { backgroundColor: "#121410" }],
     "@bacons/apple-targets",
     "./plugins/with-watch-build-number",

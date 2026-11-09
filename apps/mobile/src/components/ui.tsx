@@ -49,15 +49,22 @@ export function Card({ children }: { children: ReactNode }) {
 export function Action({
   label,
   onPress,
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.action,
+        (pressed || disabled) && styles.pressed,
+      ]}
     >
       <Text
         style={[
