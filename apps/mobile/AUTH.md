@@ -1,0 +1,250 @@
+# Native authentication — MAR-47
+
+## Flows and account identity
+
+Google uses `supabase.auth.signInWithOAuth` in the platform authentication browser
+(`ASWebAuthenticationSession` on iOS, browser/Custom Tabs on Android), with PKCE
+and the existing Supabase project/provider. The native crypto bridge supplies
+secure random values and SHA-256 so auth-js never falls back to plain PKCE.
+Only a one-use authorization code is accepted at the callback; implicit token
+fragments, other schemes, malformed callbacks and expired attempts are rejected.
+The PKCE verifier and ten-minute attempt record survive process termination.
+Warm Linking events and browser results share one exchange operation.
+
+Apple uses `expo-apple-authentication`, its official native button, a fresh nonce
+(SHA-256 to Apple, raw nonce to Supabase), and `signInWithIdToken`. Only email is
+requested. A name is not required or used to infer account identity.
+
+Sign in to the **original account first**, then use Configuración to explicitly
+link another provider with `linkIdentity`. The returned user ID must match the
+authenticated owner. Linking never falls back to sign-in or an application-side
+merge. Supabase controls its own verified-email automatic identity linking;
+the app does not merge names, similar emails, players or memberships. Apple's
+private relay email may differ from Google: the login and account screens explain
+how to return to the original account and link from there. An already-owned
+identity requires recovery of that original account; no history is moved.
+
+Groups and player associations remain keyed by the existing `auth.users.id`.
+The app does not create replacement player/profile rows or overwrite profile
+metadata during sign-in. Native group/player editing remains MAR-49 scope.
+
+## Approved Apple follow-up
+
+On 9 November 2026, the owner deferred Apple activation/completion and live
+acceptance until after PR #86 merges. [MAR-71](https://linear.app/marciobarrios/issue/MAR-71/complete-sign-in-with-apple-provisioning-account-linking-and-physical)
+owns enrolled-team provisioning, Apple credential exchange, private-relay and
+same-owner provider linking, conflict recovery and physical iPhone Apple tests.
+The Apple implementation groundwork remains in this PR; it is not live-verified.
+MAR-47 now covers the Google/session development milestone. Google-only local
+builds with the current Apple entitlement still cannot be provisioned by a free
+Personal Team; MAR-71 includes deciding/documenting an optional development build.
+
+Apple is the intended equivalent login option for the native App Store release.
+Apple's guideline 4.8 requires qualifying apps offering Google primary-account
+login to offer an equivalent service with limited data collection, email privacy
+and no advertising tracking without consent, unless an exception applies. This
+release requirement remains tracked in MAR-71 and gates MAR-56 store readiness.
+
+## Storage and lifecycle
+
+- iOS: SecureStore/Keychain, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`; Android:
+  SecureStore encrypted storage backed by Android Keystore, with its config
+  plugin's backup exclusions. No biometric prompt interrupts token refresh.
+- Session, verifier and pending-link keys are namespaced by environment and
+  backend host. No access/refresh tokens, provider tokens or raw errors are logged.
+- Values are URI-encoded into ASCII chunks smaller than 2 KiB, with a final
+  manifest commit. This accommodates large identity metadata. Writes/readers are
+  serialized; a missing chunk or interrupted write cannot expose a partial token.
+  Interrupted writes can require signing in again. There is no plaintext fallback.
+- Sign-out clears chunks, verifier, pending destination and user navigation state.
+  A durable signed-out marker prevents restoring credentials after interruption.
+  If remote revocation cannot be confirmed offline, local credentials are still
+  removed and the UI says so. It does not claim global account revocation.
+- SecureStore on iOS may survive uninstall; uninstall is not a sign-out mechanism.
+  Sign out explicitly on shared devices. Android uninstall removes local keys.
+- Session restoration and foregrounding call Auth `getUser` before exposing user
+  screens. Network failures show a retry/sign-out state; revoked sessions require
+  sign-in. Auto-refresh runs only in the foreground. Auth callbacks do not await
+  Supabase operations inside `onAuthStateChange`'s lock.
+- User routes remount on account changes/sign-out. Reads abort on unmount and
+  discard late results. There is no persistent group/match cache shared by users.
+  The independent MAR-44 Watch test form is available only in offline sample mode;
+  these user sessions are not sent to that prototype. Watch credential lifecycle
+  remains MAR-52 scope.
+
+## Provider setup
+
+The ignored `.env.local` in this worktree uses the existing **Padelaso** project,
+`avznvjohrzroiskkypwf`, as explicitly requested. Only its public URL and
+`sb_publishable_…` key enter the app. Never copy web/server env files.
+
+1. In Supabase Authentication → URL Configuration, **append** these exact
+   redirects, preserving the web site URL and all existing redirects:
+   - `padelaso-dev://auth/callback`
+   - `padelaso-test://auth/callback`
+2. Keep the existing Google provider/client configuration. The Google Cloud
+   authorized redirect remains the Supabase HTTPS `/auth/v1/callback` URL; the
+   custom mobile schemes belong in Supabase's redirect allowlist. This browser
+   flow needs no Google client secret in the app or Android SHA registration.
+3. Enable manual identity linking in Supabase Auth settings. If it is disabled,
+   linking must fail with recovery guidance; do not substitute a new sign-in.
+4. For Apple, register the app identifiers `com.padelaso.mobile.dev` and
+   `com.padelaso.mobile.test` with Sign in with Apple enabled in the Apple
+   Developer account; use matching signing/provisioning for physical builds.
+   Enable Apple in Supabase and append these bundle IDs to the allowed client ID
+   list, preserving any existing IDs. Keep nonce verification enabled. This
+   native ID-token flow does not require an Apple browser Services ID or a private
+   Apple OAuth signing key in the app. Distribution/team setup remains required.
+5. Rebuild the native development client after dependency/config changes.
+   `expo prebuild` generates the entitlement, callback schemes and SecureStore
+   configuration from committed config; do not edit disposable native projects.
+
+Local `supabase/config.toml` includes the two callbacks and manual linking. It
+does **not** update hosted settings. Avoid pushing the entire local config to the
+shared project: its local site URL and unrelated values are not production values.
+
+Hosted setup was applied on 9 November 2026 using the authenticated Supabase CLI.
+Both mobile callbacks are allowlisted, manual linking is enabled, and Apple is
+enabled with the development/test bundle IDs as accepted audiences. The six
+existing web redirects and twelve unrelated remote settings were preserved.
+A fresh CLI diff found no remaining differences for the declared Auth fields;
+public `/auth/v1/settings` now reports both Google and Apple enabled. Apple's
+app identifiers/capabilities and physical provisioning still need to be checked
+in the Apple Developer account before real-device sign-in validation.
+
+The CLI's automatic browser login established management access without a
+manually created token. In agent environments it must run in interactive text
+mode: `pnpm exec supabase login --no-browser --output-format text --agent no`.
+The browser authorization page returns a verification code for the waiting CLI.
+The change used pull/diff/push against an isolated minimal config rather than
+the repository's local-development config. Only the mobile redirects, manual
+linking and Apple provider fields were declared. The CLI also sent Apple's
+`email_optional = false` schema default as part of its provider-group update.
+
+## Deep links
+
+Only the build's scheme is accepted. Supported destinations are
+`padelaso-dev://matches/<UUID>` and `padelaso-dev://join/<invite-code>` (or the
+test scheme). Pending destinations survive authentication/cancellation and
+process restart. A match is fetched with the authenticated client and RLS;
+a valid UUID alone grants no access. An invite is displayed after sign-in and
+requires **Aceptar invitación**; only the existing `join_group_by_code` RPC can
+authorize membership. No automatic mutation retries are added. Sign-out clears
+the destination to prevent carrying it into another account.
+
+## Review and device acceptance
+
+The implementation uses Apple's native sign-in control as the iOS equivalent
+login option. Review guideline 4.8 and privacy disclosures apply. In-app account
+deletion is tracked separately in MAR-48 and must be completed before release;
+this development build is not a claim of App Store readiness.
+
+Automated coverage includes Unicode/large-session persistence, interrupted
+storage, S256 PKCE with the pinned SDK, cold/warm/duplicate/expired callbacks,
+provider cancellation, same-owner linking, conflict recovery, revoked sessions,
+foreground refresh, sign-out tombstones and stale account responses.
+
+Validation on this worktree (9 November 2026):
+
+| Check | Result |
+| --- | --- |
+| Mobile auth/config tests | 31 passed, including pinned-SDK PKCE and new-client session restoration |
+| Workspace lint, typecheck and tests | Passed; auth checks rerun after final lifecycle fixes |
+| Expo dependency compatibility | Passed |
+| iOS/Android Hermes exports | Passed |
+| iOS/Android native generation | Passed |
+| Apple entitlement / Android SecureStore backup exclusions | Present in generated projects |
+| Watch target embedding verifier | Passed |
+| iOS Simulator Debug build | Passed with Xcode 27.2 and ad-hoc simulator signing; unsigned builds cannot access Keychain |
+| iOS installation | Installed in the existing iPhone 18 Pro simulator |
+| iOS interaction | Resumed after the device became available: app launch, Google system-browser login page, cancellation recovery, rejected callback and protected pending match link observed; pending link survived app termination/relaunch |
+| iOS Apple flow | Native button opens the system Apple Account prompt; the simulator requires an Apple Account signed in through Settings before credentials can be issued |
+| iOS collapsed developer overlay | Reproduced a blank screen while accessibility still exposed the app/OAuth content. Hiding Expo's floating Tools button immediately revealed that content. iOS development builds now hide this button through the public development-client API; normal cold launch and developer-menu open/close were visually checked |
+| Android Debug build | Passed: 499 tasks executed. Gradle and JDK 17 were downloaded from official sources and checksum-verified; JDK 17 is installed in the user's JavaVirtualMachines directory |
+| Android installation and launch | APK installed and app opened on Pixel 10 / Android 17 emulator; connected to Metro after granting the development client's local-network permission |
+| Android Google flow | Live Google credential-entry page opened in the system browser; closing the tab returned the Spanish cancellation/retry state |
+| Android pending invite | An unauthenticated invite opened the sign-in screen with the saved-link notice; the notice survived app termination/relaunch |
+| Android invalid callback | Rejected with the Spanish expired/invalid-link message while preserving the pending invitation |
+| Existing-account sign-in and group display | User confirms their two existing groups are visible after signing in on both Android and iOS Simulator |
+| iOS identity and data preservation | Native authenticated getUser and RLS reads match the original backend user ID, Google identity ID, two membership IDs/roles and two player IDs/group associations; only whitelisted identifiers were inspected |
+| iOS process restoration | User confirms both groups return after fully quitting and reopening Padelaso Dev without another Google login |
+| iOS live token refresh | The native SDK refreshed against hosted Auth: access token changed, expiry advanced and getUser verified the same original account; credentials stayed inside the native runtime |
+| iOS scoped revocation | Hosted Auth accepted revocation of only the simulator session while cached native credentials remained present. User confirms a full quit/reopen returned to the sign-in screen with groups gone |
+| iOS recovery after revocation | User confirms signing back into the original Google account restores both existing groups |
+| Android identity and data preservation | Native getUser and authenticated RLS reads match the original user ID, Google identity ID, two membership IDs/roles and two player IDs/group associations |
+| Android live refresh and restoration | Hosted refresh changed the token and advanced expiry while getUser verified the same account. Full app relaunch restored both existing groups |
+| Android revoked-session recovery | Scoped hosted revocation was accepted while the SDK still had cached credentials; full relaunch returned to sign-in. The user completed Google recovery and confirmed the saved match opened with its expected score |
+| Android offline retry | With Wi-Fi and mobile data disabled, foreground verification showed the Spanish connection/retry state and removed account data. After restoring connectivity, Comprobar sesión restored both groups |
+| Pending match authorization | Android's saved match destination survived unauthenticated process restart, then resumed after the user's Google login and showed the expected score. On iOS, an authorized match displayed its score while an existing match outside the user's groups showed the missing/no-access message |
+| Invalid invitation | iOS displayed the explicit accept action; accepting an invalid code showed a recoverable error. Hosted baseline still had exactly two memberships and two players; the code matched no group |
+| Sign-out and stale verification | Android: a real getUser response was temporarily held inside the native runtime, the UI sign-out button was pressed, and the response was released. The app stayed signed out. This temporary diagnostic did not change source code. Both platforms had no SDK session, stored session or pending destination, and had a durable sign-out marker |
+| Sign-out restart | Both simulator/emulator apps stayed on sign-in after a full relaunch; no prior groups or match were visible |
+| iOS large text | At the largest accessibility text setting, the account/settings action was reachable by scrolling; checked visually and through accessibility. Restored normal large text afterward. This is layout reachability, not a VoiceOver interaction pass |
+| OAuth interruption | Android app termination at Google's account chooser preserved the pending destination. Automated account selection stalled on Google’s loading page; the user closed the tab, retried with the original account and confirms sign-in succeeded, resumed the saved destination and showed the expected no-access message for a match outside their groups |
+| Physical iPhone provisioning | Paired iPhone and development signing identity found. Xcode rejected provisioning because the available Personal Team does not support Sign in with Apple. User confirms only a free Personal Team is available; no physical auth result is claimed |
+| Live provider settings | Google and Apple enabled; verified against public Auth settings after the CLI push |
+| Hosted callback/linking changes | Applied through Supabase CLI: both callbacks, manual linking and native Apple audiences; fresh diff has zero declared differences and preserves all twelve unrelated settings |
+
+Existing-account identity, membership and player preservation, process restoration
+and hosted refresh are verified on both platforms. Revoked-session recovery was
+observed on both; the Android pending-match resume after Google recovery is also
+user-confirmed. Offline retry and a controlled late-verification sign-out race
+passed on Android. Ordinary sign-out persistence and stored-credential cleanup
+passed on both. No tokens or privileged credentials were copied from the native
+runtime during these checks.
+
+The owner explicitly limited live provider testing to the current Google account.
+A first-ever Google account and a real two-account switch have therefore not been
+live-tested. Automated controller coverage exercises a different next user and
+late responses; it does not establish live multi-account acceptance. Apple
+exchange, provider linking and physical iPhone Apple acceptance are deferred to
+MAR-71. No physical auth result is claimed.
+
+Simulator builds that exercise SecureStore must retain code signing. The first
+unsigned build failed with `A required entitlement is not present`; rebuilding
+with `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES`
+resolved Keychain access. Use the normal Expo/Xcode simulator build or these
+overrides with `xcodebuild`, not `CODE_SIGNING_ALLOWED=NO`, for auth testing.
+
+On the current SDK 58/iOS 27 simulator, Expo's collapsed floating Tools window
+can obscure both the app and the system OAuth sheet. The root layout disables
+the floating button only in iOS development builds. The developer menu remains
+available through Cmd+D or the simulator's shake command. Android and release
+builds do not execute this workaround. Accessibility snapshots alone did not
+reveal this occlusion; verify actual screenshots with the menu closed as well.
+
+## Approved release handoff — MAR-56
+
+On 9 November 2026, the owner approved completing the Google/session development
+milestone in MAR-47 when PR #86 merges and moving the following still-unrun live
+checks to [MAR-56](https://linear.app/marciobarrios/issue/MAR-56/verify-phone-watch-flows-end-to-end-and-prepare-store-ready-releases).
+MAR-56 has explicit scenarios, required evidence and release acceptance for each
+row. These checks remain required before release; they are not recorded as passes.
+
+- A first-ever Google login and live two-account switching remain unverified:
+  the owner has requested using only the original account. Do not create or use
+  another account without a change to that constraint.
+- Pinned-SDK/controller tests cover cold callback restoration, duplicate/replayed
+  callbacks, expired attempts, foreground refresh and stale different-account
+  responses. The live runs do not independently prove a successful callback into
+  a terminated process, real authorization-code replay, or natural JWT expiry
+  while backgrounded. Forced live hosted refresh is verified on both platforms.
+- Native accessibility labels/roles and the largest iOS text layout were inspected;
+  full VoiceOver/TalkBack interaction and physical acceptance remain unrun.
+- Apple activation/completion, private relay, provider linking and physical Apple
+  acceptance belong to MAR-71 after PR #86 merges.
+
+The 31 mobile tests passed again after this validation pass. No implementation
+change was needed for these results. Under the approved scope split, MAR-47's
+implementation and development acceptance are complete. Keep MAR-47 In Progress
+until PR #86 merges; its PR uses Fixes MAR-47. MAR-56 and MAR-71 remain open for
+their respective release requirements. Do not treat this milestone as physical,
+full multi-account, screen-reader or App Store acceptance.
+
+References checked during implementation:
+[Supabase Expo social auth](https://supabase.com/docs/guides/auth/quickstarts/with-expo-react-native-social-sign-in),
+[identity linking](https://supabase.com/docs/guides/auth/auth-identity-linking),
+[Expo Apple authentication](https://docs.expo.dev/versions/latest/sdk/apple-authentication/),
+[SecureStore](https://docs.expo.dev/versions/latest/sdk/securestore/),
+[Expo protected routes](https://docs.expo.dev/router/advanced/authentication/),
+[Apple review guidelines](https://developer.apple.com/app-store/review/guidelines/#login-services).

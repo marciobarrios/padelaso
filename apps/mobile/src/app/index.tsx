@@ -2,10 +2,14 @@ import { router } from "expo-router";
 import { Action, Body, Card, Heading, Screen } from "../components/ui";
 import { teamNames, setWins } from "../sample";
 import { es } from "../strings";
+import { useAuth } from "../auth/provider";
+import { AccountHome } from "../auth/account-home";
 
 export { RouteError as ErrorBoundary } from "../components/route-error";
 
 export default function MatchesScreen() {
+  const { state } = useAuth();
+  if (state.session) return <AccountHome />;
   return (
     <Screen>
       <Heading>{es.subtitle}</Heading>

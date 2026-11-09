@@ -23,5 +23,5 @@ export const es = {
   backendSample: "Modo de ejemplo sin conexión",
   backendInvalid: "Revisa la configuración pública del entorno.",
   settingsHint:
-    "Esta versión muestra datos de ejemplo. La conexión de cuentas y partidos se añadirá en una próxima versión.",
+    "La sesión pertenece a este dispositivo. La prueba independiente del Watch está disponible solo en modo de ejemplo.",
 } as const;
