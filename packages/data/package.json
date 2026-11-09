@@ -7,7 +7,9 @@
     "./mappers": "./src/mappers.ts",
     "./selects": "./src/selects.ts",
     "./queries": "./src/queries.ts",
-    "./contracts": "./src/contracts.ts"
+    "./contracts": "./src/contracts.ts",
+    "./native": "./src/native.ts",
+    "./fixtures/*": "./fixtures/*"
   },
   "scripts": {
     "build": "tsc",

@@ -16,9 +16,40 @@ event creation commands accept only the currently active event vocabulary.
 
 ## Native v1 semantics
 
-This is a contract, not a deployed endpoint. MAR-46 implements native snapshot
-access and atomic command execution. Never send these commands to Shortcut routes.
-The legacy increment RPC is not idempotent; do not automatically retry it.
+MAR-46 implements this contract at the routes below, backed by the
+`native_apply_command`, `native_match_snapshot` and `native_replace_scoring_session`
+database functions. `@padelaso/data/native` calls the same functions through a
+caller-owned client. Never send these commands to Shortcut routes. The legacy
+increment RPC is not idempotent; do not automatically retry it.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/native/v1/matches/{matchId}/snapshot` | Canonical state, returned as the snapshot JSON |
+| `POST /api/native/v1/commands` | Apply or replay one command, returned as an acknowledgement |
+| `POST /api/native/v1/matches/{matchId}/session` | Replace the scoring session, returned as a snapshot |
+
+Routes take a Supabase user access token in `Authorization: Bearer` and run as that
+user. Shortcut score tokens are rejected; Watch credential enrollment is MAR-52.
+The path carries the major version: a 404 from a `/v1` route means disable native
+commands. Failures use the error JSON, with `Retry-After` on `IN_FLIGHT`.
+
+Execution details clients can rely on:
+
+- Legacy and web writes advance the same revision, so they make queued commands
+  `STALE_REVISION`. Set IDs follow array position when those writers change sets.
+- `score.delta` targets only the active (latest) set; `score.correct` targets any set.
+  `set.create` requires `afterSetId` to be the latest set.
+- A decrement at zero, or a correction to the same score, is acknowledged at the
+  unchanged revision and consumes the command ID and sequence.
+- `event.create` and `event.undo` event IDs and player IDs must be UUIDs when executed.
+- Sequence must increase per user, session and client. Gaps are allowed, and a
+  rejected command does not consume its sequence.
+- Command IDs are scoped per user. Only applied commands save a receipt; a retried
+  rejection is evaluated again and, because revisions only move forward, cannot apply.
+- `expiresAt` may be at most 24 hours and 5 minutes past the server clock.
+- A replay after its session was replaced returns `STALE_SESSION`, because its
+  acknowledgement could not describe the current session.
+- `IN_FLIGHT` means the match lock was not acquired within 3 seconds; nothing applied.
 
 Wire timestamps are UTC ISO-8601 strings. IDs are opaque, nonempty strings;
 command IDs are UUIDs generated once per user intent. Nullable fields are required
@@ -47,8 +78,8 @@ Session identity changes when a scoring session is replaced; never resolve a que
 command through a token's mutable current-match selection. Authorization must be
 checked again at execution, including membership and permissions.
 
-MAR-46 must atomically authorize, deduplicate, check session/revision/sequence/target,
-apply, and save the acknowledgement. Same command ID and payload replays its result;
+One database transaction authorizes, deduplicates, checks session/revision/sequence/target,
+applies, and saves the receipt. Same command ID and payload replays its result;
 same ID with different payload yields COMMAND_ID_REUSED. IN_FLIGHT permits retry of
 the identical command after retryAfterMs. Distinct taps get distinct IDs. Dispatch
 one command at a time per client/session; reconcile canonical state before dispatching
@@ -58,7 +89,7 @@ The supported retry window is 24 hours from createdAt, enforced by expiresAt;
 server clocks are authoritative. Deduplication receipts must survive at least that
 window plus clock skew (minimum 48 hours). Expired commands must be rejected even
 after receipt eviction. A timeout is an unknown outcome: only the future idempotent
-endpoint may receive an identical retry. AUTH_EXPIRED/AUTH_STALE require renewed
+command endpoint may receive an identical retry. AUTH_EXPIRED/AUTH_STALE require renewed
 authorization; stale session/set/revision/order requires resynchronization and a new
 explicit user intent. FORBIDDEN and COMMAND_ID_REUSED are terminal. INTERNAL_ERROR
 alone does not establish whether a mutation committed. Never retry the legacy RPC.
@@ -70,5 +101,5 @@ nullable canonical revision and nullable retry delay; messages are not control f
 
 `fixtures/snapshot.json` is plain UTF-8 JSON consumable by TypeScript and Swift
 Foundation JSONDecoder/JSONSerialization. Tests cover serialization, score transforms,
-win statistics, malformed input, and injected Supabase HTTP responses. These tests
-do not prove live RLS or database concurrency; those are MAR-46 validation gates.
+win statistics, malformed input, and injected Supabase HTTP responses. Authorization
+and database concurrency are covered by `supabase/tests/native_commands_test.sql`.
