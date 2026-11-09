@@ -3,11 +3,12 @@ import ackFixture from "../fixtures/acknowledgement.json";
 import errorFixture from "../fixtures/error.json";
 import { describe, it, expect } from 'vitest';
 import fixture from '../fixtures/snapshot.json';
-import { snapshotSchema, commandSchema, acknowledgementSchema, errorSchema } from '../src/contracts';
+import { snapshotSchema, commandSchema, acknowledgementSchema, errorSchema, scoreSchema, MAX_MATCH_SETS } from '../src/contracts';
 import { mapMatch } from '../src/mappers';
 import { applyScoreDelta, getSetWins } from '@padelaso/domain/matches';
 import { listMatches, incrementMatchScore } from '../src/queries';
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 
 const row = { id: fixture.matchId, date: fixture.date, created_at: fixture.date,
   group_id: fixture.groupId, team1: fixture.team1, team2: fixture.team2, sets: fixture.sets };
@@ -19,6 +20,37 @@ function client(payload: unknown, status = 200) {
   });
 }
 describe('portable native contract', () => {
+  it('accepts the score collection limit and rejects the next set', () => {
+    const sets = Array.from({ length: MAX_MATCH_SETS }, () => ({ team1Score: 0, team2Score: 0 }));
+    expect(scoreSchema.parse(sets)).toEqual(sets);
+    expect(mapMatch({ ...row, sets }).sets).toEqual(sets);
+    const snapshot = { ...fixture, activeSetId: null, sets: sets.map((set, i) => ({ ...set, id: `set-${i}` })) };
+    expect(snapshotSchema.parse(snapshot)).toEqual(snapshot);
+    expect(scoreSchema.safeParse([...sets, sets[0]]).success).toBe(false);
+    expect(snapshotSchema.safeParse({ ...snapshot, sets: [...snapshot.sets, { ...sets[0], id: 'overflow' }] }).success).toBe(false);
+  });
+  it('rejects oversized score collections before reading any elements', () => {
+    const sets = new Array(MAX_MATCH_SETS + 1);
+    Object.defineProperty(sets, 0, { get() { throw new Error('Element validation must not run'); } });
+    const oversized = { success: false, error: { issues: [{ code: 'too_big' }] } };
+    expect(scoreSchema.safeParse(sets)).toMatchObject(oversized);
+    expect(() => mapMatch({ ...row, sets })).toThrow(z.ZodError);
+    expect(snapshotSchema.safeParse({ ...fixture, sets })).toMatchObject(oversized);
+    expect(acknowledgementSchema.safeParse({ ...ackFixture, snapshot: { ...fixture, sets } })).toMatchObject(oversized);
+  });
+  it('bounds validation errors for malformed database rows and RPC responses', async () => {
+    // This 30 KB payload previously allocated 20,000 validation issues.
+    const sets = Array.from({ length: 10_000 }, () => ({}));
+    for (const operation of [
+      () => listMatches(client([{ ...row, sets }]), fixture.groupId),
+      () => incrementMatchScore(client(sets), fixture.matchId, 1, 1),
+    ]) {
+      const error = await operation().then(() => null, error => error);
+      expect(error).toBeInstanceOf(z.ZodError);
+      expect(error.issues).toHaveLength(1);
+      expect(error.issues[0].code).toBe('too_big');
+    }
+  });
   it('loads matches after their creator is deleted and normalizes missing creators', async () => {
     expect(mapMatch({ ...row, created_by: null }).createdBy).toBeUndefined();
     expect(mapMatch(row).createdBy).toBeUndefined();

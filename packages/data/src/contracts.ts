@@ -5,7 +5,10 @@ const id = z.string().min(1).max(128);
 const integer = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const timestamp = z.iso.datetime();
 export const setSchema = z.object({ team1Score: integer, team2Score: integer });
-export const scoreSchema = z.array(setSchema);
+// A resource limit, not a padel rule: leave room for long scoring sessions.
+// Zod >=4.6.6 rejects an oversized array before validating its elements.
+export const MAX_MATCH_SETS = 100;
+export const scoreSchema = z.array(setSchema).max(MAX_MATCH_SETS);
 const eventType = z.enum(EVENT_CONFIGS.map(event => event.type));
 const historicalEventType = z.enum([...EVENT_MAP.keys()]);
 const envelope = { version: z.literal(1), matchId: id, sessionId: id };
@@ -15,7 +18,7 @@ export const snapshotSchema = z.object({
   courtNumber: integer.nullable(),
   roster: z.array(z.object({ id, name: z.string(), emoji: z.string() })),
   team1: z.array(id), team2: z.array(id),
-  sets: z.array(setSchema.extend({ id })), activeSetId: id.nullable(),
+  sets: z.array(setSchema.extend({ id })).max(MAX_MATCH_SETS), activeSetId: id.nullable(),
   events: z.array(z.object({ id, playerId: id, type: historicalEventType,
     sequence: integer, createdAt: timestamp })),
 }).superRefine((value, ctx) => {

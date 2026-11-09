@@ -24,6 +24,6 @@
   "dependencies": {
     "@padelaso/domain": "workspace:*",
     "@supabase/supabase-js": "2.101.1",
-    "zod": "4.3.6"
+    "zod": "4.6.6"
   }
 }

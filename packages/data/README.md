@@ -24,6 +24,11 @@ Wire timestamps are UTC ISO-8601 strings. IDs are opaque, nonempty strings;
 command IDs are UUIDs generated once per user intent. Nullable fields are required
 and explicitly `null`, never omitted. Scores are nonnegative safe integers per set,
 not tennis point labels. Revisions and event sequences are safe nonnegative integers.
+Score arrays have a resource limit of 100 sets, shared by database-row mapping,
+legacy score RPC responses, native snapshots and acknowledgements. This leaves
+room for long scoring sessions beyond the normal match format. Oversized arrays
+are rejected before their elements are read, with one size error rather than an
+error per malformed score field. This requires the pinned Zod version 4.6.6 or later.
 Snapshots carry the full roster, team IDs, stable set IDs, current set ID, ordered
 events and canonical revision missing from Shortcut options. Event order is strictly
 increasing sequence; gaps are allowed after undo. Array order defines set order.
