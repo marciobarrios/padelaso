@@ -152,7 +152,7 @@ Validation on this worktree (9 November 2026):
 | iOS identity and data preservation | Native authenticated getUser and RLS reads match the original backend user ID, Google identity ID, two membership IDs/roles and two player IDs/group associations; only whitelisted identifiers were inspected |
 | iOS process restoration | User confirms both groups return after fully quitting and reopening Padelaso Dev without another Google login |
 | iOS live token refresh | The native SDK refreshed against hosted Auth: access token changed, expiry advanced and getUser verified the same original account; credentials stayed inside the native runtime |
-| iOS scoped revocation | Hosted Auth accepted revocation of only the simulator session while cached native credentials remained present; quit/reopen detection is awaiting the user result |
+| iOS scoped revocation | Hosted Auth accepted revocation of only the simulator session while cached native credentials remained present. User confirms a full quit/reopen returned to the sign-in screen with groups gone |
 | Physical iPhone provisioning | Paired iPhone and development signing identity found. Xcode rejected provisioning because the available Personal Team does not support Sign in with Apple. User confirms only a free Personal Team is available; no physical auth result is claimed |
 | Live provider settings | Google and Apple enabled; verified against public Auth settings after the CLI push |
 | Hosted callback/linking changes | Applied through Supabase CLI: both callbacks, manual linking and native Apple audiences; fresh diff has zero declared differences and preserves all twelve unrelated settings |
@@ -161,9 +161,10 @@ Agent-driven iOS and Android checks reached Google's credential-entry page
 without entering account credentials. The user subsequently completed sign-in
 and confirmed their two existing groups appear on both platforms. Exact
 identity, membership and player preservation, process restoration and hosted
-refresh are now verified for iOS Simulator. The Android exact-ID comparison,
-Apple account exchange, hosted revocation and live provider linking remain
-unverified. Physical acceptance is blocked by Personal Team provisioning for
+refresh are now verified for iOS Simulator. Hosted scoped revocation was accepted,
+and the user confirms revoked-session detection after a full quit/reopen. The
+Android exact-ID comparison, Apple account exchange and live provider linking
+remain unverified. Physical acceptance is blocked by Personal Team provisioning for
 Sign in with Apple; it requires an enrolled Apple Developer team.
 
 Simulator builds that exercise SecureStore must retain code signing. The first
