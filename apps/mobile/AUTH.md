@@ -171,20 +171,34 @@ Validation on this worktree (9 November 2026):
 | iOS live token refresh | The native SDK refreshed against hosted Auth: access token changed, expiry advanced and getUser verified the same original account; credentials stayed inside the native runtime |
 | iOS scoped revocation | Hosted Auth accepted revocation of only the simulator session while cached native credentials remained present. User confirms a full quit/reopen returned to the sign-in screen with groups gone |
 | iOS recovery after revocation | User confirms signing back into the original Google account restores both existing groups |
+| Android identity and data preservation | Native getUser and authenticated RLS reads match the original user ID, Google identity ID, two membership IDs/roles and two player IDs/group associations |
+| Android live refresh and restoration | Hosted refresh changed the token and advanced expiry while getUser verified the same account. Full app relaunch restored both existing groups |
+| Android revoked-session recovery | Scoped hosted revocation was accepted while the SDK still had cached credentials; full relaunch returned to sign-in. The user completed Google recovery and confirmed the saved match opened with its expected score |
+| Android offline retry | With Wi-Fi and mobile data disabled, foreground verification showed the Spanish connection/retry state and removed account data. After restoring connectivity, Comprobar sesión restored both groups |
+| Pending match authorization | Android's saved match destination survived unauthenticated process restart, then resumed after the user's Google login and showed the expected score. On iOS, an authorized match displayed its score while an existing match outside the user's groups showed the missing/no-access message |
+| Invalid invitation | iOS displayed the explicit accept action; accepting an invalid code showed a recoverable error. Hosted baseline still had exactly two memberships and two players; the code matched no group |
+| Sign-out and stale verification | Android: a real getUser response was temporarily held inside the native runtime, the UI sign-out button was pressed, and the response was released. The app stayed signed out. This temporary diagnostic did not change source code. Both platforms had no SDK session, stored session or pending destination, and had a durable sign-out marker |
+| Sign-out restart | Both simulator/emulator apps stayed on sign-in after a full relaunch; no prior groups or match were visible |
+| iOS large text | At the largest accessibility text setting, the account/settings action was reachable by scrolling; checked visually and through accessibility. Restored normal large text afterward. This is layout reachability, not a VoiceOver interaction pass |
+| OAuth interruption | Android app termination at Google's account chooser returned to a recoverable sign-in screen with its pending destination intact; a fresh provider attempt opened the existing-account chooser, but the subsequent automated account selection stalled on Google’s loading page and is not a successful recovery result |
 | Physical iPhone provisioning | Paired iPhone and development signing identity found. Xcode rejected provisioning because the available Personal Team does not support Sign in with Apple. User confirms only a free Personal Team is available; no physical auth result is claimed |
 | Live provider settings | Google and Apple enabled; verified against public Auth settings after the CLI push |
 | Hosted callback/linking changes | Applied through Supabase CLI: both callbacks, manual linking and native Apple audiences; fresh diff has zero declared differences and preserves all twelve unrelated settings |
 
-Agent-driven iOS and Android checks reached Google's credential-entry page
-without entering account credentials. The user subsequently completed sign-in
-and confirmed their two existing groups appear on both platforms. Exact
-identity, membership and player preservation, process restoration and hosted
-refresh are now verified for iOS Simulator. Hosted scoped revocation was accepted,
-and the user confirms revoked-session detection after a full quit/reopen. The
-Android exact-ID comparison remains unverified. Apple exchange, live provider
-linking and physical iPhone Apple acceptance are deferred to MAR-71. Physical
-auth acceptance is not claimed; the current entitlement requires an enrolled
-Apple Developer team for provisioning.
+Existing-account identity, membership and player preservation, process restoration
+and hosted refresh are verified on both platforms. Revoked-session recovery was
+observed on both; the Android pending-match resume after Google recovery is also
+user-confirmed. Offline retry and a controlled late-verification sign-out race
+passed on Android. Ordinary sign-out persistence and stored-credential cleanup
+passed on both. No tokens or privileged credentials were copied from the native
+runtime during these checks.
+
+The owner explicitly limited live provider testing to the current Google account.
+A first-ever Google account and a real two-account switch have therefore not been
+live-tested. Automated controller coverage exercises a different next user and
+late responses; it does not establish live multi-account acceptance. Apple
+exchange, provider linking and physical iPhone Apple acceptance are deferred to
+MAR-71. No physical auth result is claimed.
 
 Simulator builds that exercise SecureStore must retain code signing. The first
 unsigned build failed with `A required entitlement is not present`; rebuilding
@@ -199,23 +213,25 @@ available through Cmd+D or the simulator's shake command. Android and release
 builds do not execute this workaround. Accessibility snapshots alone did not
 reveal this occlusion; verify actual screenshots with the menu closed as well.
 
-Before MAR-47 can close, record **real** iOS and Android evidence for:
+## Remaining evidence boundaries
 
-- Compare the existing Google user, membership and player IDs after Android
-  sign-in; the exact iOS comparison passed and group display is user-confirmed
-  on both platforms.
-- New Google users, cancellation and provider errors. Apple new-user, private
-  relay and explicit provider-linking/recovery acceptance belong to MAR-71.
-- Cold/warm callbacks, termination during OAuth, replay rejection, and pending links.
-- Process termination/restoration, token expiry/refresh, revoked sessions and offline retry.
-- Sign-out/account switch while data is loading, plus unauthorized match and invalid invite.
-- VoiceOver/TalkBack, large text, and Google provider interaction. Native Apple
-  interaction and physical Apple acceptance belong to MAR-71.
+- A first-ever Google login and live two-account switching remain unverified:
+  the owner has requested using only the original account. Do not create or use
+  another account without a change to that constraint.
+- Pinned-SDK/controller tests cover cold callback restoration, duplicate/replayed
+  callbacks, expired attempts, foreground refresh and stale different-account
+  responses. The live runs do not independently prove a successful callback into
+  a terminated process, real authorization-code replay, or natural JWT expiry
+  while backgrounded. Forced live hosted refresh is verified on both platforms.
+- Native accessibility labels/roles and the largest iOS text layout were inspected;
+  full VoiceOver/TalkBack interaction and physical acceptance remain unrun.
+- Apple activation/completion, private relay, provider linking and physical Apple
+  acceptance belong to MAR-71 after PR #86 merges.
 
-Passing unit tests, native generation and JS bundle export do not establish these
-live acceptance criteria. Use `Refs MAR-47` for a PR until the required evidence
-and hosted setup within the approved scope are complete. MAR-71 is a separate
-post-merge release requirement, not evidence that Apple has passed acceptance.
+The 31 mobile tests passed again after this validation pass. No implementation
+change was needed for these results. MAR-47 stays In Progress and PR #86 retains
+Refs MAR-47; do not treat unavailable live checks as passes or close the issue
+solely because automated tests passed.
 
 References checked during implementation:
 [Supabase Expo social auth](https://supabase.com/docs/guides/auth/quickstarts/with-expo-react-native-social-sign-in),
