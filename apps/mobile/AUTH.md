@@ -142,6 +142,7 @@ Validation on this worktree (9 November 2026):
 | iOS installation | Installed in the existing iPhone 18 Pro simulator |
 | iOS interaction | Resumed after the device became available: app launch, Google system-browser login page, cancellation recovery, rejected callback and protected pending match link observed; pending link survived app termination/relaunch |
 | iOS Apple flow | Native button opens the system Apple Account prompt; the simulator requires an Apple Account signed in through Settings before credentials can be issued |
+| iOS collapsed developer overlay | Reproduced a blank screen while accessibility still exposed the app/OAuth content. Hiding Expo's floating Tools button immediately revealed that content. iOS development builds now hide this button through the public development-client API; normal cold launch and developer-menu open/close were visually checked |
 | Android Debug build | Passed: 499 tasks executed. Gradle and JDK 17 were downloaded from official sources and checksum-verified; JDK 17 is installed in the user's JavaVirtualMachines directory |
 | Android installation and launch | APK installed and app opened on Pixel 10 / Android 17 emulator; connected to Metro after granting the development client's local-network permission |
 | Android Google flow | Live Google credential-entry page opened in the system browser; closing the tab returned the Spanish cancellation/retry state |
@@ -159,6 +160,13 @@ unsigned build failed with `A required entitlement is not present`; rebuilding
 with `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES`
 resolved Keychain access. Use the normal Expo/Xcode simulator build or these
 overrides with `xcodebuild`, not `CODE_SIGNING_ALLOWED=NO`, for auth testing.
+
+On the current SDK 58/iOS 27 simulator, Expo's collapsed floating Tools window
+can obscure both the app and the system OAuth sheet. The root layout disables
+the floating button only in iOS development builds. The developer menu remains
+available through Cmd+D or the simulator's shake command. Android and release
+builds do not execute this workaround. Accessibility snapshots alone did not
+reveal this occlusion; verify actual screenshots with the menu closed as well.
 
 Before MAR-47 can close, record **real** iOS and Android evidence for:
 

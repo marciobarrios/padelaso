@@ -1,8 +1,9 @@
 import { Stack } from "expo-router";
+import { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import { Body, styles } from "../components/ui";
 import { theme } from "../theme";
 import { es } from "../strings";
@@ -12,6 +13,16 @@ import { settings } from "../config/settings";
 export { RouteError as ErrorBoundary } from "../components/route-error";
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (__DEV__ && Platform.OS === "ios") {
+      // On iOS 27 the floating dev-menu window can cover the app and OAuth
+      // sheets while collapsed. Keep the menu available via Cmd+D or shake.
+      void import("expo-dev-client").then(({ setToolsButtonVisible }) => {
+        setToolsButtonVisible(false);
+      });
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <Navigation />
