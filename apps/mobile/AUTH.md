@@ -148,15 +148,23 @@ Validation on this worktree (9 November 2026):
 | Android Google flow | Live Google credential-entry page opened in the system browser; closing the tab returned the Spanish cancellation/retry state |
 | Android pending invite | An unauthenticated invite opened the sign-in screen with the saved-link notice; the notice survived app termination/relaunch |
 | Android invalid callback | Rejected with the Spanish expired/invalid-link message while preserving the pending invitation |
-| Existing-account sign-in and group display | User confirms their two existing groups are visible after signing in on both Android and iOS Simulator; exact user, membership and player IDs have not been independently compared |
+| Existing-account sign-in and group display | User confirms their two existing groups are visible after signing in on both Android and iOS Simulator |
+| iOS identity and data preservation | Native authenticated getUser and RLS reads match the original backend user ID, Google identity ID, two membership IDs/roles and two player IDs/group associations; only whitelisted identifiers were inspected |
+| iOS process restoration | User confirms both groups return after fully quitting and reopening Padelaso Dev without another Google login |
+| iOS live token refresh | The native SDK refreshed against hosted Auth: access token changed, expiry advanced and getUser verified the same original account; credentials stayed inside the native runtime |
+| iOS scoped revocation | Hosted Auth accepted revocation of only the simulator session while cached native credentials remained present; quit/reopen detection is awaiting the user result |
+| Physical iPhone provisioning | Paired iPhone and development signing identity found. Xcode rejected provisioning because the available Personal Team does not support Sign in with Apple. User confirms only a free Personal Team is available; no physical auth result is claimed |
 | Live provider settings | Google and Apple enabled; verified against public Auth settings after the CLI push |
 | Hosted callback/linking changes | Applied through Supabase CLI: both callbacks, manual linking and native Apple audiences; fresh diff has zero declared differences and preserves all twelve unrelated settings |
 
 Agent-driven iOS and Android checks reached Google's credential-entry page
 without entering account credentials. The user subsequently completed sign-in
-and confirmed their two existing groups appear on both platforms. Apple account
-exchange, exact identity/player ID preservation, hosted refresh/revocation and
-live provider linking remain unverified. No physical-device result is claimed.
+and confirmed their two existing groups appear on both platforms. Exact
+identity, membership and player preservation, process restoration and hosted
+refresh are now verified for iOS Simulator. The Android exact-ID comparison,
+Apple account exchange, hosted revocation and live provider linking remain
+unverified. Physical acceptance is blocked by Personal Team provisioning for
+Sign in with Apple; it requires an enrolled Apple Developer team.
 
 Simulator builds that exercise SecureStore must retain code signing. The first
 unsigned build failed with `A required entitlement is not present`; rebuilding
@@ -173,8 +181,9 @@ reveal this occlusion; verify actual screenshots with the menu closed as well.
 
 Before MAR-47 can close, record **real** iOS and Android evidence for:
 
-- Compare the existing Google user, membership and player IDs after sign-in;
-  group display is already user-confirmed on both platforms.
+- Compare the existing Google user, membership and player IDs after Android
+  sign-in; the exact iOS comparison passed and group display is user-confirmed
+  on both platforms.
 - New Google and Apple users, Apple private relay, cancellation and provider errors.
 - Same-account linking with different emails; already-owned identity recovery.
 - Cold/warm callbacks, termination during OAuth, replay rejection, and pending links.
