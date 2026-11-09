@@ -707,7 +707,7 @@ SELECT pg_temp.race(
 );
 
 SELECT is(
-  (SELECT array_agg(coalesce(result ->> 'status', result ->> 'code') ORDER BY coalesce(result ->> 'status', result ->> 'code')) FROM concurrent_results WHERE scenario = 'distinct'),
+  (SELECT array_agg(coalesce(result ->> 'status', result ->> 'code') ORDER BY coalesce(result ->> 'status', result ->> 'code') COLLATE "C") FROM concurrent_results WHERE scenario = 'distinct'),
   ARRAY['STALE_REVISION', 'applied'],
   'of two commands based on one revision, exactly one applies'
 );
