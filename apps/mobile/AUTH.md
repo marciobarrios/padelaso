@@ -213,7 +213,13 @@ available through Cmd+D or the simulator's shake command. Android and release
 builds do not execute this workaround. Accessibility snapshots alone did not
 reveal this occlusion; verify actual screenshots with the menu closed as well.
 
-## Remaining evidence boundaries
+## Approved release handoff — MAR-56
+
+On 9 November 2026, the owner approved completing the Google/session development
+milestone in MAR-47 when PR #86 merges and moving the following still-unrun live
+checks to [MAR-56](https://linear.app/marciobarrios/issue/MAR-56/verify-phone-watch-flows-end-to-end-and-prepare-store-ready-releases).
+MAR-56 has explicit scenarios, required evidence and release acceptance for each
+row. These checks remain required before release; they are not recorded as passes.
 
 - A first-ever Google login and live two-account switching remain unverified:
   the owner has requested using only the original account. Do not create or use
@@ -229,9 +235,11 @@ reveal this occlusion; verify actual screenshots with the menu closed as well.
   acceptance belong to MAR-71 after PR #86 merges.
 
 The 31 mobile tests passed again after this validation pass. No implementation
-change was needed for these results. MAR-47 stays In Progress and PR #86 retains
-Refs MAR-47; do not treat unavailable live checks as passes or close the issue
-solely because automated tests passed.
+change was needed for these results. Under the approved scope split, MAR-47's
+implementation and development acceptance are complete. Keep MAR-47 In Progress
+until PR #86 merges; its PR uses Fixes MAR-47. MAR-56 and MAR-71 remain open for
+their respective release requirements. Do not treat this milestone as physical,
+full multi-account, screen-reader or App Store acceptance.
 
 References checked during implementation:
 [Supabase Expo social auth](https://supabase.com/docs/guides/auth/quickstarts/with-expo-react-native-social-sign-in),
