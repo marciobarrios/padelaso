@@ -28,6 +28,23 @@ Groups and player associations remain keyed by the existing `auth.users.id`.
 The app does not create replacement player/profile rows or overwrite profile
 metadata during sign-in. Native group/player editing remains MAR-49 scope.
 
+## Approved Apple follow-up
+
+On 9 November 2026, the owner deferred Apple activation/completion and live
+acceptance until after PR #86 merges. [MAR-71](https://linear.app/marciobarrios/issue/MAR-71/complete-sign-in-with-apple-provisioning-account-linking-and-physical)
+owns enrolled-team provisioning, Apple credential exchange, private-relay and
+same-owner provider linking, conflict recovery and physical iPhone Apple tests.
+The Apple implementation groundwork remains in this PR; it is not live-verified.
+MAR-47 now covers the Google/session development milestone. Google-only local
+builds with the current Apple entitlement still cannot be provisioned by a free
+Personal Team; MAR-71 includes deciding/documenting an optional development build.
+
+Apple is the intended equivalent login option for the native App Store release.
+Apple's guideline 4.8 requires qualifying apps offering Google primary-account
+login to offer an equivalent service with limited data collection, email privacy
+and no advertising tracking without consent, unless an exception applies. This
+release requirement remains tracked in MAR-71 and gates MAR-56 store readiness.
+
 ## Storage and lifecycle
 
 - iOS: SecureStore/Keychain, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`; Android:
@@ -153,6 +170,7 @@ Validation on this worktree (9 November 2026):
 | iOS process restoration | User confirms both groups return after fully quitting and reopening Padelaso Dev without another Google login |
 | iOS live token refresh | The native SDK refreshed against hosted Auth: access token changed, expiry advanced and getUser verified the same original account; credentials stayed inside the native runtime |
 | iOS scoped revocation | Hosted Auth accepted revocation of only the simulator session while cached native credentials remained present. User confirms a full quit/reopen returned to the sign-in screen with groups gone |
+| iOS recovery after revocation | User confirms signing back into the original Google account restores both existing groups |
 | Physical iPhone provisioning | Paired iPhone and development signing identity found. Xcode rejected provisioning because the available Personal Team does not support Sign in with Apple. User confirms only a free Personal Team is available; no physical auth result is claimed |
 | Live provider settings | Google and Apple enabled; verified against public Auth settings after the CLI push |
 | Hosted callback/linking changes | Applied through Supabase CLI: both callbacks, manual linking and native Apple audiences; fresh diff has zero declared differences and preserves all twelve unrelated settings |
@@ -163,9 +181,10 @@ and confirmed their two existing groups appear on both platforms. Exact
 identity, membership and player preservation, process restoration and hosted
 refresh are now verified for iOS Simulator. Hosted scoped revocation was accepted,
 and the user confirms revoked-session detection after a full quit/reopen. The
-Android exact-ID comparison, Apple account exchange and live provider linking
-remain unverified. Physical acceptance is blocked by Personal Team provisioning for
-Sign in with Apple; it requires an enrolled Apple Developer team.
+Android exact-ID comparison remains unverified. Apple exchange, live provider
+linking and physical iPhone Apple acceptance are deferred to MAR-71. Physical
+auth acceptance is not claimed; the current entitlement requires an enrolled
+Apple Developer team for provisioning.
 
 Simulator builds that exercise SecureStore must retain code signing. The first
 unsigned build failed with `A required entitlement is not present`; rebuilding
@@ -185,16 +204,18 @@ Before MAR-47 can close, record **real** iOS and Android evidence for:
 - Compare the existing Google user, membership and player IDs after Android
   sign-in; the exact iOS comparison passed and group display is user-confirmed
   on both platforms.
-- New Google and Apple users, Apple private relay, cancellation and provider errors.
-- Same-account linking with different emails; already-owned identity recovery.
+- New Google users, cancellation and provider errors. Apple new-user, private
+  relay and explicit provider-linking/recovery acceptance belong to MAR-71.
 - Cold/warm callbacks, termination during OAuth, replay rejection, and pending links.
 - Process termination/restoration, token expiry/refresh, revoked sessions and offline retry.
 - Sign-out/account switch while data is loading, plus unauthorized match and invalid invite.
-- VoiceOver/TalkBack, large text, and native Apple/Google provider interaction.
+- VoiceOver/TalkBack, large text, and Google provider interaction. Native Apple
+  interaction and physical Apple acceptance belong to MAR-71.
 
 Passing unit tests, native generation and JS bundle export do not establish these
 live acceptance criteria. Use `Refs MAR-47` for a PR until the required evidence
-and hosted setup are complete.
+and hosted setup within the approved scope are complete. MAR-71 is a separate
+post-merge release requirement, not evidence that Apple has passed acceptance.
 
 References checked during implementation:
 [Supabase Expo social auth](https://supabase.com/docs/guides/auth/quickstarts/with-expo-react-native-social-sign-in),
