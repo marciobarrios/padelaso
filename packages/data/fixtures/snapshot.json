@@ -1,0 +1,10 @@
+{
+  "version": 1, "matchId": "match-a", "sessionId": "session-a", "groupId": "group-a",
+  "revision": 3, "generatedAt": "2026-11-07T12:00:00.000Z", "authorizationExpiresAt": null,
+  "date": "2026-11-07T12:00:00.000Z", "courtNumber": null,
+  "roster": [{"id":"ana","name":"Ana","emoji":"🎾"},{"id":"pablo","name":"Pablo","emoji":"⚡"}],
+  "team1": ["ana"], "team2": ["pablo"],
+  "sets": [{"id":"set-a","team1Score":6,"team2Score":4},{"id":"set-b","team1Score":2,"team2Score":3}],
+  "activeSetId": "set-b",
+  "events": [{"id":"event-a","playerId":"ana","type":"ace","sequence":1,"createdAt":"2026-11-07T12:00:00.000Z"}]
+}

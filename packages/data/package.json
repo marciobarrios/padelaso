@@ -1,0 +1,29 @@
+{
+  "name": "@padelaso/data",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./mappers": "./src/mappers.ts",
+    "./selects": "./src/selects.ts",
+    "./queries": "./src/queries.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@padelaso/typescript-config": "workspace:*",
+    "typescript": "^5",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "@padelaso/domain": "workspace:*",
+    "@supabase/supabase-js": "2.101.1",
+    "zod": "4.6.6"
+  }
+}
