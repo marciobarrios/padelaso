@@ -12,3 +12,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Linear's team workflow must map **On PR or commit merge** to **Done** for automatic completion. If a merged PR left an issue open, verify the merge, repair the link, and confirm the final issue status; do not claim automatic completion without checking it.
 
 Reference: [Linear GitHub integration](https://linear.app/docs/github).
+
+## Simulators and emulators
+
+- When you finish testing on an iOS Simulator or Android Emulator, release it before your final reply: close every device you opened (in T3 Code, `device_close`). An open device keeps its claim, and other threads get `DEVICE_IN_USE` until it is released.
+- Release only devices you opened. Never close another thread's session unless the user asks.
+- Also stop any dev server you started for device testing.
