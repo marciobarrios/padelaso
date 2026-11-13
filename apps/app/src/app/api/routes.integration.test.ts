@@ -2,6 +2,8 @@ import { createHmac, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { listMcpGroups, listMcpPlayers, listMcpMatches } from "@padelaso/data/queries";
+import { calculatePlayerStats } from "@padelaso/domain/stats";
 import { executeNativeCommand } from "@padelaso/data/native";
 import type { NativeSnapshot } from "@padelaso/data/contracts";
 import { POST as postEvent } from "./events/route";
@@ -561,5 +563,25 @@ describe("existing Shortcut routes keep their contract", () => {
       expect(await response.json()).toMatchObject({ ok: false, spoken });
     }
     expect(await eventCount(matchId)).toBe(0);
+  });
+});
+
+
+describe("MCP read projections on the real stack", () => {
+  it("lists membership-scoped groups and hides other groups through RLS", async () => {
+    expect((await listMcpGroups(member.client)).some((group) => group.id === groupId)).toBe(true);
+    expect((await listMcpGroups(outsider.client)).some((group) => group.id === groupId)).toBe(false);
+    expect(await listMcpPlayers(outsider.client, groupId)).toEqual([]);
+    expect(await listMcpMatches(outsider.client, groupId)).toEqual([]);
+  });
+
+  it("resolves literal names, returns compact data, and computes shared stats", async () => {
+    const players = await listMcpPlayers(member.client, groupId, "aNA");
+    expect(players).toEqual([{ id: ana, name: "Ana", emoji: "A" }]);
+    expect(await listMcpPlayers(member.client, groupId, "%")).toEqual([]);
+    const matchId = await newMatch([{ team1Score: 6, team2Score: 2 }]);
+    const matches = await listMcpMatches(member.client, groupId);
+    const match = matches.find((entry) => entry.id === matchId)!;
+    expect(calculatePlayerStats(ana, [match])).toMatchObject({ matches: 1, wins: 1, losses: 0, winRate: 1 });
   });
 });
