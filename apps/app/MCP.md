@@ -133,10 +133,12 @@ creators or internal fields.
    request call Supabase Auth to validate the token, and the `openid` scope requires asymmetric
    keys.
 4. **Authentication → OAuth Apps → Add client**: name `ChatGPT`, the redirect URI from the next
-   section, confidential client (`client_secret_basic` or `client_secret_post`, matching ChatGPT's
-   setting). Copy the client ID and secret.
+   section, confidential client. Its token endpoint auth method (`client_secret_basic` or
+   `client_secret_post`) must match the one set in ChatGPT; Supabase rejects any other. Copy the
+   client ID and secret.
 5. In Vercel (product project): set `MCP_RESOURCE_URL`, `MCP_ALLOWED_CLIENT_IDS` (the client ID)
-   and `MCP_ALLOWED_USER_IDS` (testers' user IDs), then redeploy.
+   and `MCP_ALLOWED_USER_IDS` (testers' user IDs), then redeploy. Vercel applies env var changes
+   only to new deployments, so redeploy after every change, including allowlist edits.
 
 **Registration decision: manual first, dynamic registration off.** Enable dynamic registration
 only if ChatGPT can't complete the flow with a manually registered client. Record the failure
@@ -156,7 +158,10 @@ generic `https://chatgpt.com/connector_platform_oauth_redirect`.
    be enabled first).
 2. URL: the `MCP_RESOURCE_URL` value. Authentication: **OAuth**.
 3. Open **Advanced OAuth settings**. Copy the callback URL ChatGPT shows and register it on the
-   Supabase client (setup step 4). Enter the client ID and secret.
+   Supabase client (setup step 4). Enter the client ID and secret, and set **Token endpoint auth
+   method** to the method the Supabase client uses. Don't assume ChatGPT's default matches it: on
+   the first production connection ChatGPT used `client_secret_post` against a client registered
+   for `client_secret_basic`.
 4. Save and connect. ChatGPT discovers Supabase from the protected resource metadata, sends you
    to `/oauth/consent`, and through Google sign-in if needed (the `authorization_id` survives
    the round trip). Approve.
@@ -169,6 +174,19 @@ Repeat with Claude (custom connector) or the MCP Inspector
 (`npx @modelcontextprotocol/inspector`). Register a separate Supabase OAuth client with that
 client's callback, add its ID to `MCP_ALLOWED_CLIENT_IDS`, and connect. Nothing in the server is
 ChatGPT-specific; CORS allows browser-based clients because authentication is bearer-only.
+
+### Troubleshooting
+
+Problems seen during the first production connection (November 2026):
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| ChatGPT: "Couldn't discover OAuth settings" | The protected resource metadata answers `500`. Runtime logs show `MCP_RESOURCE_URL must be set in production`. | Set `MCP_RESOURCE_URL` and redeploy. A variable added after the last deployment isn't applied yet. |
+| Consent page: "todavía no están disponibles para tu cuenta" | The user or the client isn't in its allowlist. The page shows the same message for both. | Compare `MCP_ALLOWED_USER_IDS` with the user's ID (**Authentication → Users**) and `MCP_ALLOWED_CLIENT_IDS` with the OAuth client's ID (**Authentication → OAuth Apps**), then redeploy. |
+| ChatGPT shows an error right after approving | The token exchange fails. Supabase Auth logs show `invalid authentication method: client is registered for 'client_secret_basic' but 'client_secret_post' was used`. | Make the token endpoint auth method match in ChatGPT and on the Supabase client. |
+
+After any fix, start the connection again from the client. An authorization request that was
+already shown on the consent page may have expired.
 
 ## Verification
 
