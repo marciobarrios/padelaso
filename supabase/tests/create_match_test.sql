@@ -394,53 +394,15 @@ SELECT is(
   'a removed member cannot replay a receipt'
 );
 
--- ------------------------------------------------------------
--- Atomicity: a failing event insert leaves no match behind.
--- ------------------------------------------------------------
 RESET ROLE;
-CREATE FUNCTION pg_temp.fail_on_cano()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $function$
-BEGIN
-  IF new.type = 'cano' THEN
-    RAISE EXCEPTION 'event insert failed' USING errcode = 'P0001';
-  END IF;
-  RETURN new;
-END;
-$function$;
-CREATE TRIGGER fail_on_cano BEFORE INSERT ON public.match_events
-  FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_on_cano();
-
-CREATE TEMP TABLE counts_before AS SELECT pg_temp.group_matches() AS matches, pg_temp.group_events() AS events;
-GRANT SELECT ON counts_before TO authenticated;
-
-SET LOCAL ROLE authenticated;
-SET LOCAL request.jwt.claim.sub = '10000000-0000-0000-0000-000000000031';
-
-SELECT throws_ok(
-  $$ SELECT public.create_match(pg_temp.request('{"sets": [{"team1Score": 1, "team2Score": 6}], "events": [
-       {"playerId": "50000000-0000-0000-0000-000000000031", "type": "ace"},
-       {"playerId": "50000000-0000-0000-0000-000000000032", "type": "cano"}
-     ]}')) $$,
-  'P0001',
-  'event insert failed',
-  'a failing event insert fails the whole call'
-);
-
-SELECT is(
-  pg_temp.group_matches() || '/' || pg_temp.group_events(),
-  (SELECT matches || '/' || events FROM counts_before),
-  'neither the match nor its other events were kept'
-);
-
-RESET ROLE;
-DROP TRIGGER fail_on_cano ON public.match_events;
 
 -- ------------------------------------------------------------
 -- Concurrency: two identical requests at once create one match.
 -- Each request runs in its own connection and commits, so the
 -- fixtures for this part are committed and removed at the end.
+-- It must run before any DDL in this transaction: the other
+-- connections cannot see that it waits for them, so a table lock
+-- held here (CREATE or DROP TRIGGER) would block them forever.
 -- ------------------------------------------------------------
 CREATE FUNCTION pg_temp.local_db_connection_string()
 RETURNS text
@@ -558,6 +520,49 @@ BEGIN
   PERFORM extensions.dblink_disconnect('create_setup');
 END;
 $cleanup$;
+
+-- ------------------------------------------------------------
+-- Atomicity: a failing event insert leaves no match behind.
+-- ------------------------------------------------------------
+RESET ROLE;
+CREATE FUNCTION pg_temp.fail_on_cano()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF new.type = 'cano' THEN
+    RAISE EXCEPTION 'event insert failed' USING errcode = 'P0001';
+  END IF;
+  RETURN new;
+END;
+$function$;
+CREATE TRIGGER fail_on_cano BEFORE INSERT ON public.match_events
+  FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_on_cano();
+
+CREATE TEMP TABLE counts_before AS SELECT pg_temp.group_matches() AS matches, pg_temp.group_events() AS events;
+GRANT SELECT ON counts_before TO authenticated;
+
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub = '10000000-0000-0000-0000-000000000031';
+
+SELECT throws_ok(
+  $$ SELECT public.create_match(pg_temp.request('{"sets": [{"team1Score": 1, "team2Score": 6}], "events": [
+       {"playerId": "50000000-0000-0000-0000-000000000031", "type": "ace"},
+       {"playerId": "50000000-0000-0000-0000-000000000032", "type": "cano"}
+     ]}')) $$,
+  'P0001',
+  'event insert failed',
+  'a failing event insert fails the whole call'
+);
+
+SELECT is(
+  pg_temp.group_matches() || '/' || pg_temp.group_events(),
+  (SELECT matches || '/' || events FROM counts_before),
+  'neither the match nor its other events were kept'
+);
+
+RESET ROLE;
+DROP TRIGGER fail_on_cano ON public.match_events;
 
 SELECT * FROM finish();
 
