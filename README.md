@@ -122,6 +122,11 @@ Before moving the domains, add
 `https://app.padelaso.com/auth/callback` to Supabase Auth's redirect allowlist.
 Deploy and verify both projects as previews before changing production DNS.
 
+The product also serves a read-only MCP server at `/api/mcp` for ChatGPT and other
+assistants. See [apps/app/MCP.md](apps/app/MCP.md) for its OAuth setup and environment
+variables. Set `MCP_RESOURCE_URL` to the `app.padelaso.com` URL so that requests proxied through
+the marketing domain advertise the same resource.
+
 ## Product features
 
 - Groups with invite codes and admin/member roles

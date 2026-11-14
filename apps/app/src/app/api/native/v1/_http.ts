@@ -1,6 +1,7 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { nativeError, type NativeResult } from "@padelaso/data/native";
 import type { NativeError } from "@padelaso/data/contracts";
+import { createUserSupabaseClient } from "@/lib/supabase-user";
 
 const STATUS: Record<NativeError["code"], number> = {
   INVALID_REQUEST: 400,
@@ -46,14 +47,5 @@ export function createNativeClient(request: Request): SupabaseClient | null {
     ? header.slice(7).trim()
     : "";
   if (!accessToken) return null;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!url || !anonKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  }
-  return createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-  });
+  return createUserSupabaseClient(accessToken);
 }
