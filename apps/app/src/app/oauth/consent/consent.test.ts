@@ -59,8 +59,8 @@ describe("consent helpers", () => {
   });
 
   it("labels identity scopes", () => {
-    expect(describeScopes("openid email email custom")).toEqual([
-      "Tu identidad en Padelaso", "Tu dirección de email", "custom",
+    expect(describeScopes("openid email email offline_access custom")).toEqual([
+      "tu identidad en Padelaso", "tu dirección de email", "acceso continuado sin que vuelvas a iniciar sesión", "custom",
     ]);
     expect(describeScopes(undefined)).toEqual([]);
   });
