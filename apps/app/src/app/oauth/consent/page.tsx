@@ -16,10 +16,11 @@ export const metadata: Metadata = {
 const CAN = [
   "Ver los grupos a los que perteneces",
   "Consultar los jugadores, el historial de partidos y las estadísticas de esos grupos",
+  "Registrar partidos nuevos en esos grupos, después de que confirmes los detalles",
 ];
 // The grant is a full account token, so this describes the connection's tools
-// and never promises that the application is unable to write.
-const NOT_OFFERED = ["Esta conexión solo ofrece consultas: no incluye herramientas para crear, editar ni borrar"];
+// and never promises that the application is unable to do more.
+const NOT_OFFERED = ["No incluye herramientas para editar ni borrar partidos, jugadores ni grupos"];
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -135,7 +136,7 @@ export default async function ConsentPage({
           </div>
           <div className="space-y-2 text-xs text-muted-foreground text-pretty">
             <p>
-              El permiso se concede con los mismos derechos que tu cuenta de Padelaso, aunque esta conexión solo ofrezca consultas.
+              El permiso se concede con los mismos derechos que tu cuenta de Padelaso, aunque esta conexión solo permita consultar datos y registrar partidos.
             </p>
             <p>Si se revoca el permiso, un acceso ya emitido puede seguir funcionando hasta una hora.</p>
             {destination && (

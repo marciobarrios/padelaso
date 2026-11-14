@@ -1,9 +1,10 @@
-# Padelaso MCP server (MAR-98, phase 1)
+# Padelaso MCP server (MAR-98, MAR-99)
 
 Padelaso exposes a remote [Model Context Protocol](https://modelcontextprotocol.io) server so
 assistants such as ChatGPT and Claude can read a user's groups, players, match history and
-stats. Users sign in with their Padelaso account through Supabase Auth's OAuth 2.1 server.
-Phase 1 is **read-only** and limited to an allowlist of users.
+stats, and record new matches. Users sign in with their Padelaso account through Supabase
+Auth's OAuth 2.1 server. Access is limited to an allowlist of users. Phase 1 (MAR-98) added the
+read tools; phase 2 (MAR-99) adds `create_match`. No tool edits or deletes data.
 
 | | |
 | --- | --- |
@@ -13,6 +14,7 @@ Phase 1 is **read-only** and limited to an allowlist of users.
 | AS metadata | `<SUPABASE_URL>/.well-known/oauth-authorization-server/auth/v1` |
 | Consent page | `/oauth/consent` |
 | Code | `src/lib/mcp/` (config, auth, tools, handler), `src/app/oauth/consent/` |
+| Write path | `public.create_match` (`supabase/migrations/20261114180000_create_match.sql`) |
 
 Built with `mcp-handler` 2.3, `@modelcontextprotocol/server` 2.4 and Zod 4 on the Node.js
 runtime. Every request builds a fresh MCP server, so there is no session store or affinity.
@@ -81,22 +83,24 @@ binds refresh tokens to the client that obtained them.
 Gaps to keep in mind:
 
 - An OAuth access token is a full user token. A client holding it could call Supabase's REST
-  API directly with the same RLS permissions as the user, including writes. The MCP server
-  exposes no write tools, but the token isn't technically read-only. Supabase scopes
-  (`openid email profile phone`) only control identity claims.
+  API directly with the same RLS permissions as the user, including edits and deletes the MCP
+  server doesn't offer. Supabase scopes (`openid email profile phone`) only control identity
+  claims.
 - Revoking a grant doesn't invalidate access tokens already issued; they expire within
   `jwt_expiry` (1 hour).
 
-The consent page tells the user both: it describes the connection as offering queries only,
-never as unable to write. It is also served with `frame-ancestors 'none'` and
+The consent page tells the user both: it lists what the connection's tools do (read data,
+record matches after confirmation) and what they don't (edit or delete), never claiming the
+grant itself is limited. It is also served with `frame-ancestors 'none'` and
 `X-Frame-Options: DENY` (`next.config.ts`) so it can't be framed.
 
 ## Tools
 
-All tools are annotated `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`,
-`openWorldHint: false`, and declare an `outputSchema`. Results return `structuredContent` and
-the same JSON as text. Outputs contain display data only: no invite codes, account IDs,
-creators or internal fields.
+Read tools are annotated `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`,
+`openWorldHint: false`. `create_match` is `readOnlyHint: false`, `destructiveHint: false`,
+`idempotentHint: false`, `openWorldHint: false`. Every tool declares an `outputSchema`.
+Results return `structuredContent` and the same JSON as text. Outputs contain display data
+only: no invite codes, account IDs, creators or internal fields.
 
 | Tool | Input | Output |
 | --- | --- | --- |
@@ -104,6 +108,7 @@ creators or internal fields.
 | `list_players` | `group_id`, optional `name` (case- and accent-insensitive substring) | `group`, `players: [{ id, name, emoji, isYou }]` |
 | `list_matches` | `group_id`, optional `player_id`, `limit` 1–50 (default 10), `offset` 0–10000 | `group`, `matches: [{ id, date, court, team1, team2, sets, winner }]`, `nextOffset` |
 | `get_player_stats` | `group_id`, `player_id` | `group`, `player`, `matches`, `wins`, `losses`, `undecided`, `winRate`, `currentStreak`, `bestStreak`, `recentForm`, `ranking`, `partners` |
+| `create_match` | `group_id`, `team1` and `team2` (two player IDs each), `sets` (1–5 of `{ team1, team2 }` games), optional `played_at`, `court`, `events`, `idempotency_key` | `status`, `message`, `group`, `match` (as in `list_matches`), `events`, `url` |
 
 - `isYou` marks the player linked to the signed-in user, so "my stats" works without exposing
   user IDs.
@@ -115,6 +120,52 @@ creators or internal fields.
 - Match reads live in `@padelaso/data/queries`. Paging and the player filter run in the
   database. Full-history reads page until PostgREST's exact count is reached, so the API's
   `max_rows` cap can't truncate stats.
+
+## Recording matches
+
+`create_match` takes IDs, never names. The model resolves names with `list_players`. The tool
+descriptions and server instructions tell it to show candidates and ask the user when a name
+matches several players or none, and to restate the group, teams, set scores and date before
+calling. Confirmation itself is the client's: ChatGPT and Claude ask the user before running a
+tool that isn't read-only. There is no custom two-step flow.
+
+The tool checks the request with `validateMatchDraft` (`@padelaso/domain/matches`) and the
+group's players first, so errors are specific ("Set 2 has no score", "These IDs are not players
+of …"). It then calls `public.create_match` through the caller's client, which checks
+everything again and saves the match and its events in one transaction:
+
+- **Authorization.** Security definer, like `native_apply_command`: it requires `auth.uid()`,
+  membership of the group, and four distinct players of that group, and sets `created_by` to
+  the caller. Only `authenticated` may execute it. A missing group and someone else's group
+  both return `GROUP_NOT_FOUND`.
+- **Rules.** Two teams of two different players; 1–5 sets; whole scores 0–99; no 0–0 sets;
+  a date with a UTC offset, not in the future (5 minutes of skew) and at most a year ago,
+  defaulting to now; court 1–99; up to 50 events, each for a match player. Event types must
+  be current ones (`EVENT_CONFIGS`); the tool's schema enforces the vocabulary and the
+  database only its format, as for native commands.
+- **Duplicates.** Two layers, because a model may regenerate its own key between retries:
+  1. `idempotency_key`, kept per user for 48 hours. The same key and request replays the saved
+     match (`status: "replayed"`); the same key with a different request is refused.
+  2. Without a matching key, an identical match (same group, same teams in either order, same
+     set scores) created in the last 15 minutes and played within 12 hours of the requested
+     date is returned instead (`status: "duplicate"`). Calls for one group are serialized with
+     an advisory lock, so concurrent retries can't both pass this check.
+- **Atomicity.** The match, its events and the receipt are written in one transaction; any
+  failure leaves nothing. Refused requests save no receipt, so a fixed request can reuse the
+  key.
+
+Created matches are ordinary rows: the web, mobile, native scoring state and stats see them
+immediately. `url` is `<app origin>/matches/<id>`, derived from `MCP_RESOURCE_URL`.
+
+| Error code | Meaning |
+| --- | --- |
+| `GROUP_NOT_FOUND` | Not a member, or no such group |
+| `INVALID_TEAMS`, `PLAYER_NOT_IN_GROUP` | Wrong team shape, repeated player, or players outside the group (`playerIds` names them) |
+| `INVALID_SETS`, `INVALID_DATE`, `INVALID_EVENTS`, `INVALID_REQUEST` | The request breaks a rule above |
+| `IDEMPOTENCY_KEY_REUSED` | The key already saved a different match |
+| `BUSY` | Another match for the group held the lock for 3 seconds; nothing was saved |
+
+All of them reach the model as tool errors ending in "Nothing was saved."
 
 ## Supabase OAuth server setup
 
@@ -167,6 +218,10 @@ generic `https://chatgpt.com/connector_platform_oauth_redirect`.
    the round trip). Approve.
 5. Try: "What groups am I in on Padelaso?", "Show my last five matches", "What are Pablo's
    stats?" Compare the numbers with the app's player page.
+6. Record a match: "Save today's match: Ana and Pablo beat Lucía and Marta 6-4, 3-6, 7-5." The
+   model should resolve the four players, restate the details, and ChatGPT should ask for
+   confirmation before calling `create_match`. Open the returned link, and check that asking
+   again doesn't create a second match.
 
 ### Second client check
 
@@ -194,7 +249,12 @@ already shown on the consent page may have expired.
 - `src/lib/mcp/handler.test.ts`: the HTTP boundary with real ES256 signatures against a stubbed
   JWKS and PostgREST. It covers every 401/403 case, query-string tokens, JWKS outages,
   initialize, the tool list and annotations, the caller-scoped client, tool outputs, stats parity
-  with the domain package, cross-group requests, error redaction and metadata.
+  with the domain package, cross-group requests, error redaction and metadata. For
+  `create_match`: the request sent as the caller, the saved summary and link, invalid input that
+  never reaches the database, and how refusals, replays and duplicates are reported.
+- `supabase/tests/create_match_test.sql` (`pnpm test:db`): privileges, authorization, every
+  validation rule, replays, key reuse, the duplicate window, per-user keys, atomicity of match
+  plus events, and two concurrent identical requests creating one match.
 - `src/app/oauth/consent/consent.test.ts`: authorization ID parsing (Supabase IDs are
   32-character alphanumerics, not UUIDs), the login round trip, and server-side allowlist
   enforcement in the consent action.
@@ -202,8 +262,9 @@ already shown on the consent page may have expired.
   injection.
 - `src/lib/mcp/oauth.integration.test.ts` (`pnpm test:integration`, needs `supabase start`;
   runs in CI): a real authorization-code + PKCE flow through the local OAuth server, then MCP
-  calls with the issued token against real RLS.
-- Manual, outstanding: production OAuth enablement, the ChatGPT connection and the second-client
-  check above.
+  calls with the issued token against real RLS, including recording a match, its retries, and
+  refused requests sent straight to `create_match`.
+- Manual, outstanding: the second-client check above, and recording a match from ChatGPT
+  (step 6 above) once the `create_match` migration is applied in production.
 
 Rate limiting, connection management and opening access beyond the allowlist are MAR-100.

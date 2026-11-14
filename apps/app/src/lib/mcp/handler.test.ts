@@ -62,6 +62,20 @@ const matches = [
 type Route = (url: URL, init: RequestInit | undefined) => Response | undefined;
 let database: ReturnType<typeof vi.fn<typeof fetch>>;
 
+const MATCH_ID = "77777777-7777-4777-8777-777777777777";
+type CreateRequest = { team1: string[]; team2: string[]; sets: unknown[]; events: { playerId: string; type: string }[] };
+/** What create_match answers; tests replace it to simulate other outcomes. */
+let createMatchAnswer: (request: CreateRequest) => unknown;
+const savedAs = (status: string, minutesAgo = 0) => (request: CreateRequest) => ({
+  status,
+  match: {
+    id: MATCH_ID, groupId: GROUP_ID, date: "2026-11-14T18:00:00.000Z",
+    createdAt: new Date(Date.now() - minutesAgo * 60_000).toISOString(), courtNumber: null,
+    team1: request.team1, team2: request.team2, sets: request.sets,
+  },
+  events: request.events.map((e, i) => ({ id: `88888888-8888-4888-8888-88888888888${i}`, ...e })),
+});
+
 function stubSupabase(overrides: Route = () => undefined) {
   database = vi.fn<typeof fetch>(async (input, init) => {
     const url = new URL(String(input instanceof Request ? input.url : input));
@@ -78,6 +92,9 @@ function stubSupabase(overrides: Route = () => undefined) {
       return json(visible ? [groupRow] : []);
     }
     if (url.pathname === "/rest/v1/players") return json(players);
+    if (url.pathname === "/rest/v1/rpc/create_match") {
+      return Response.json(createMatchAnswer(JSON.parse(String(init?.body)).p_request));
+    }
     if (url.pathname === "/rest/v1/matches") {
       return Response.json(matches, { headers: { "Content-Range": `0-${matches.length - 1}/${matches.length}` } });
     }
@@ -125,6 +142,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  createMatchAnswer = savedAs("created");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
@@ -242,7 +260,7 @@ describe("MCP authorization boundary", () => {
 });
 
 describe("MCP protocol and tools", () => {
-  it("initializes and advertises exactly the four read-only tools", async () => {
+  it("initializes and advertises the read tools and create_match", async () => {
     const token = await sign(claims());
     const init = await rpc({
       jsonrpc: "2.0", id: 0, method: "initialize",
@@ -253,9 +271,12 @@ describe("MCP protocol and tools", () => {
 
     const { result } = await payload(await rpc(listTools, token));
     const tools = result.tools as { name: string; annotations: Record<string, boolean>; outputSchema?: object }[];
-    expect(tools.map((t) => t.name).sort()).toEqual(["get_player_stats", "list_groups", "list_matches", "list_players"]);
+    expect(tools.map((t) => t.name).sort())
+      .toEqual(["create_match", "get_player_stats", "list_groups", "list_matches", "list_players"]);
     for (const tool of tools) {
-      expect(tool.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: tool.name !== "create_match", destructiveHint: false, openWorldHint: false,
+      });
       expect(tool.outputSchema).toBeDefined();
     }
   });
@@ -348,6 +369,131 @@ describe("MCP protocol and tools", () => {
     const result = await callTool("list_groups");
     expect(result.isError).toBe(true);
     expect(result.content[0].text).not.toContain("secret_table");
+  });
+});
+
+describe("create_match", () => {
+  const valid = {
+    group_id: GROUP_ID,
+    team1: [ANA, PABLO],
+    team2: [LUCIA, MARTA],
+    sets: [{ team1: 6, team2: 4 }, { team1: 3, team2: 6 }, { team1: 7, team2: 5 }],
+  };
+  const rpcCalls = () => restCalls().filter(([input]) => String(input).includes("/rpc/create_match"));
+
+  it("saves through the create_match function as the caller", async () => {
+    const token = await sign(claims());
+    const result = await callTool("create_match", {
+      ...valid,
+      played_at: "2026-11-14T19:00:00+01:00",
+      court: 3,
+      events: [{ player_id: ANA, type: "ace" }, { player_id: MARTA, type: "vibora" }],
+      idempotency_key: "c7c1a4f6-1f0e-4a8e-9f4c-3d1b2a6e5f70",
+    }, token);
+
+    expect(result.isError).toBeFalsy();
+    const [[, init]] = rpcCalls();
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${token}`);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      p_request: {
+        groupId: GROUP_ID,
+        team1: [ANA, PABLO],
+        team2: [LUCIA, MARTA],
+        sets: [{ team1Score: 6, team2Score: 4 }, { team1Score: 3, team2Score: 6 }, { team1Score: 7, team2Score: 5 }],
+        date: "2026-11-14T18:00:00.000Z",
+        courtNumber: 3,
+        events: [{ playerId: ANA, type: "ace" }, { playerId: MARTA, type: "vibora" }],
+        idempotencyKey: "c7c1a4f6-1f0e-4a8e-9f4c-3d1b2a6e5f70",
+      },
+    });
+
+    expect(result.structuredContent).toEqual({
+      status: "created",
+      message: "Match saved.",
+      group: groupRow,
+      match: {
+        id: MATCH_ID, date: "2026-11-14T18:00:00.000Z", court: null,
+        team1: { players: [{ id: ANA, name: "Ana" }, { id: PABLO, name: "Pablo" }], setsWon: 2 },
+        team2: { players: [{ id: LUCIA, name: "Lucía" }, { id: MARTA, name: "Marta" }], setsWon: 1 },
+        sets: [{ team1: 6, team2: 4 }, { team1: 3, team2: 6 }, { team1: 7, team2: 5 }],
+        winner: "team1",
+      },
+      events: [
+        { player: { id: ANA, name: "Ana" }, type: "ace", label: "Ace" },
+        { player: { id: MARTA, name: "Marta" }, type: "vibora", label: "Víbora letal" },
+      ],
+      url: `${ORIGIN}/matches/${MATCH_ID}`,
+    });
+  });
+
+  it("lets the server date a match played just now", async () => {
+    await callTool("create_match", valid);
+    const request = JSON.parse(String(rpcCalls()[0][1]?.body)).p_request;
+    expect(request).not.toHaveProperty("date");
+    expect(request).not.toHaveProperty("idempotencyKey");
+  });
+
+  it.each([
+    ["a player from outside the group", { team2: [LUCIA, GONE] }, /not players of Los del jueves: .*Use list_players/],
+    ["the same player twice", { team2: [ANA, MARTA] }, /four different players/],
+    ["a three-player team", { team1: [ANA, PABLO, LUCIA] }, /./],
+    ["an unplayed set", { sets: [{ team1: 6, team2: 4 }, { team1: 0, team2: 0 }] }, /Set 2 has no score/],
+    ["an impossible score", { sets: [{ team1: 100, team2: 4 }] }, /./],
+    ["six sets", { sets: Array(6).fill({ team1: 6, team2: 4 }) }, /./],
+    ["an event for a player outside the match", { events: [{ player_id: GONE, type: "ace" }] }, /four players/],
+    ["a retired event type", { events: [{ player_id: ANA, type: "bola_fuera" }] }, /./],
+    ["a date without a UTC offset", { played_at: "2026-11-14T19:00:00" }, /./],
+    ["a player name instead of an ID", { team1: ["Ana", PABLO] }, /./],
+  ])("never saves %s", async (_label, overrides, message) => {
+    const result = await callTool("create_match", { ...valid, ...overrides });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(message);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it("never saves into a group the caller cannot see", async () => {
+    const result = await callTool("create_match", { ...valid, group_id: "66666666-6666-4666-8666-666666666666" });
+    expect(result.content[0].text).toMatch(/Group not found/);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it("reports a retry that found the earlier match", async () => {
+    createMatchAnswer = savedAs("duplicate", 3);
+    const duplicate = await callTool("create_match", valid);
+    expect(duplicate.structuredContent).toMatchObject({ status: "duplicate", url: `${ORIGIN}/matches/${MATCH_ID}` });
+    expect(duplicate.structuredContent.message).toMatch(/recorded 3 min ago, so no new match was created/);
+
+    createMatchAnswer = savedAs("replayed");
+    const replayed = await callTool("create_match", { ...valid, idempotency_key: "retry-key-0001" });
+    expect(replayed.structuredContent.status).toBe("replayed");
+    expect(replayed.structuredContent.message).toMatch(/No new match was created/);
+  });
+
+  it.each([
+    ["IDEMPOTENCY_KEY_REUSED", /already used for a different match/],
+    ["PLAYER_NOT_IN_GROUP", /Use list_players/],
+    ["INVALID_DATE", /time zone/],
+    ["INVALID_SETS", /Set 1: scores/],
+  ])("explains a %s refusal from the database", async (code, message) => {
+    createMatchAnswer = () => ({ status: "rejected", code, message: "Set 1: scores must be whole numbers from 0 to 99." });
+    const result = await callTool("create_match", valid);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(message);
+    expect(result.content[0].text).toMatch(/Nothing was saved/);
+  });
+
+  it("treats a missing user in the database as a server error", async () => {
+    createMatchAnswer = () => ({ status: "rejected", code: "AUTH_REQUIRED", message: "Sign in again." });
+    const result = await callTool("create_match", valid);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/temporarily unavailable/);
+  });
+
+  it("refuses an unexpected database answer instead of reporting success", async () => {
+    createMatchAnswer = () => ({ status: "created" });
+    const result = await callTool("create_match", valid);
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
   });
 });
 

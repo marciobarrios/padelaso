@@ -24,6 +24,7 @@ let callback: URL;
 let groupId: string;
 let otherGroupId: string;
 let ana: string;
+let ids: Record<"Ana" | "Pablo" | "Lucía" | "Marta", string>;
 const createdUsers: string[] = [];
 
 function must<T>(result: { data: T | null; error: unknown }): T {
@@ -143,6 +144,7 @@ beforeAll(async () => {
   ]).select("id, name")) as { id: string; name: string }[];
   const id = (name: string) => players.find((p) => p.name === name)!.id;
   ana = id("Ana");
+  ids = { Ana: ana, Pablo: id("Pablo"), "Lucía": id("Lucía"), Marta: id("Marta") };
   must(await admin.from("matches").insert([
     { group_id: groupId, created_by: member.id, date: "2026-10-01T19:00:00Z", team1: [ana, id("Pablo")], team2: [id("Lucía"), id("Marta")], sets: [{ team1Score: 6, team2Score: 3 }, { team1Score: 6, team2Score: 4 }] },
     { group_id: groupId, created_by: member.id, date: "2026-10-08T19:00:00Z", team1: [ana, id("Lucía")], team2: [id("Pablo"), id("Marta")], sets: [{ team1Score: 2, team2Score: 6 }, { team1Score: 3, team2Score: 6 }] },
@@ -207,6 +209,67 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     const result = await callTool("list_players", { group_id: otherGroupId });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toMatch(/Group not found/);
+  });
+
+  it("records a match atomically, as the caller, without duplicating retries", async () => {
+    const countMatches = async () => (await admin.from("matches").select("id", { count: "exact", head: true })
+      .eq("group_id", groupId)).count;
+    const before = await countMatches();
+    const args = {
+      group_id: groupId,
+      team1: [ids.Ana, ids.Marta],
+      team2: [ids.Pablo, ids["Lucía"]],
+      sets: [{ team1: 6, team2: 3 }, { team1: 7, team2: 6 }],
+      events: [{ player_id: ids.Marta, type: "vibora" }],
+      idempotency_key: `integration-${run}`,
+    };
+
+    const created = await callTool("create_match", args);
+    expect(created.isError).toBeFalsy();
+    expect(created.structuredContent).toMatchObject({
+      status: "created",
+      match: { winner: "team1", team1: { players: [{ name: "Ana" }, { name: "Marta" }] } },
+      events: [{ player: { name: "Marta" }, type: "vibora" }],
+    });
+    const matchId = created.structuredContent.match.id;
+    expect(created.structuredContent.url).toBe(`${ORIGIN}/matches/${matchId}`);
+
+    // Retries: the same key, then a key the model regenerated.
+    expect((await callTool("create_match", args)).structuredContent).toMatchObject({ status: "replayed", match: { id: matchId } });
+    expect((await callTool("create_match", { ...args, idempotency_key: `regenerated-${run}` })).structuredContent)
+      .toMatchObject({ status: "duplicate", match: { id: matchId } });
+    expect(await countMatches()).toBe(before! + 1);
+
+    const row = must(await admin.from("matches").select("created_by, match_events(type, created_by)")
+      .eq("id", matchId).single()) as { created_by: string; match_events: { type: string; created_by: string }[] };
+    expect(row).toEqual({ created_by: memberId, match_events: [{ type: "vibora", created_by: memberId }] });
+
+    // The new match is part of the normal history and stats right away.
+    const history = await callTool("list_matches", { group_id: groupId, limit: 1 });
+    expect(history.structuredContent.matches[0].id).toBe(matchId);
+    const stats = await callTool("get_player_stats", { group_id: groupId, player_id: ana });
+    expect(stats.structuredContent).toMatchObject({ matches: 3, wins: 2, losses: 1 });
+  });
+
+  it("never records invalid or unauthorized matches", async () => {
+    const before = (await admin.from("matches").select("id", { count: "exact", head: true })
+      .in("group_id", [groupId, otherGroupId])).count;
+    const base = { team1: [ids.Ana, ids.Pablo], team2: [ids["Lucía"], ids.Marta], sets: [{ team1: 6, team2: 1 }] };
+
+    const otherGroup = await callTool("create_match", { ...base, group_id: otherGroupId });
+    expect(otherGroup.content[0].text).toMatch(/Group not found/);
+    const badScore = await callTool("create_match", { ...base, group_id: groupId, sets: [{ team1: 0, team2: 0 }] });
+    expect(badScore.content[0].text).toMatch(/no score/);
+
+    // Straight to the database function with the same token, skipping the tool's checks.
+    const direct = await createClient(API(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${oauthToken}` } },
+    }).rpc("create_match", { p_request: { groupId: otherGroupId, ...base, sets: [{ team1Score: 6, team2Score: 1 }] } });
+    expect(direct.data).toMatchObject({ status: "rejected", code: "GROUP_NOT_FOUND" });
+
+    expect((await admin.from("matches").select("id", { count: "exact", head: true })
+      .in("group_id", [groupId, otherGroupId])).count).toBe(before);
   });
 
   it("rejects the same user's ordinary app session with 401", async () => {

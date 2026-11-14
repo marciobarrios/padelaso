@@ -3,14 +3,23 @@ import type { CallToolResult, McpServer, ServerContext } from "@modelcontextprot
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import {
+  createMatchRecord,
   getMemberGroup,
   listAllGroupMatches,
   listGroupMatchesPage,
   listGroupPlayers,
   listMemberGroups,
+  type CreateMatchResult,
   type PlayerSummary,
 } from "@padelaso/data/queries";
-import { getSetWins } from "@padelaso/domain/matches";
+import { EVENT_CONFIGS, getEventConfig } from "@padelaso/domain/events";
+import {
+  getSetWins,
+  MAX_RECORDED_EVENTS,
+  MAX_RECORDED_SETS,
+  MAX_SET_SCORE,
+  validateMatchDraft,
+} from "@padelaso/domain/matches";
 import {
   calculatePlayerStats,
   getMinimumMatchesForRanking,
@@ -18,15 +27,27 @@ import {
   getRankedPlayerStats,
   getRecentForm,
 } from "@padelaso/domain/stats";
-import type { Match } from "@padelaso/domain/types";
+import type { Match, MatchEventType } from "@padelaso/domain/types";
 import { createUserSupabaseClient } from "@/lib/supabase-user";
 import { mcpUserFrom } from "./auth";
 
-/** Every tool only reads the caller's own groups, so all share these hints. */
+/** Read tools only read the caller's own groups, so all share these hints. */
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
   idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+/**
+ * Adds a match and never changes or removes existing data. Not idempotent: an
+ * identical call after the duplicate window records a second match. Clients
+ * ask the user to confirm non-read-only tools.
+ */
+const RECORDS_MATCH = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
   openWorldHint: false,
 } as const;
 
@@ -38,6 +59,8 @@ class ToolInputError extends Error {}
 interface Caller {
   client: SupabaseClient;
   userId: string;
+  /** Origin of the product app, for links. */
+  appOrigin: string;
 }
 
 // ---------- Schemas ----------
@@ -65,6 +88,14 @@ const match = z.object({
   team2: team,
   sets: z.array(z.object({ team1: z.number(), team2: z.number() })),
   winner: z.enum(["team1", "team2"]).nullable().describe("Null for ties and unfinished matches."),
+});
+
+const score = z.number().int().min(0).max(MAX_SET_SCORE);
+const recordableEvents = EVENT_CONFIGS.map((e) => `${e.type} (${e.label})`).join(", ");
+const savedEvent = z.object({
+  player: teamMember,
+  type: z.string(),
+  label: z.string().describe("Display name of the event in Padelaso."),
 });
 
 const outputs = {
@@ -99,6 +130,16 @@ const outputs = {
       wins: z.number(),
       winRate: z.number(),
     })).describe(`Most frequent partners, up to ${MAX_PARTNERS}.`),
+  }),
+  create_match: z.object({
+    status: z.enum(["created", "replayed", "duplicate"]).describe(
+      "created: saved now. replayed: this idempotency_key had already saved this match. " +
+      "duplicate: an identical match was recorded minutes ago, so no new one was created."),
+    message: z.string().describe("What happened, to tell the user."),
+    group,
+    match,
+    events: z.array(savedEvent),
+    url: z.string().describe("Link to the match in Padelaso."),
   }),
 };
 
@@ -140,6 +181,92 @@ function requirePlayer(players: PlayerSummary[], id: string) {
   const found = players.find((p) => p.id === id);
   if (!found) throw new ToolInputError("Player not found in this group. Use list_players to find player IDs.");
   return found;
+}
+
+type Rejection = Extract<CreateMatchResult, { status: "rejected" }>;
+
+/** Guidance for the model, replacing the database's terser messages. */
+const REJECTION_HINTS: Partial<Record<Rejection["code"], string>> = {
+  GROUP_NOT_FOUND: "Group not found. Use list_groups to see your groups.",
+  PLAYER_NOT_IN_GROUP: "Some players are not in this group. Use list_players to find player IDs.",
+  INVALID_DATE: "The match date is invalid: it must be within the last year and not in the future. Check the date and time zone with the user.",
+  IDEMPOTENCY_KEY_REUSED: "This idempotency_key was already used for a different match. Use a new key for each new match.",
+  BUSY: "Padelaso is saving another match for this group. Try again in a moment.",
+};
+
+const NOTHING_SAVED = " Nothing was saved.";
+
+function savedMessage(result: Exclude<CreateMatchResult, Rejection>) {
+  switch (result.status) {
+    case "created":
+      return "Match saved.";
+    case "replayed":
+      return "This match was already saved by an earlier call with the same idempotency_key. No new match was created.";
+    case "duplicate": {
+      const minutes = Math.max(1, Math.round((Date.now() - Date.parse(result.match.createdAt)) / 60_000));
+      return `An identical match (same group, teams and score) was recorded ${minutes} min ago, so no new match was created. ` +
+        "This is usually a retry. If the user confirms it was a separate match with the same result, record it again in 15 minutes.";
+    }
+  }
+}
+
+async function createMatch(caller: Caller, args: {
+  group_id: string;
+  team1: string[];
+  team2: string[];
+  sets: { team1: number; team2: number }[];
+  played_at?: string;
+  court?: number;
+  events?: { player_id: string; type: MatchEventType }[];
+  idempotency_key?: string;
+}) {
+  const [found, players] = await Promise.all([
+    requireGroup(caller, args.group_id),
+    listGroupPlayers(caller.client, args.group_id),
+  ]);
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  const sets = args.sets.map((s) => ({ team1Score: s.team1, team2Score: s.team2 }));
+  const events = (args.events ?? []).map((e) => ({ playerId: e.player_id, type: e.type }));
+
+  // Checked here for clear messages; create_match checks everything again.
+  const issue = validateMatchDraft({ team1: args.team1, team2: args.team2, sets, events });
+  if (issue) throw new ToolInputError(issue.message + NOTHING_SAVED);
+  const unknown = [...args.team1, ...args.team2].filter((id) => !names.has(id));
+  if (unknown.length > 0) {
+    throw new ToolInputError(
+      `These IDs are not players of ${found.name}: ${unknown.join(", ")}. Use list_players to find player IDs, ` +
+      "and ask the user when a name matches several players or none." + NOTHING_SAVED);
+  }
+
+  const result = await createMatchRecord(caller.client, {
+    groupId: found.id,
+    team1: args.team1,
+    team2: args.team2,
+    sets,
+    date: args.played_at ? new Date(args.played_at).toISOString() : undefined,
+    courtNumber: args.court,
+    events,
+    idempotencyKey: args.idempotency_key,
+  });
+  if (result.status === "rejected") {
+    // The token was verified moments ago, so this is a server fault, not bad input.
+    if (result.code === "AUTH_REQUIRED") throw new Error("create_match saw no user");
+    throw new ToolInputError((REJECTION_HINTS[result.code] ?? result.message) + NOTHING_SAVED);
+  }
+
+  const saved = result.match;
+  return {
+    status: result.status,
+    message: savedMessage(result),
+    group: found,
+    match: toMatch(saved, names),
+    events: result.events.map((e) => ({
+      player: { id: e.playerId, name: names.get(e.playerId) ?? null },
+      type: e.type,
+      label: getEventConfig(e.type as MatchEventType).label,
+    })),
+    url: `${caller.appOrigin}/matches/${saved.id}`,
+  };
 }
 
 async function listGroups(caller: Caller) {
@@ -231,8 +358,8 @@ function errorResult(message: string): CallToolResult {
 function run<A, R extends Record<string, unknown>>(name: string, body: (caller: Caller, args: A) => Promise<R>) {
   return async (args: A, ctx: ServerContext): Promise<CallToolResult> => {
     try {
-      const { userId, token } = mcpUserFrom(ctx.http?.authInfo);
-      const result = await body({ client: createUserSupabaseClient(token), userId }, args);
+      const { userId, token, appOrigin } = mcpUserFrom(ctx.http?.authInfo);
+      const result = await body({ client: createUserSupabaseClient(token), userId, appOrigin }, args);
       return { structuredContent: result, content: [{ type: "text", text: JSON.stringify(result) }] };
     } catch (error) {
       if (error instanceof ToolInputError) return errorResult(error.message);
@@ -242,7 +369,7 @@ function run<A, R extends Record<string, unknown>>(name: string, body: (caller: 
   };
 }
 
-export function registerReadTools(server: McpServer) {
+export function registerTools(server: McpServer) {
   server.registerTool("list_groups", {
     title: "List groups",
     description: "List the Padelaso groups you belong to. Call this first: every other tool needs a group ID.",
@@ -253,7 +380,8 @@ export function registerReadTools(server: McpServer) {
 
   server.registerTool("list_players", {
     title: "List players",
-    description: "List a group's players, or find them by name to get their IDs. isYou marks the signed-in user's player.",
+    description: "List a group's players, or find them by name to get their IDs. isYou marks the signed-in user's player. " +
+      "When a name matches several players or none, show the candidates and ask the user; never guess.",
     inputSchema: z.object({
       group_id: groupId,
       name: z.string().trim().min(1).max(100).optional()
@@ -283,6 +411,36 @@ export function registerReadTools(server: McpServer) {
     outputSchema: outputs.get_player_stats,
     annotations: READ_ONLY,
   }, run("get_player_stats", getPlayerStats));
+
+  server.registerTool("create_match", {
+    title: "Record match",
+    description:
+      "Record a finished match in a group: both teams, the games of every set and optional highlights. " +
+      "Before calling: (1) resolve every player with list_players and pass their IDs; when a name matches several " +
+      "players or none, show the candidates and ask the user, never guess. (2) Restate the group, both teams, " +
+      "every set score and the date to the user, and call only after they confirm. Generate one idempotency_key " +
+      "per confirmed match and reuse it if you retry. Returns what was saved and a link to the match.",
+    inputSchema: z.object({
+      group_id: groupId,
+      team1: z.array(playerId).length(2).describe("The two players of team 1, as IDs from list_players."),
+      team2: z.array(playerId).length(2).describe("The two players of team 2, as IDs from list_players."),
+      sets: z.array(z.object({ team1: score, team2: score })).min(1).max(MAX_RECORDED_SETS)
+        .describe("Games won by each team in every played set, in order. Example: 6-4, 3-6, 7-5."),
+      played_at: z.iso.datetime({ offset: true }).optional().describe(
+        "When the match was played, ISO 8601 with a UTC offset, e.g. 2026-11-14T19:00:00+01:00. " +
+        "Omit when it was just played: Padelaso uses the current time."),
+      court: z.number().int().min(1).max(99).optional().describe("Court number, if the user mentions one."),
+      events: z.array(z.object({
+        player_id: playerId.describe("One of the four match players."),
+        type: z.enum(EVENT_CONFIGS.map((e) => e.type)),
+      })).max(MAX_RECORDED_EVENTS).optional()
+        .describe(`Optional highlights the user mentions, one entry per occurrence. Types: ${recordableEvents}.`),
+      idempotency_key: z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/).optional()
+        .describe("A new random value, such as a UUID, for each confirmed match. Reuse it only to retry the same call."),
+    }),
+    outputSchema: outputs.create_match,
+    annotations: RECORDS_MATCH,
+  }, run("create_match", createMatch));
 }
 
-export const READ_TOOL_NAMES = ["list_groups", "list_players", "list_matches", "get_player_stats"] as const;
+export const TOOL_NAMES = ["list_groups", "list_players", "list_matches", "get_player_stats", "create_match"] as const;
