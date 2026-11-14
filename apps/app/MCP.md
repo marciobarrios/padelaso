@@ -14,7 +14,7 @@ read tools; phase 2 (MAR-99) adds `create_match`. No tool edits or deletes data.
 | AS metadata | `<SUPABASE_URL>/.well-known/oauth-authorization-server/auth/v1` |
 | Consent page | `/oauth/consent` |
 | Code | `src/lib/mcp/` (config, auth, tools, handler), `src/app/oauth/consent/` |
-| Write path | `public.create_match` (`supabase/migrations/20261114180000_create_match.sql`) |
+| Write path | `public.create_match` (`supabase/migrations/20261114234718_create_match.sql`) |
 
 Built with `mcp-handler` 2.3, `@modelcontextprotocol/server` 2.4 and Zod 4 on the Node.js
 runtime. Every request builds a fresh MCP server, so there is no session store or affinity.
@@ -265,6 +265,6 @@ already shown on the consent page may have expired.
   calls with the issued token against real RLS, including recording a match, its retries, and
   refused requests sent straight to `create_match`.
 - Manual, outstanding: the second-client check above, and recording a match from ChatGPT
-  (step 6 above) once the `create_match` migration is applied in production.
+  (step 6 above). The `create_match` migration is applied in production.
 
 Rate limiting, connection management and opening access beyond the allowlist are MAR-100.
