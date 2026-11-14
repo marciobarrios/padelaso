@@ -129,7 +129,7 @@ export default async function ConsentPage({
             </ul>
             {identity.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                También recibirá: {identity.join(", ").toLowerCase()}.
+                También recibirá: {identity.join(", ")}.
               </p>
             )}
           </div>

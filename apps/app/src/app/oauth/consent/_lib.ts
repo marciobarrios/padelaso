@@ -27,12 +27,16 @@ export function isSafeClientRedirect(url: string): boolean {
   }
 }
 
-/** Human labels for Supabase's identity scopes; unknown scopes show as-is. */
+/**
+ * Human labels for the scopes Supabase supports, written to follow "También recibirá:"
+ * in a sentence. Unknown scopes show as-is.
+ */
 const SCOPE_LABELS: Record<string, string> = {
-  openid: "Tu identidad en Padelaso",
-  email: "Tu dirección de email",
-  profile: "Tu nombre y foto de perfil",
-  phone: "Tu número de teléfono",
+  openid: "tu identidad en Padelaso",
+  email: "tu dirección de email",
+  profile: "tu nombre y foto de perfil",
+  phone: "tu número de teléfono",
+  offline_access: "acceso continuado sin que vuelvas a iniciar sesión",
 };
 
 export function describeScopes(scope: string | undefined): string[] {
