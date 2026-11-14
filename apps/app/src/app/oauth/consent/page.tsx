@@ -17,7 +17,9 @@ const CAN = [
   "Ver los grupos a los que perteneces",
   "Consultar los jugadores, el historial de partidos y las estadísticas de esos grupos",
 ];
-const CANNOT = ["No podrá crear, editar ni borrar partidos, jugadores ni grupos"];
+// The grant is a full account token, so this describes the connection's tools
+// and never promises that the application is unable to write.
+const NOT_OFFERED = ["Esta conexión solo ofrece consultas: no incluye herramientas para crear, editar ni borrar"];
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -118,7 +120,7 @@ export default async function ConsentPage({
                   <span>{item}</span>
                 </li>
               ))}
-              {CANNOT.map((item) => (
+              {NOT_OFFERED.map((item) => (
                 <li key={item} className="flex gap-2 text-muted-foreground">
                   <X aria-hidden className="mt-0.5 size-4 shrink-0" />
                   <span>{item}</span>
@@ -131,11 +133,17 @@ export default async function ConsentPage({
               </p>
             )}
           </div>
-          {destination && (
-            <p className="text-xs text-muted-foreground">
-              Al continuar volverás a <span className="font-medium text-foreground">{destination}</span>. Permite el acceso solo si has iniciado tú esta conexión.
+          <div className="space-y-2 text-xs text-muted-foreground text-pretty">
+            <p>
+              El permiso se concede con los mismos derechos que tu cuenta de Padelaso, aunque esta conexión solo ofrezca consultas.
             </p>
-          )}
+            <p>Si se revoca el permiso, un acceso ya emitido puede seguir funcionando hasta una hora.</p>
+            {destination && (
+              <p>
+                Al continuar volverás a <span className="font-medium text-foreground">{destination}</span>. Permite el acceso solo si has iniciado tú esta conexión.
+              </p>
+            )}
+          </div>
         </>
       ) : (
         <p role="alert" className="text-muted-foreground text-pretty">

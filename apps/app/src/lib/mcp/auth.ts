@@ -22,9 +22,39 @@ const claimsSchema = z.object({
 });
 
 const invalid = (description: string) => new OAuthError(OAuthErrorCode.InvalidToken, description);
+const forbidden = (description: string) => new OAuthError(OAuthErrorCode.InsufficientScope, description);
 
 function isUpstreamFailure(error: AuthError) {
   return isAuthRetryableFetchError(error) || (error.status ?? 0) >= 500;
+}
+
+/** The payload as the bearer presents it. Unverified, so only good for refusing early. */
+function unverifiedPayload(token: string): unknown {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw invalid("The access token is invalid or expired");
+  try {
+    return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  } catch {
+    throw invalid("The access token is invalid or expired");
+  }
+}
+
+/** The claim checks that need no key: issuer, audience, role, expiry and OAuth client. */
+function checkClaims(payload: unknown, config: McpConfig) {
+  const parsed = claimsSchema.safeParse(payload);
+  if (!parsed.success) throw invalid("The access token is missing required claims");
+  const claims = parsed.data;
+  const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+
+  if (claims.iss !== config.issuer) throw invalid("The access token was issued by another server");
+  if (!audiences.includes("authenticated") || claims.role !== "authenticated" || claims.is_anonymous) {
+    throw invalid("The access token does not belong to a signed-in user");
+  }
+  if (claims.exp <= Date.now() / 1000) throw invalid("The access token has expired");
+  if (!claims.client_id) throw invalid("An OAuth access token is required");
+  // 403, not 401: signing in again with the same client cannot fix this.
+  if (!isAllowedMcpClient(claims.client_id)) throw forbidden("MCP access is not enabled for this client");
+  return { ...claims, client_id: claims.client_id };
 }
 
 /**
@@ -36,10 +66,15 @@ function isUpstreamFailure(error: AuthError) {
  * allowlisted OAuth client.
  *
  * Throws `invalid_token` (401) when the token is unusable here, and
- * `insufficient_scope` (403) when it is valid but the account has no MCP access.
+ * `insufficient_scope` (403) when it is valid but the client or the account has
+ * no MCP access.
  */
 export async function verifyMcpAccessToken(token: string | undefined, config: McpConfig): Promise<AuthInfo | undefined> {
   if (!token) return undefined;
+
+  // Anyone can send a token, and for an unknown key or an HS256 token getClaims
+  // calls Supabase Auth. Refuse tokens that could never pass before that call.
+  checkClaims(unverifiedPayload(token), config);
 
   let payload: unknown;
   try {
@@ -57,23 +92,9 @@ export async function verifyMcpAccessToken(token: string | undefined, config: Mc
     throw invalid("The access token is invalid or expired");
   }
 
-  const parsed = claimsSchema.safeParse(payload);
-  if (!parsed.success) throw invalid("The access token is missing required claims");
-  const claims = parsed.data;
-  const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-
-  if (claims.iss !== config.issuer) throw invalid("The access token was issued by another server");
-  if (!audiences.includes("authenticated") || claims.role !== "authenticated" || claims.is_anonymous) {
-    throw invalid("The access token does not belong to a signed-in user");
-  }
-  if (claims.exp <= Date.now() / 1000) throw invalid("The access token has expired");
-  if (!claims.client_id) throw invalid("An OAuth access token is required");
-  if (!isAllowedMcpClient(claims.client_id)) {
-    throw invalid("The access token was not issued to an allowed MCP client");
-  }
-  if (!isAllowedMcpUser(claims.sub)) {
-    throw new OAuthError(OAuthErrorCode.InsufficientScope, "MCP access is not enabled for this account yet");
-  }
+  // Only the verified claims are trusted from here on.
+  const claims = checkClaims(payload, config);
+  if (!isAllowedMcpUser(claims.sub)) throw forbidden("MCP access is not enabled for this account yet");
 
   return {
     token,

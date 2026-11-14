@@ -22,7 +22,7 @@ runtime. Every request builds a fresh MCP server, so there is no session store o
 | Variable | Purpose |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Existing public project settings. The issuer is derived from the URL. |
-| `MCP_RESOURCE_URL` | Canonical MCP URL, e.g. `https://app.padelaso.com/api/mcp`. Must be `https`, or `http` on localhost, and end in `/api/mcp`. If unset, the deployment's own origin is used, which suits previews and local development. Set it in production. |
+| `MCP_RESOURCE_URL` | Canonical MCP URL, e.g. `https://app.padelaso.com/api/mcp`. Must be `https`, or `http` on localhost, and end in `/api/mcp`. Required in production (`VERCEL_ENV=production`): without it the endpoint and its metadata answer `500`. Elsewhere, if unset, the deployment's own origin is used, which suits previews and local development. |
 | `MCP_ALLOWED_CLIENT_IDS` | Comma-separated OAuth client IDs allowed to call the server. Empty denies every client. |
 | `MCP_ALLOWED_USER_IDS` | Comma-separated Supabase user IDs in the phase 1 beta. Empty denies every user. Remove with MAR-100. |
 
@@ -43,10 +43,15 @@ string are ignored. `verifyMcpAccessToken` (`src/lib/mcp/auth.ts`) then:
 4. Requires the client to be in `MCP_ALLOWED_CLIENT_IDS` and the user to be in
    `MCP_ALLOWED_USER_IDS`.
 
+Steps 2 and 3 and the client check also run on the token's unverified payload before step 1.
+Anyone can send a token, and for an unknown key or an HS256 token `getClaims` calls Supabase
+Auth, so tokens that could never pass are refused without a network call. Only the verified
+claims are trusted afterwards.
+
 | Failure | Response |
 | --- | --- |
-| Missing, malformed, forged or expired token; wrong issuer, audience or role; no `client_id`; client not allowlisted | `401`, `WWW-Authenticate: Bearer error="invalid_token", resource_metadata="…"` |
-| Valid token, user not in the beta | `403`, `WWW-Authenticate: Bearer error="insufficient_scope", resource_metadata="…"` |
+| Missing, malformed, forged or expired token; wrong issuer, audience or role; no `client_id` | `401`, `WWW-Authenticate: Bearer error="invalid_token", resource_metadata="…"` |
+| Client not allowlisted, or user not in the beta | `403`, `WWW-Authenticate: Bearer error="insufficient_scope", resource_metadata="…"` (not `401`: signing in again cannot fix it) |
 | Supabase Auth or JWKS unreachable | `500 server_error` (not `401`, so clients keep the token and retry) |
 
 Tools run with a per-request Supabase client built from the verified token and the anon key
@@ -81,6 +86,10 @@ Gaps to keep in mind:
   (`openid email profile phone`) only control identity claims.
 - Revoking a grant doesn't invalidate access tokens already issued; they expire within
   `jwt_expiry` (1 hour).
+
+The consent page tells the user both: it describes the connection as offering queries only,
+never as unable to write. It is also served with `frame-ancestors 'none'` and
+`X-Frame-Options: DENY` (`next.config.ts`) so it can't be framed.
 
 ## Tools
 

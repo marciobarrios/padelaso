@@ -166,11 +166,31 @@ describe("MCP authorization boundary", () => {
     ["an anonymous user", { is_anonymous: true }],
     ["a service role", { role: "service_role" }],
     ["another audience", { aud: "https://other.example" }],
-    ["a client that is not allowlisted", { client_id: "99999999-9999-4999-8999-999999999999" }],
   ])("rejects %s with 401 invalid_token", async (_label, overrides) => {
     const response = await rpc(listTools, await sign(claims(overrides)));
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toContain('error="invalid_token"');
+    // Refused from the claims alone: no call to Supabase, so no amplification.
+    expect(database).not.toHaveBeenCalled();
+  });
+
+  it("refuses forged tokens that could never pass without calling Supabase", async () => {
+    // An unknown kid and an HS256 token both make getClaims ask Supabase Auth.
+    const forge = (header: Record<string, string>, overrides: Record<string, unknown>) =>
+      `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claims(overrides)))}.${base64url("forged")}`;
+    const tokens = [
+      forge({ alg: "ES256", typ: "JWT", kid: "unknown-key" }, { iss: "https://evil.supabase.co/auth/v1" }),
+      forge({ alg: "HS256", typ: "JWT" }, { client_id: undefined }),
+      forge({ alg: "HS256", typ: "JWT" }, { client_id: "99999999-9999-4999-8999-999999999999" }),
+      "a.b.c",
+    ];
+    for (const token of tokens) expect([401, 403]).toContain((await rpc(listTools, token)).status);
+    expect(database).not.toHaveBeenCalled();
+  });
+
+  it("still verifies the signature of tokens whose claims look right", async () => {
+    const forged = `${base64url(JSON.stringify({ alg: "ES256", typ: "JWT", kid: "test-key" }))}.${base64url(JSON.stringify(claims()))}.${base64url("forged")}`;
+    expect((await rpc(listTools, forged)).status).toBe(401);
     expect(restCalls()).toHaveLength(0);
   });
 
@@ -191,9 +211,17 @@ describe("MCP authorization boundary", () => {
     expect(challenge).toContain("resource_metadata=");
   });
 
+  it("returns 403 insufficient_scope for clients that are not allowlisted", async () => {
+    // A 401 would send the client back through sign-in, which cannot help.
+    const response = await rpc(listTools, await sign(claims({ client_id: "99999999-9999-4999-8999-999999999999" })));
+    expect(response.status).toBe(403);
+    expect(response.headers.get("www-authenticate")).toContain('error="insufficient_scope"');
+    expect(restCalls()).toHaveLength(0);
+  });
+
   it("denies every client when the client allowlist is empty", async () => {
     vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
-    expect((await rpc(listTools, await sign(claims()))).status).toBe(401);
+    expect((await rpc(listTools, await sign(claims()))).status).toBe(403);
   });
 
   it("answers 500, not 401, when the signing keys cannot be fetched", async () => {
@@ -350,6 +378,13 @@ describe("protected resource metadata", () => {
     const response = await metadata(new Request("https://preview-123.vercel.app/.well-known/oauth-protected-resource"),
       { params: Promise.resolve({}) });
     expect((await response.json()).resource).toBe("https://preview-123.vercel.app/api/mcp");
+  });
+
+  it("requires the canonical URL in production instead of trusting the request", async () => {
+    vi.stubEnv("MCP_RESOURCE_URL", "");
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect((await rpc(listTools, await sign(claims()))).status).toBe(500);
+    await expect(get("/.well-known/oauth-protected-resource")).rejects.toThrow("MCP_RESOURCE_URL");
   });
 
   it("refuses a misconfigured canonical URL", async () => {

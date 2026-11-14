@@ -15,11 +15,15 @@ function isLocalhost(hostname: string) {
 }
 
 /**
- * `MCP_RESOURCE_URL` pins the public URL in production. Without it (local and
- * preview deployments) the resource is derived from the request's own origin.
+ * `MCP_RESOURCE_URL` pins the public URL and is required in production. Without
+ * it (local and preview deployments) the resource is derived from the request's
+ * own origin.
  */
 function resolveResource(request: Request): URL {
   const configured = process.env.MCP_RESOURCE_URL?.trim();
+  if (!configured && process.env.VERCEL_ENV === "production") {
+    throw new Error("MCP_RESOURCE_URL must be set in production");
+  }
   const url = new URL(configured || MCP_PATH, request.url);
   const secure = url.protocol === "https:" || (url.protocol === "http:" && isLocalhost(url.hostname));
   if (!secure || url.pathname !== MCP_PATH || url.search || url.hash || url.username || url.password) {
