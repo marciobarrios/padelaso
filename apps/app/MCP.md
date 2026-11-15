@@ -144,8 +144,11 @@ everything again and saves the match and its events in one transaction:
   be current ones (`EVENT_CONFIGS`); the tool's schema enforces the vocabulary and the
   database only its format, as for native commands.
 - **Duplicates.** Two layers, because a model may regenerate its own key between retries:
-  1. `idempotency_key`, kept per user for 48 hours. The same key and request replays the saved
-     match (`status: "replayed"`); the same key with a different request is refused.
+  1. `idempotency_key`, a UUID kept per user for 48 hours. The same key and request replays the
+     saved match (`status: "replayed"`); the same key with a different request is refused. The
+     tool accepts only UUIDs: ChatGPT once built a key from the player names, and its safety
+     check then warned about "opaque or disguised user context" before running the call. (The
+     database accepts any key of 8–128 `[A-Za-z0-9._:-]` characters.)
   2. Without a matching key, an identical match (same group, same teams in either order, same
      set scores) created in the last 15 minutes and played within 12 hours of the requested
      date is returned instead (`status: "duplicate"`). Calls for one group are serialized with
