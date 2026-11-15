@@ -12,6 +12,11 @@ Everything in `AGENTS.md` still applies (Next.js docs, Linear and PR rules).
   `packages/domain`, `packages/data`, `supabase/` (migrations, pgTAP tests).
 - Read `PRODUCT.md` before any UI work: mobile-first, playful, retro.
 
+## Worktree setup
+
+Copy from the main checkout into each new worktree (gitignored, never
+commit): `.env.local`.
+
 ## Commands
 
 CI runs `pnpm exec supabase start && pnpm check`. Run the same before opening
