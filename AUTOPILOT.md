@@ -113,8 +113,9 @@ pnpm build
   - Logged out (login page shown): skip the check, say so, and ask the
     owner to refresh the session. Never type credentials or start a
     Google sign-in: Google blocks automated browsers.
-  - Evidence from this group stays in `.autopilot/`; it shows real first
-    names, so never attach logged-in production screenshots to a PR.
+  - All players and matches in the Test group are fake, so its
+    screenshots may be used as PR evidence. Crop to the app; never show
+    other groups, emails, or tokens.
 - Refreshing the session (owner, by hand): open
   `open -na "Google Chrome" --args --user-data-dir="$HOME/.autopilot/auth/padelaso-chrome" https://app.padelaso.com/login`,
   sign in, pick the Test group, quit Chrome. Then ask an agent to export
