@@ -39,6 +39,11 @@ begin
     execute format(
       'create policy "OAuth clients cannot update" on public.%I as restrictive for update to authenticated
          using ((select auth.jwt() ->> %L) is null)', t, 'client_id');
+  end loop;
+
+  -- players has no DELETE grant (deletes go through delete_player_atomic), so
+  -- it needs no delete policy.
+  foreach t in array array['groups', 'matches'] loop
     execute format(
       'create policy "OAuth clients cannot delete" on public.%I as restrictive for delete to authenticated
          using ((select auth.jwt() ->> %L) is null)', t, 'client_id');

@@ -79,12 +79,17 @@ SELECT is(
           AND p.permissive = 'RESTRICTIVE' AND p.cmd = 'ALL'
           AND p.qual LIKE '%client_id%' AND p.with_check LIKE '%client_id%'
       )
-      AND (
-        SELECT count(DISTINCT p.cmd) FROM pg_policies AS p
-        WHERE p.schemaname = 'public' AND p.tablename = t.tablename
-          AND p.permissive = 'RESTRICTIVE' AND p.cmd IN ('INSERT', 'UPDATE', 'DELETE')
-          AND coalesce(p.qual, p.with_check) LIKE '%client_id%'
-      ) < 3
+      -- Each write is covered by a restrictive policy, or not granted at all.
+      AND EXISTS (
+        SELECT 1 FROM unnest(ARRAY['INSERT', 'UPDATE', 'DELETE']) AS w(cmd)
+        WHERE has_table_privilege('authenticated', format('public.%I', t.tablename), w.cmd)
+          AND NOT EXISTS (
+            SELECT 1 FROM pg_policies AS p
+            WHERE p.schemaname = 'public' AND p.tablename = t.tablename
+              AND p.permissive = 'RESTRICTIVE' AND p.cmd = w.cmd
+              AND coalesce(p.qual, p.with_check) LIKE '%client_id%'
+          )
+      )
     ORDER BY 1
   ),
   ARRAY[]::text[],
