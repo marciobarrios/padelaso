@@ -63,6 +63,17 @@ pnpm build
 - Migrations: the migration's effect in a short table (tables/policies/
   functions added or changed) and the pgTAP output.
 
+## Vercel Preview
+
+- Depth: `read-only`. Previews talk to a hosted Supabase project, so never
+  sign in with a real account, submit forms, create matches, or trigger any
+  write. Load the touched pages (web app and marketing) and check rendering,
+  console and network errors only.
+- Interactions and data flows are verified locally against the local
+  Supabase stack (see Verification), not on the Preview.
+- The mobile app has no Preview; this step covers `apps/app` and
+  `apps/marketing` only.
+
 ## Merge rules
 
 Auto-merge allowed at **low** risk when all checks are green. Never auto-merge
