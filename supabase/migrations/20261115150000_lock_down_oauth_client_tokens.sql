@@ -46,7 +46,7 @@ begin
 
   -- Tables the MCP tools never touch: no access at all.
   foreach t in array array[
-    'profiles', 'group_members', 'match_events', 'match_votes', 'score_tokens', 'match_score_tokens'
+    'profiles', 'group_members', 'match_events', 'match_votes', 'score_tokens'
   ] loop
     execute format(
       'create policy "OAuth clients have no access" on public.%I as restrictive for all to authenticated

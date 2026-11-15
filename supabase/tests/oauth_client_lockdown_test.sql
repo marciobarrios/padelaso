@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(36);
+SELECT plan(35);
 
 -- ------------------------------------------------------------
 -- Fixtures: a member of one group and an outsider.
@@ -122,7 +122,6 @@ SELECT is((SELECT count(*)::integer FROM public.profiles), 0, 'OAuth token canno
 SELECT is((SELECT count(*)::integer FROM public.match_events), 0, 'OAuth token cannot read match_events');
 SELECT is((SELECT count(*)::integer FROM public.match_votes), 0, 'OAuth token cannot read match_votes');
 SELECT is((SELECT count(*)::integer FROM public.score_tokens), 0, 'OAuth token cannot read score_tokens');
-SELECT is((SELECT count(*)::integer FROM public.match_score_tokens), 0, 'OAuth token cannot read match_score_tokens');
 
 SELECT throws_ok(
   $$INSERT INTO public.matches (group_id, created_by, team1, team2, sets)
