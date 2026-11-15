@@ -115,3 +115,53 @@ export async function listAllGroupMatches(client: SupabaseClient, groupId: strin
   }
   return matches;
 }
+
+// ---------- Recording a match ----------
+
+/** The create_match request. IDs only: callers resolve names first. */
+export interface CreateMatchRequest {
+  groupId: string;
+  team1: string[];
+  team2: string[];
+  sets: { team1Score: number; team2Score: number }[];
+  /** ISO 8601 with a UTC offset. Omit for "now". */
+  date?: string;
+  courtNumber?: number;
+  events?: { playerId: string; type: string }[];
+  /** Optional per-user retry key; see the create_match migration. */
+  idempotencyKey?: string;
+}
+
+const savedMatch = z.object({
+  status: z.enum(['created', 'replayed', 'duplicate']),
+  match: z.object({
+    id: uuid, groupId: uuid, date: z.iso.datetime(), createdAt: z.iso.datetime(),
+    courtNumber: z.number().int().nullable(),
+    team1: z.array(z.string()), team2: z.array(z.string()), sets: scoreSchema,
+  }),
+  events: z.array(z.object({ id: uuid, playerId: uuid, type: z.string() })),
+});
+
+const rejectedMatch = z.object({
+  status: z.literal('rejected'),
+  code: z.enum([
+    'AUTH_REQUIRED', 'INVALID_REQUEST', 'GROUP_NOT_FOUND', 'INVALID_TEAMS', 'PLAYER_NOT_IN_GROUP',
+    'INVALID_SETS', 'INVALID_DATE', 'INVALID_EVENTS', 'IDEMPOTENCY_KEY_REUSED', 'BUSY',
+  ]),
+  message: z.string(),
+  playerIds: z.array(z.string()).optional(),
+});
+
+export const createMatchResultSchema = z.union([savedMatch, rejectedMatch]);
+export type CreateMatchResult = z.infer<typeof createMatchResultSchema>;
+
+/**
+ * Records a finished match and its events atomically as the client's user.
+ * Safe to retry: the same idempotency key, or an identical match moments later,
+ * returns the saved match instead of creating another.
+ */
+export async function createMatchRecord(client: SupabaseClient, request: CreateMatchRequest): Promise<CreateMatchResult> {
+  const { data, error } = await client.rpc('create_match', { p_request: request });
+  if (error) throw error;
+  return createMatchResultSchema.parse(data);
+}

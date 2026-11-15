@@ -107,8 +107,9 @@ export async function verifyMcpAccessToken(token: string | undefined, config: Mc
 }
 
 /** The verified user behind a tool call; `withMcpAuth` guarantees it exists. */
-export function mcpUserFrom(authInfo: AuthInfo | undefined): McpUser & { token: string } {
+export function mcpUserFrom(authInfo: AuthInfo | undefined): McpUser & { token: string; appOrigin: string } {
   const userId = authInfo?.extra?.userId;
-  if (!authInfo || typeof userId !== "string") throw new Error("Unauthenticated MCP tool call");
-  return { userId, token: authInfo.token };
+  if (!authInfo?.resource || typeof userId !== "string") throw new Error("Unauthenticated MCP tool call");
+  // The MCP server lives in the product app, so links share the resource's origin.
+  return { userId, token: authInfo.token, appOrigin: authInfo.resource.origin };
 }

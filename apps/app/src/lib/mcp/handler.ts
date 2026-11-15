@@ -2,18 +2,20 @@ import * as Sentry from "@sentry/nextjs";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { verifyMcpAccessToken } from "./auth";
 import { getMcpConfig, RESOURCE_METADATA_PATH } from "./config";
-import { registerReadTools } from "./tools";
+import { registerTools } from "./tools";
 
 const INSTRUCTIONS =
   "Padelaso tracks padel matches among groups of friends. Start with list_groups, " +
   "resolve player names with list_players, then use list_matches or get_player_stats. " +
-  "You only see groups the signed-in user belongs to. These tools cannot change data.";
+  "To record a finished match, resolve all four players to IDs (ask when a name is ambiguous or unknown), " +
+  "confirm the teams, set scores and date with the user, then call create_match once. " +
+  "You only see groups the signed-in user belongs to. No tool edits or deletes data.";
 
 /**
  * Stateless: every request builds a fresh server, so there is no session store
  * or affinity. Tools read the verified token from the request context.
  */
-const mcp = createMcpHandler(registerReadTools, {
+const mcp = createMcpHandler(registerTools, {
   serverInfo: { name: "padelaso", version: "1.0.0" },
   instructions: INSTRUCTIONS,
   // Serverless functions cannot hold subscription streams open.
