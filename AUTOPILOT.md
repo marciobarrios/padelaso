@@ -117,12 +117,15 @@ pnpm build
     screenshots may be used as PR evidence. Crop to the app; never show
     other groups, emails, or tokens.
 - Refreshing the session (owner, by hand): open
-  `open -na "Google Chrome" --args --user-data-dir="$HOME/.autopilot/auth/padelaso-chrome" https://app.padelaso.com/login`,
-  sign in, pick the Test group, quit Chrome. Then ask an agent to export
-  it: relaunch that profile with `--remote-debugging-port=9333`,
-  `agent-browser --cdp 9333 state save` to a temporary file, keep only
-  `app.padelaso.com` cookies/storage (plus the active group cookie) in
-  `~/.autopilot/auth/padelaso.json`, delete the temporary file, quit Chrome.
+  `open -na "Google Chrome" --args --user-data-dir="$HOME/.autopilot/auth/padelaso-chrome" --disable-sync --disable-extensions --no-first-run https://app.padelaso.com/login`,
+  sign in to the app with Google, pick the Test group, quit Chrome. If
+  Chrome offers to sign in to the browser or turn on sync, decline. Then
+  ask an agent to export it: relaunch that profile with the same flags
+  plus `--remote-debugging-port=9333`, `agent-browser --cdp 9333 state
+  save` to a temporary file, keep only `app.padelaso.com` cookies/storage
+  (plus the active group cookie) in `~/.autopilot/auth/padelaso.json`,
+  delete the temporary file, quit Chrome, and delete the
+  `padelaso-chrome` folder (it holds the Google login).
 
 ## Merge rules
 
