@@ -12,6 +12,18 @@ Everything in `AGENTS.md` still applies (Next.js docs, Linear and PR rules).
   `packages/domain`, `packages/data`, `supabase/` (migrations, pgTAP tests).
 - Read `PRODUCT.md` before any UI work: mobile-first, playful, retro.
 
+## Worktree setup
+
+Copy from the main checkout into each new worktree (gitignored, never
+commit): `.env.local`.
+
+Mobile: reuse the installed `Padelaso Dev` dev client (scheme
+`padelaso-dev`) for JS-only changes and run only Metro from the worktree
+(`pnpm --filter @padelaso/mobile dev -- --port <free port>`). Rebuild with
+`pnpm mobile:ios` only when the change touches `app.config.ts`, `plugins/`,
+`modules/`, `targets/`, `eas.json`, or native dependencies. Watch changes
+(`targets/`, Swift) always need a native build.
+
 ## Commands
 
 CI runs `pnpm exec supabase start && pnpm check`. Run the same before opening
@@ -73,6 +85,47 @@ pnpm build
   Supabase stack (see Verification), not on the Preview.
 - The mobile app has no Preview; this step covers `apps/app` and
   `apps/marketing` only.
+
+## Production monitoring
+
+- Vercel projects: `padelaso` (web app) and `padelaso-marketing`
+  (https://padelaso.com). Get the app's production domain from the Vercel
+  project (`list_project_domains`) rather than guessing it.
+- After a merge: deployment Ready for each project the PR touched, smoke
+  the touched pages, Vercel runtime errors for 15 minutes, plus Supabase
+  MCP `query_logs` (API, auth, Postgres) and `get_advisors` (security) for
+  the production project.
+- Logged-in check (production app: https://app.padelaso.com):
+  - Session: the owner's account, limited to the **Test** group
+    (`c17cb001-331b-4af7-a5ce-cc096ba7fafe`). The saved state holds only
+    `app.padelaso.com` cookies and storage, no Google login.
+  - Load it with
+    `agent-browser --session autopilot-padelaso --state ~/.autopilot/auth/padelaso.json open https://app.padelaso.com/`.
+  - Before every page, confirm the header shows the **Test** group. If
+    any other group appears, stop, take no screenshots, and report it.
+    Never use the group switcher.
+  - Read-only: open the home, matches, players and stats pages. Never
+    record a match, edit a group or player, or change settings.
+  - **Re-save after every check**, before closing the session:
+    `agent-browser --session autopilot-padelaso state save ~/.autopilot/auth/padelaso.json`
+    then `chmod 600` it. Supabase rotates the refresh token on renewal;
+    reusing an old one can revoke the session.
+  - Logged out (login page shown): skip the check, say so, and ask the
+    owner to refresh the session. Never type credentials or start a
+    Google sign-in: Google blocks automated browsers.
+  - All players and matches in the Test group are fake, so its
+    screenshots may be used as PR evidence. Crop to the app; never show
+    other groups, emails, or tokens.
+- Refreshing the session (owner, by hand): open
+  `open -na "Google Chrome" --args --user-data-dir="$HOME/.autopilot/auth/padelaso-chrome" --disable-sync --disable-extensions --no-first-run https://app.padelaso.com/login`,
+  sign in to the app with Google, pick the Test group, quit Chrome. If
+  Chrome offers to sign in to the browser or turn on sync, decline. Then
+  ask an agent to export it: relaunch that profile with the same flags
+  plus `--remote-debugging-port=9333`, `agent-browser --cdp 9333 state
+  save` to a temporary file, keep only `app.padelaso.com` cookies/storage
+  (plus the active group cookie) in `~/.autopilot/auth/padelaso.json`,
+  delete the temporary file, quit Chrome, and delete the
+  `padelaso-chrome` folder (it holds the Google login).
 
 ## Merge rules
 
