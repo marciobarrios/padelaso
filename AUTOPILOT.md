@@ -74,6 +74,26 @@ pnpm build
 - The mobile app has no Preview; this step covers `apps/app` and
   `apps/marketing` only.
 
+## Production monitoring
+
+- Vercel projects: `padelaso` (web app) and `padelaso-marketing`
+  (https://padelaso.com). Get the app's production domain from the Vercel
+  project (`list_project_domains`) rather than guessing it.
+- After a merge: deployment Ready for each project the PR touched, smoke
+  the touched pages, Vercel runtime errors for 15 minutes, plus Supabase
+  MCP `query_logs` (API, auth, Postgres) and `get_advisors` (security) for
+  the production project.
+- Logged-in check with the production test account:
+  - A dedicated Google account, member only of its own test group with
+    no real players. Never your personal account.
+  - Saved browser state: `~/.autopilot/auth/padelaso.json` (outside the
+    repo). Refresh it by hand when it expires: open the app headed with
+    `agent-browser`, sign in as the test account, save the state to that
+    path. Autopilot never types credentials.
+  - Read-only: open the group, matches and stats pages. Never record a
+    match, edit a group, or change settings.
+  - Until that account exists, skip the logged-in check and say so.
+
 ## Merge rules
 
 Auto-merge allowed at **low** risk when all checks are green. Never auto-merge
