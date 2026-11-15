@@ -17,6 +17,13 @@ Everything in `AGENTS.md` still applies (Next.js docs, Linear and PR rules).
 Copy from the main checkout into each new worktree (gitignored, never
 commit): `.env.local`.
 
+Mobile: reuse the installed `Padelaso Dev` dev client (scheme
+`padelaso-dev`) for JS-only changes and run only Metro from the worktree
+(`pnpm --filter @padelaso/mobile dev -- --port <free port>`). Rebuild with
+`pnpm mobile:ios` only when the change touches `app.config.ts`, `plugins/`,
+`modules/`, `targets/`, `eas.json`, or native dependencies. Watch changes
+(`targets/`, Swift) always need a native build.
+
 ## Commands
 
 CI runs `pnpm exec supabase start && pnpm check`. Run the same before opening
