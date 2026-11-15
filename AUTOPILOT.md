@@ -95,16 +95,33 @@ pnpm build
   the touched pages, Vercel runtime errors for 15 minutes, plus Supabase
   MCP `query_logs` (API, auth, Postgres) and `get_advisors` (security) for
   the production project.
-- Logged-in check with the production test account:
-  - A dedicated Google account, member only of its own test group with
-    no real players. Never your personal account.
-  - Saved browser state: `~/.autopilot/auth/padelaso.json` (outside the
-    repo). Refresh it by hand when it expires: open the app headed with
-    `agent-browser`, sign in as the test account, save the state to that
-    path. Autopilot never types credentials.
-  - Read-only: open the group, matches and stats pages. Never record a
-    match, edit a group, or change settings.
-  - Until that account exists, skip the logged-in check and say so.
+- Logged-in check (production app: https://app.padelaso.com):
+  - Session: the owner's account, limited to the **Test** group
+    (`c17cb001-331b-4af7-a5ce-cc096ba7fafe`). The saved state holds only
+    `app.padelaso.com` cookies and storage, no Google login.
+  - Load it with
+    `agent-browser --session autopilot-padelaso --state ~/.autopilot/auth/padelaso.json open https://app.padelaso.com/`.
+  - Before every page, confirm the header shows the **Test** group. If
+    any other group appears, stop, take no screenshots, and report it.
+    Never use the group switcher.
+  - Read-only: open the home, matches, players and stats pages. Never
+    record a match, edit a group or player, or change settings.
+  - **Re-save after every check**, before closing the session:
+    `agent-browser --session autopilot-padelaso state save ~/.autopilot/auth/padelaso.json`
+    then `chmod 600` it. Supabase rotates the refresh token on renewal;
+    reusing an old one can revoke the session.
+  - Logged out (login page shown): skip the check, say so, and ask the
+    owner to refresh the session. Never type credentials or start a
+    Google sign-in: Google blocks automated browsers.
+  - Evidence from this group stays in `.autopilot/`; it shows real first
+    names, so never attach logged-in production screenshots to a PR.
+- Refreshing the session (owner, by hand): open
+  `open -na "Google Chrome" --args --user-data-dir="$HOME/.autopilot/auth/padelaso-chrome" https://app.padelaso.com/login`,
+  sign in, pick the Test group, quit Chrome. Then ask an agent to export
+  it: relaunch that profile with `--remote-debugging-port=9333`,
+  `agent-browser --cdp 9333 state save` to a temporary file, keep only
+  `app.padelaso.com` cookies/storage (plus the active group cookie) in
+  `~/.autopilot/auth/padelaso.json`, delete the temporary file, quit Chrome.
 
 ## Merge rules
 
