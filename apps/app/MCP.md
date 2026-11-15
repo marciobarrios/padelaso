@@ -80,12 +80,29 @@ and Storage accept a non-`authenticated` audience. Instead, the server requires 
 `client_id`. Tokens issued to other OAuth clients of the project are rejected, and Supabase
 binds refresh tokens to the client that obtained them.
 
+### Direct database access (MAR-144)
+
+An OAuth access token is an ordinary `authenticated` user JWT plus `client_id`, so a client
+holding it can call Supabase's APIs directly, not only `/api/mcp`. Supabase scopes
+(`openid email profile phone`) only control identity claims. The database therefore limits
+these tokens to what the tools need
+(`supabase/migrations/20261115150000_lock_down_oauth_client_tokens.sql`):
+
+- **Restrictive RLS policies** on every `public` table: no inserts, updates or deletes, and no
+  reads beyond `groups`, `players` and `matches`. They apply to the Data API, GraphQL and
+  Realtime alike. Security definer functions bypass RLS, so `create_match` keeps working.
+- **A Data API pre-request guard** (`mcp_private.check_request`, set as
+  `pgrst.db_pre_request` on `authenticator`): OAuth tokens may only `GET`/`HEAD` `/groups`,
+  `/players` and `/matches` and `POST /rpc/create_match`. Anything else is a `403` with code
+  `OAUTH_CLIENT_FORBIDDEN`. This covers the other RPCs, which RLS can't, and GraphQL.
+
+Tokens without `client_id` (web and native sessions) pass both layers unchanged. A new tool
+that reads another table or calls another RPC must be added to both layers, and a new
+`public` table needs its own restrictive policies: `supabase/tests/oauth_client_lockdown_test.sql`
+fails until it has them.
+
 Gaps to keep in mind:
 
-- An OAuth access token is a full user token. A client holding it could call Supabase's REST
-  API directly with the same RLS permissions as the user, including edits and deletes the MCP
-  server doesn't offer. Supabase scopes (`openid email profile phone`) only control identity
-  claims.
 - Revoking a grant doesn't invalidate access tokens already issued; they expire within
   `jwt_expiry` (1 hour).
 
@@ -258,6 +275,10 @@ already shown on the consent page may have expired.
 - `supabase/tests/create_match_test.sql` (`pnpm test:db`): privileges, authorization, every
   validation rule, replays, key reuse, the duplicate window, per-user keys, atomicity of match
   plus events, and two concurrent identical requests creating one match.
+- `supabase/tests/oauth_client_lockdown_test.sql` (`pnpm test:db`): OAuth tokens read only
+  their own groups, players and matches, can't write any table or read the others, still
+  record through `create_match`, and pass the pre-request guard only for the tools' requests.
+  Ordinary sessions are unchanged, and every `public` table must be covered.
 - `src/app/oauth/consent/consent.test.ts`: authorization ID parsing (Supabase IDs are
   32-character alphanumerics, not UUIDs), the login round trip, and server-side allowlist
   enforcement in the consent action.
@@ -266,7 +287,8 @@ already shown on the consent page may have expired.
 - `src/lib/mcp/oauth.integration.test.ts` (`pnpm test:integration`, needs `supabase start`;
   runs in CI): a real authorization-code + PKCE flow through the local OAuth server, then MCP
   calls with the issued token against real RLS, including recording a match, its retries, and
-  refused requests sent straight to `create_match`.
+  refused requests sent straight to `create_match`, and the same token refused (`403`) by the
+  Data API for other tables, writes and RPCs.
 - Manual, outstanding: the second-client check above, and recording a match from ChatGPT
   (step 6 above). The `create_match` migration is applied in production.
 

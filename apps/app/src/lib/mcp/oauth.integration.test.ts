@@ -38,6 +38,14 @@ function sessionClient() {
   });
 }
 
+/** The Data API as a client holding this bearer token would call it, bypassing /api/mcp. */
+function dataClient(token: string) {
+  return createClient(API(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
 async function createUser(name: string) {
   const email = `mcp-${name}-${run}@example.com`;
   const { data, error } = await admin.auth.admin.createUser({ email, password: PASSWORD, email_confirm: true });
@@ -262,14 +270,53 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     expect(badScore.content[0].text).toMatch(/no score/);
 
     // Straight to the database function with the same token, skipping the tool's checks.
-    const direct = await createClient(API(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: `Bearer ${oauthToken}` } },
-    }).rpc("create_match", { p_request: { groupId: otherGroupId, ...base, sets: [{ team1Score: 6, team2Score: 1 }] } });
+    const direct = await dataClient(oauthToken)
+      .rpc("create_match", { p_request: { groupId: otherGroupId, ...base, sets: [{ team1Score: 6, team2Score: 1 }] } });
     expect(direct.data).toMatchObject({ status: "rejected", code: "GROUP_NOT_FOUND" });
 
     expect((await admin.from("matches").select("id", { count: "exact", head: true })
       .in("group_id", [groupId, otherGroupId])).count).toBe(before);
+  });
+
+  describe("direct Data API access with the OAuth token (MAR-144)", () => {
+    const forbidden = { code: "OAUTH_CLIENT_FORBIDDEN" };
+
+    it("allows only the reads and the RPC the MCP tools use", async () => {
+      const direct = dataClient(oauthToken);
+      expect(must(await direct.from("groups").select("id"))).toEqual([{ id: groupId }]);
+      expect(must(await direct.from("players").select("id").eq("group_id", groupId))).toHaveLength(4);
+      const { count } = await direct.from("matches").select("id", { count: "exact", head: true }).eq("group_id", groupId);
+      expect(count).toBeGreaterThan(0);
+    });
+
+    it("refuses other tables, writes and RPCs with 403", async () => {
+      const direct = dataClient(oauthToken);
+      const attempts = {
+        "read group_members": await direct.from("group_members").select("*"),
+        "read profiles": await direct.from("profiles").select("*"),
+        "read match_events": await direct.from("match_events").select("*"),
+        "insert a match": await direct.from("matches").insert({
+          group_id: groupId, created_by: memberId, team1: [ids.Ana, ids.Pablo], team2: [ids["Lucía"], ids.Marta],
+          sets: [{ team1Score: 6, team2Score: 0 }],
+        }),
+        "rename the group": await direct.from("groups").update({ name: "Hijacked" }).eq("id", groupId),
+        "delete matches": await direct.from("matches").delete().eq("group_id", groupId),
+        "call another RPC": await direct.rpc("join_group_by_code", { code: "NOPE0000" }),
+      };
+      for (const [attempt, result] of Object.entries(attempts)) {
+        expect({ attempt, status: result.status, error: result.error }).toMatchObject({
+          attempt, status: 403, error: forbidden,
+        });
+      }
+      const group = must(await admin.from("groups").select("name").eq("id", groupId).single()) as { name: string };
+      expect(group.name).toBe(`MCP ${run}`);
+    });
+
+    it("leaves the same user's ordinary app session unchanged", async () => {
+      const session = dataClient(memberSessionJwt);
+      expect(must(await session.from("group_members").select("user_id").eq("group_id", groupId)))
+        .toEqual([{ user_id: memberId }]);
+    });
   });
 
   it("rejects the same user's ordinary app session with 401", async () => {
