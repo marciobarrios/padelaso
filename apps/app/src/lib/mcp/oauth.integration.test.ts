@@ -221,7 +221,7 @@ describe("MCP over Supabase OAuth on the real stack", () => {
       team2: [ids.Pablo, ids["Lucía"]],
       sets: [{ team1: 6, team2: 3 }, { team1: 7, team2: 6 }],
       events: [{ player_id: ids.Marta, type: "vibora" }],
-      idempotency_key: `integration-${run}`,
+      idempotency_key: randomUUID(),
     };
 
     const created = await callTool("create_match", args);
@@ -236,7 +236,7 @@ describe("MCP over Supabase OAuth on the real stack", () => {
 
     // Retries: the same key, then a key the model regenerated.
     expect((await callTool("create_match", args)).structuredContent).toMatchObject({ status: "replayed", match: { id: matchId } });
-    expect((await callTool("create_match", { ...args, idempotency_key: `regenerated-${run}` })).structuredContent)
+    expect((await callTool("create_match", { ...args, idempotency_key: randomUUID() })).structuredContent)
       .toMatchObject({ status: "duplicate", match: { id: matchId } });
     expect(await countMatches()).toBe(before! + 1);
 

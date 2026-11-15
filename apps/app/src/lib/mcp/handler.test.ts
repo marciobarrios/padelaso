@@ -444,6 +444,7 @@ describe("create_match", () => {
     ["a retired event type", { events: [{ player_id: ANA, type: "bola_fuera" }] }, /./],
     ["a date without a UTC offset", { played_at: "2026-11-14T19:00:00" }, /./],
     ["a player name instead of an ID", { team1: ["Ana", PABLO] }, /./],
+    ["an idempotency key that is not a UUID", { idempotency_key: "ana-pablo-lucia-marta-6-4" }, /./],
   ])("never saves %s", async (_label, overrides, message) => {
     const result = await callTool("create_match", { ...valid, ...overrides });
     expect(result.isError).toBe(true);
@@ -464,7 +465,7 @@ describe("create_match", () => {
     expect(duplicate.structuredContent.message).toMatch(/recorded 3 min ago, so no new match was created/);
 
     createMatchAnswer = savedAs("replayed");
-    const replayed = await callTool("create_match", { ...valid, idempotency_key: "retry-key-0001" });
+    const replayed = await callTool("create_match", { ...valid, idempotency_key: "0b6f3c1e-8d2a-4f5b-9c7e-1a2b3c4d5e6f" });
     expect(replayed.structuredContent.status).toBe("replayed");
     expect(replayed.structuredContent.message).toMatch(/No new match was created/);
   });

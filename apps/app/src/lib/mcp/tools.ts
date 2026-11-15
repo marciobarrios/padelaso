@@ -418,8 +418,8 @@ export function registerTools(server: McpServer) {
       "Record a finished match in a group: both teams, the games of every set and optional highlights. " +
       "Before calling: (1) resolve every player with list_players and pass their IDs; when a name matches several " +
       "players or none, show the candidates and ask the user, never guess. (2) Restate the group, both teams, " +
-      "every set score and the date to the user, and call only after they confirm. Generate one idempotency_key " +
-      "per confirmed match and reuse it if you retry. Returns what was saved and a link to the match.",
+      "every set score and the date to the user, and call only after they confirm. Generate one random UUID as " +
+      "idempotency_key per confirmed match and reuse it if you retry. Returns what was saved and a link to the match.",
     inputSchema: z.object({
       group_id: groupId,
       team1: z.array(playerId).length(2).describe("The two players of team 1, as IDs from list_players."),
@@ -435,8 +435,11 @@ export function registerTools(server: McpServer) {
         type: z.enum(EVENT_CONFIGS.map((e) => e.type)),
       })).max(MAX_RECORDED_EVENTS).optional()
         .describe(`Optional highlights the user mentions, one entry per occurrence. Types: ${recordableEvents}.`),
-      idempotency_key: z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/).optional()
-        .describe("A new random value, such as a UUID, for each confirmed match. Reuse it only to retry the same call."),
+      // A UUID, not free text: a key the model builds from player names reads as user
+      // data hidden in an identifier, and ChatGPT warns before running the call.
+      idempotency_key: z.uuid().optional().describe(
+        "A random UUID generated once for each confirmed match. Reuse it only to retry the same call. " +
+        "Never put names, scores or other details in it."),
     }),
     outputSchema: outputs.create_match,
     annotations: RECORDS_MATCH,
