@@ -74,6 +74,25 @@ Allow local network access and keep phone and Mac on the same reachable LAN.
 When LAN access is blocked, run
 `pnpm --filter @padelaso/mobile dev --tunnel` (Expo may request its tunnel helper).
 
+### If Expo fails after installing the iOS app
+
+If the log reaches **Installing/Opening Padelaso Dev** and then fails with an
+`osascript` / `System Events` error, the failure is in Expo's macOS simulator
+activation helper. The app may already be installed successfully. Start Metro
+separately from the repository root:
+
+```bash
+pnpm --filter @padelaso/mobile dev --localhost --port 8081
+```
+
+Keep that terminal running. Open **Padelaso Dev** directly in the already
+running iOS Simulator or T3 Device panel. If its development launcher appears,
+connect to `http://127.0.0.1:8081` (enter the URL manually if it is not listed).
+This uses the installed client without rebuilding. Pressing `I` in Expo calls
+the same simulator activation helper, so use the app icon for this workaround.
+The localhost address is for a simulator on this Mac; physical phones need a
+reachable LAN address or tunnel.
+
 ## Android toolchain and development build
 
 Install Android Studio, **JDK 17**, Android SDK Platform **37**, SDK Build-Tools,
