@@ -169,7 +169,6 @@ beforeAll(async () => {
 
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
   vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", clientId);
-  vi.stubEnv("MCP_ALLOWED_USER_IDS", member.id);
 });
 
 afterAll(async () => {
@@ -186,20 +185,15 @@ afterAll(async () => {
 
 describe("MCP over Supabase OAuth on the real stack", () => {
   it("connects two unrelated users independently and isolates their groups", async () => {
-    vi.stubEnv("MCP_ALLOWED_USER_IDS", `${memberId},${stranger.id}`);
-    try {
-      const flow = await authorize(stranger);
-      const token = (await exchange(flow.redirect.searchParams.get("code")!, flow.verifier)).access_token;
-      for (const [bearer, own, other] of [[oauthToken, groupId, otherGroupId], [token, otherGroupId, groupId]]) {
-        const result = await callTool("list_groups", {}, bearer);
-        expect(result.isError).toBeFalsy();
-        expect(result.structuredContent.groups.map((g: { id: string }) => g.id)).toEqual([own]);
-        const denied = await callTool("list_players", { group_id: other }, bearer);
-        expect(denied.isError).toBe(true);
-        expect(denied.content[0].text).toMatch(/Group not found/);
-      }
-    } finally {
-      vi.stubEnv("MCP_ALLOWED_USER_IDS", memberId);
+    const flow = await authorize(stranger);
+    const token = (await exchange(flow.redirect.searchParams.get("code")!, flow.verifier)).access_token;
+    for (const [bearer, own, other] of [[oauthToken, groupId, otherGroupId], [token, otherGroupId, groupId]]) {
+      const result = await callTool("list_groups", {}, bearer);
+      expect(result.isError).toBeFalsy();
+      expect(result.structuredContent.groups.map((g: { id: string }) => g.id)).toEqual([own]);
+      const denied = await callTool("list_players", { group_id: other }, bearer);
+      expect(denied.isError).toBe(true);
+      expect(denied.content[0].text).toMatch(/Group not found/);
     }
   });
 
@@ -447,16 +441,5 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     const response = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, memberSessionJwt);
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toContain('error="invalid_token"');
-  });
-
-  it("rejects users outside the beta with 403", async () => {
-    vi.stubEnv("MCP_ALLOWED_USER_IDS", "");
-    try {
-      const response = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, oauthToken);
-      expect(response.status).toBe(403);
-      expect(response.headers.get("www-authenticate")).toContain('error="insufficient_scope"');
-    } finally {
-      vi.stubEnv("MCP_ALLOWED_USER_IDS", memberId);
-    }
   });
 });

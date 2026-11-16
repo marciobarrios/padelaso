@@ -3,7 +3,7 @@
 Padelaso exposes a remote [Model Context Protocol](https://modelcontextprotocol.io) server so
 assistants such as ChatGPT and Claude can read a user's groups, players, match history and
 stats, and record new matches. Users sign in with their Padelaso account through Supabase
-Auth's OAuth 2.1 server. Access is limited to an allowlist of users. Phase 1 (MAR-98) added the
+Auth's OAuth 2.1 server. Access is open to all signed-in, non-anonymous users through allowlisted clients. Phase 1 (MAR-98) added the
 read tools; phase 2 (MAR-99) adds `create_match`. No tool edits or deletes data.
 
 | | |
@@ -26,7 +26,6 @@ runtime. Every request builds a fresh MCP server, so there is no session store o
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Existing public project settings. The issuer is derived from the URL. |
 | `MCP_RESOURCE_URL` | Canonical MCP URL, e.g. `https://app.padelaso.com/api/mcp`. Must be `https`, or `http` on localhost, and end in `/api/mcp`. Required in production (`VERCEL_ENV=production`): without it the endpoint and its metadata answer `500`. Elsewhere, if unset, the deployment's own origin is used, which suits previews and local development. |
 | `MCP_ALLOWED_CLIENT_IDS` | Comma-separated OAuth client IDs allowed to call the server. Empty denies every client. |
-| `MCP_ALLOWED_USER_IDS` | Comma-separated Supabase user IDs in the phase 1 beta. Empty denies every user. Remove with MAR-100. |
 | `MCP_RATE_LIMIT_PER_CLIENT` | Requests per minute for one user through one OAuth client. Default `60`. See [Rate limits](#rate-limits). |
 | `MCP_RATE_LIMIT_PER_USER` | Requests per minute for one user across all their clients. Default `120`. |
 
@@ -44,8 +43,7 @@ string are ignored. `verifyMcpAccessToken` (`src/lib/mcp/auth.ts`) then:
    `role = authenticated`, a UUID `sub`, and a non-anonymous user.
 3. Requires a `client_id` claim. Supabase adds it only to tokens issued by its OAuth server,
    so ordinary web and native sessions are rejected.
-4. Requires the client to be in `MCP_ALLOWED_CLIENT_IDS` and the user to be in
-   `MCP_ALLOWED_USER_IDS`.
+4. Requires the client to be in `MCP_ALLOWED_CLIENT_IDS`. No user allowlist is required.
 
 Steps 2 and 3 and the client check also run on the token's unverified payload before step 1.
 Anyone can send a token, and for an unknown key or an HS256 token `getClaims` calls Supabase
@@ -55,7 +53,7 @@ claims are trusted afterwards.
 | Failure | Response |
 | --- | --- |
 | Missing, malformed, forged or expired token; wrong issuer, audience or role; no `client_id` | `401`, `WWW-Authenticate: Bearer error="invalid_token", resource_metadata="…"` |
-| Client not allowlisted, or user not in the beta | `403`, `WWW-Authenticate: Bearer error="insufficient_scope", resource_metadata="…"` (not `401`: signing in again cannot fix it) |
+| Client not allowlisted | `403`, `WWW-Authenticate: Bearer error="insufficient_scope", resource_metadata="…"` (not `401`: signing in again cannot fix it) |
 | Supabase Auth or JWKS unreachable | `500 server_error` (not `401`, so clients keep the token and retry) |
 
 Tools run with a per-request Supabase client built from the verified token and the anon key
@@ -109,7 +107,7 @@ Gaps to keep in mind:
 - Revoking a grant doesn't invalidate access tokens already issued; they expire within
   `jwt_expiry` (1 hour).
 
-The consent page tells the user both: it lists what the connection's tools do (read data,
+The consent page states the single v1 permission, "leer y registrar partidos": it lists what the connection's tools do (read data,
 record matches after confirmation) and what they don't (edit or delete), never claiming the
 grant itself is limited. It is also served with `frame-ancestors 'none'` and
 `X-Frame-Options: DENY` (`next.config.ts`) so it can't be framed.
@@ -249,8 +247,8 @@ All of them reach the model as tool errors ending in "Nothing was saved."
    section, confidential client. Its token endpoint auth method (`client_secret_basic` or
    `client_secret_post`) must match the one set in ChatGPT; Supabase rejects any other. Copy the
    client ID and secret.
-5. In Vercel (product project): set `MCP_RESOURCE_URL`, `MCP_ALLOWED_CLIENT_IDS` (the client ID)
-   and `MCP_ALLOWED_USER_IDS` (testers' user IDs), then redeploy. Vercel applies env var changes
+5. In Vercel (product project): set `MCP_RESOURCE_URL`, `MCP_ALLOWED_CLIENT_IDS` (the client ID),
+   then redeploy. Vercel applies env var changes
    only to new deployments, so redeploy after every change, including allowlist edits.
 
 **Registration decision: manual first, dynamic registration off.** Enable dynamic registration
@@ -299,7 +297,7 @@ Problems seen during the first production connection (November 2026):
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | ChatGPT: "Couldn't discover OAuth settings" | The protected resource metadata answers `500`. Runtime logs show `MCP_RESOURCE_URL must be set in production`. | Set `MCP_RESOURCE_URL` and redeploy. A variable added after the last deployment isn't applied yet. |
-| Consent page: "todavía no están disponibles para tu cuenta" | The user or the client isn't in its allowlist. The page shows the same message for both. | Compare `MCP_ALLOWED_USER_IDS` with the user's ID (**Authentication → Users**) and `MCP_ALLOWED_CLIENT_IDS` with the OAuth client's ID (**Authentication → OAuth Apps**), then redeploy. |
+| Consent page: "Esta aplicación todavía no puede conectarse a Padelaso" | The client is not allowlisted. | Compare `MCP_ALLOWED_CLIENT_IDS` with the OAuth client ID (**Authentication → OAuth Apps**), then redeploy. |
 | ChatGPT shows an error right after approving | The token exchange fails. Supabase Auth logs show `invalid authentication method: client is registered for 'client_secret_basic' but 'client_secret_post' was used`. | Make the token endpoint auth method match in ChatGPT and on the Supabase client. |
 
 After any fix, start the connection again from the client. An authorization request that was
@@ -339,7 +337,7 @@ already shown on the consent page may have expired.
 - Manual, outstanding: the second-client check above, and recording a match from ChatGPT
   (step 6 above). The `create_match` migration is applied in production.
 
-Connection management and opening access beyond the allowlist are MAR-100.
+Connection management and hardening are tracked in MAR-100. MAR-149 opens access to all users while retaining the client allowlist.
 
 
 ## Tool-call telemetry

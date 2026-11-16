@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { isAllowedMcpClient, isAllowedMcpUser } from "@/lib/mcp/config";
+import { isAllowedMcpClient } from "@/lib/mcp/config";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { consentPath, isSafeClientRedirect, loginPath, parseAuthorizationId } from "./_lib";
 
@@ -24,7 +24,7 @@ export async function decideAuthorization(formData: FormData) {
   if (decision === "approve") {
     const { data: details, error } = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
     if (error || !details || !("authorization_id" in details)) redirect(consentPath(authorizationId));
-    if (!isAllowedMcpUser(user.id) || !isAllowedMcpClient(details.client.id)) {
+    if (!isAllowedMcpClient(details.client.id)) {
       redirect(consentPath(authorizationId));
     }
   }
