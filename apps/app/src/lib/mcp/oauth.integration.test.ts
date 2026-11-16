@@ -287,6 +287,10 @@ describe("MCP over Supabase OAuth on the real stack", () => {
       expect(must(await direct.from("players").select("id").eq("group_id", groupId))).toHaveLength(4);
       const { count } = await direct.from("matches").select("id", { count: "exact", head: true }).eq("group_id", groupId);
       expect(count).toBeGreaterThan(0);
+      // The rate limit counter (MAR-145), called before every MCP request.
+      expect(must(await direct.rpc("hit_mcp_rate_limit"))).toMatchObject({
+        client_requests: expect.any(Number), user_requests: expect.any(Number), retry_after: expect.any(Number),
+      });
     });
 
     it("refuses other tables, writes and RPCs with 403", async () => {
@@ -317,6 +321,24 @@ describe("MCP over Supabase OAuth on the real stack", () => {
       expect(must(await session.from("group_members").select("user_id").eq("group_id", groupId)))
         .toEqual([{ user_id: memberId }]);
     });
+  });
+
+  it("answers 429 with Retry-After once the client's budget is spent (MAR-145)", async () => {
+    vi.stubEnv("MCP_RATE_LIMIT_PER_CLIENT", "1");
+    try {
+      // Earlier tests already counted requests in this minute; a new minute
+      // allows one more, so the third request is over the limit at the latest.
+      let response: Response | undefined;
+      for (let i = 0; i < 3 && response?.status !== 429; i++) {
+        response = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, oauthToken);
+        await response.text();
+      }
+      expect(response!.status).toBe(429);
+      expect(Number(response!.headers.get("retry-after"))).toBeGreaterThanOrEqual(1);
+    } finally {
+      // Empty means the default limit.
+      vi.stubEnv("MCP_RATE_LIMIT_PER_CLIENT", "");
+    }
   });
 
   it("rejects the same user's ordinary app session with 401", async () => {
