@@ -18,16 +18,21 @@ export async function auditMcpRequest(request: Request, auth: AuthInfo | undefin
   return toolAudit.run(state, async () => {
     try {
       const response = await dispatch(request);
-      const text = await response.clone().text();
-      const data = response.headers.get("content-type")?.includes("text/event-stream")
-        ? text.split("\n").filter((line) => line.startsWith("data: ")).at(-1)?.slice(6) : text;
-      const message = JSON.parse(data ?? "null");
-      if (state.outcome === "ok") {
-        if (message?.error) state.outcome = message.error.code === -32602 ? "denied" : "error";
-        else if (message?.result?.isError) {
-          const content = message.result.content?.[0];
-          state.outcome = content?.type === "text" && content.text.startsWith("Input validation error:") ? "denied" : "error";
-        } else if (!message?.result || !response.ok) state.outcome = "error";
+      try {
+        const text = await response.clone().text();
+        const data = response.headers.get("content-type")?.includes("text/event-stream")
+          ? text.split("\n").filter((line) => line.startsWith("data: ")).at(-1)?.slice(6) : text;
+        const message = JSON.parse(data ?? "null");
+        if (state.outcome === "ok") {
+          if (message?.error) state.outcome = response.status === 429 || message.error.code === -32602 ? "denied" : "error";
+          else if (message?.result?.isError) {
+            const content = message.result.content?.[0];
+            state.outcome = content?.type === "text" && content.text.startsWith("Input validation error:") ? "denied" : "error";
+          } else if (!message?.result || !response.ok) state.outcome = "error";
+        }
+      } catch {
+        // Observability must never replace a successful tool response.
+        state.outcome = "error";
       }
       return response;
     } catch {
@@ -41,6 +46,7 @@ export async function auditMcpRequest(request: Request, auth: AuthInfo | undefin
           scope.clear();
           scope.addEventProcessor((event) => ({ event_id: event.event_id, timestamp: event.timestamp,
             platform: event.platform, level: event.level, exception: event.exception,
+            fingerprint: ["mcp-tool", tool, auth?.clientId ?? "unknown"],
             tags: { operation: "mcp-tool", tool, client: auth?.clientId ?? "unknown" } }));
           Sentry.captureException(new Error("MCP tool failed"), {
             tags: { operation: "mcp-tool", tool, client: auth?.clientId ?? "unknown" },
