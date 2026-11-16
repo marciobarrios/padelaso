@@ -272,7 +272,9 @@ Supabase's `aud=authenticated` contract described above.
 **Local.** `supabase/config.toml` enables `[auth.oauth_server]` with
 `authorization_url_path = "/oauth/consent"` and `allow_dynamic_registration = true` for integration
 tests. Restart only your own stack after configuration changes. Local DCR alone does not open
-admission: set `MCP_SELF_SERVICE_ENABLED=true` on your local app too.
+admission: set `MCP_SELF_SERVICE_ENABLED=true` on your local app too. The local gateway serves
+discovery at `<LOCAL_SUPABASE_URL>/auth/v1/.well-known/oauth-authorization-server`; unlike the
+hosted gateway, it does not route the root `/.well-known/oauth-authorization-server/auth/v1` alias.
 
 **Production rollout (owner, after code review and merge):**
 

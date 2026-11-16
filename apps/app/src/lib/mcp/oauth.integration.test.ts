@@ -138,7 +138,9 @@ beforeAll(async () => {
   admin = createClient(API(), process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const discovery = await fetch(`${API()}/.well-known/oauth-authorization-server/auth/v1`);
+  // Local gateway exposes GoTrue discovery under /auth/v1; the hosted
+  // RFC 8414 root alias is not routed by the CLI stack.
+  const discovery = await fetch(`${API()}/auth/v1/.well-known/oauth-authorization-server`);
   expect(discovery.status).toBe(200);
   const metadata = await discovery.json();
   registrationEndpoint = metadata.registration_endpoint;
