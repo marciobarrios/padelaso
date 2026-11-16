@@ -27,6 +27,8 @@ runtime. Every request builds a fresh MCP server, so there is no session store o
 | `MCP_RESOURCE_URL` | Canonical MCP URL, e.g. `https://app.padelaso.com/api/mcp`. Must be `https`, or `http` on localhost, and end in `/api/mcp`. Required in production (`VERCEL_ENV=production`): without it the endpoint and its metadata answer `500`. Elsewhere, if unset, the deployment's own origin is used, which suits previews and local development. |
 | `MCP_ALLOWED_CLIENT_IDS` | Comma-separated OAuth client IDs allowed to call the server. Empty denies every client. |
 | `MCP_ALLOWED_USER_IDS` | Comma-separated Supabase user IDs in the phase 1 beta. Empty denies every user. Remove with MAR-100. |
+| `MCP_RATE_LIMIT_PER_CLIENT` | Requests per minute for one user through one OAuth client. Default `60`. See [Rate limits](#rate-limits). |
+| `MCP_RATE_LIMIT_PER_USER` | Requests per minute for one user across all their clients. Default `120`. |
 
 No service-role key is used anywhere in the MCP path.
 
@@ -93,7 +95,8 @@ these tokens to what the tools need
   Realtime alike. Security definer functions bypass RLS, so `create_match` keeps working.
 - **A Data API pre-request guard** (`mcp_private.check_request`, set as
   `pgrst.db_pre_request` on `authenticator`): OAuth tokens may only `GET`/`HEAD` `/groups`,
-  `/players` and `/matches` and `POST /rpc/create_match`. Anything else is a `403` with code
+  `/players` and `/matches`, `POST /rpc/create_match` and `POST /rpc/hit_mcp_rate_limit` (the
+  rate limit counter). Anything else is a `403` with code
   `OAUTH_CLIENT_FORBIDDEN`. This covers the other RPCs, which RLS can't, and GraphQL.
 
 Tokens without `client_id` (web and native sessions) pass both layers unchanged. A new tool
@@ -110,6 +113,45 @@ The consent page tells the user both: it lists what the connection's tools do (r
 record matches after confirmation) and what they don't (edit or delete), never claiming the
 grant itself is limited. It is also served with `frame-ancestors 'none'` and
 `X-Frame-Options: DENY` (`next.config.ts`) so it can't be framed.
+
+## Rate limits
+
+`/api/mcp` limits every authenticated request (MAR-145), with two budgets per one-minute window:
+
+| Budget | Key | Default | Setting |
+| --- | --- | --- | --- |
+| Per client | user + OAuth `client_id` | 60 requests | `MCP_RATE_LIMIT_PER_CLIENT` |
+| Per user | user, all clients together | 120 requests | `MCP_RATE_LIMIT_PER_USER` |
+
+So two users never share a budget, and a user's second client (say Claude next to ChatGPT) has its
+own per-client budget but counts toward the same user total. Every MCP request counts:
+`initialize`, `tools/list` and each tool call.
+
+How it works (`src/lib/mcp/rate-limit.ts`): after the token is verified and before the request
+reaches the MCP server, the route calls `public.hit_mcp_rate_limit()` with the caller's own token
+(`supabase/migrations/20261116010000_mcp_rate_limits.sql`). The function adds one to the user's
+and the user + client counters for the current minute in `mcp_private.rate_limit_windows`,
+deletes the user's older windows, and returns both counts and the seconds left in the minute. The
+app compares the counts with the limits. Counters live in Postgres because serverless instances
+share no memory; Vercel Firewall rate limits key on IP or headers, not on verified token claims.
+
+Over either limit the response is `429` with `Retry-After: <seconds until the next minute>` and a
+JSON-RPC error body; no tool runs:
+
+```json
+{ "jsonrpc": "2.0", "id": null, "error": { "code": -32029, "message": "Rate limit exceeded. Try again in 42 seconds.", "data": { "retryAfter": 42 } } }
+```
+
+- Windows are fixed minutes, so a burst across a minute boundary can reach twice a limit.
+- Unauthenticated and refused requests (401/403) never reach the counter.
+- If the counter can't be reached the request runs (fails open, reported to Sentry): the tools
+  need the same database and report its outage themselves.
+- A caller who calls the RPC directly with their token (the Data API guard allows it) only spends
+  their own budget. Counters are deleted with the user.
+
+**Changing the limits.** Set `MCP_RATE_LIMIT_PER_CLIENT` and/or `MCP_RATE_LIMIT_PER_USER` (positive
+integers, requests per minute) in the Vercel project and redeploy. A missing or invalid value uses
+the default. The window length is fixed in the SQL function; changing it needs a migration.
 
 ## Tools
 
@@ -275,6 +317,11 @@ already shown on the consent page may have expired.
 - `supabase/tests/create_match_test.sql` (`pnpm test:db`): privileges, authorization, every
   validation rule, replays, key reuse, the duplicate window, per-user keys, atomicity of match
   plus events, and two concurrent identical requests creating one match.
+- `src/lib/mcp/handler.test.ts` (rate limiting): requests under the limit, `429` with
+  `Retry-After` over it without running the tool, separate budgets for two users and for two
+  clients of one user under the shared user total, the counter failing open, and invalid limits.
+- `supabase/tests/mcp_rate_limits_test.sql` (`pnpm test:db`): privileges, ordinary sessions
+  refused, counts per user + client and per user, cleanup of old windows and of deleted users.
 - `supabase/tests/oauth_client_lockdown_test.sql` (`pnpm test:db`): OAuth tokens read only
   their own groups, players and matches, can't write any table or read the others, still
   record through `create_match`, and pass the pre-request guard only for the tools' requests.
@@ -292,7 +339,7 @@ already shown on the consent page may have expired.
 - Manual, outstanding: the second-client check above, and recording a match from ChatGPT
   (step 6 above). The `create_match` migration is applied in production.
 
-Rate limiting, connection management and opening access beyond the allowlist are MAR-100.
+Connection management and opening access beyond the allowlist are MAR-100.
 
 
 ## Tool-call telemetry
