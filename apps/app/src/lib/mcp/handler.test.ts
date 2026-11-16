@@ -76,6 +76,20 @@ const savedAs = (status: string, minutesAgo = 0) => (request: CreateRequest) => 
   events: request.events.map((e, i) => ({ id: `88888888-8888-4888-8888-88888888888${i}`, ...e })),
 });
 
+/** Rate limit counters by window, as public.hit_mcp_rate_limit keeps them. */
+let rateWindows: Map<string, number>;
+
+function hitRateLimit(init: RequestInit | undefined) {
+  const token = new Headers(init?.headers).get("authorization")!.replace(/^Bearer /, "");
+  const { sub, client_id } = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+  const count = (key: string) => {
+    const next = (rateWindows.get(key) ?? 0) + 1;
+    rateWindows.set(key, next);
+    return next;
+  };
+  return { user_requests: count(`${sub}:`), client_requests: count(`${sub}:${client_id}`), retry_after: 42 };
+}
+
 function stubSupabase(overrides: Route = () => undefined) {
   database = vi.fn<typeof fetch>(async (input, init) => {
     const url = new URL(String(input instanceof Request ? input.url : input));
@@ -92,6 +106,7 @@ function stubSupabase(overrides: Route = () => undefined) {
       return json(visible ? [groupRow] : []);
     }
     if (url.pathname === "/rest/v1/players") return json(players);
+    if (url.pathname === "/rest/v1/rpc/hit_mcp_rate_limit") return Response.json(hitRateLimit(init));
     if (url.pathname === "/rest/v1/rpc/create_match") {
       return Response.json(createMatchAnswer(JSON.parse(String(init?.body)).p_request));
     }
@@ -130,8 +145,14 @@ async function callTool(name: string, args: Record<string, unknown> = {}, token?
   return (await payload(response)).result;
 }
 
+/** Data access by tools; the rate limit counter is left out. */
 function restCalls() {
-  return database.mock.calls.filter(([input]) => String(input).includes("/rest/v1/"));
+  return database.mock.calls.filter(([input]) =>
+    String(input).includes("/rest/v1/") && !String(input).includes("/rpc/hit_mcp_rate_limit"));
+}
+
+function rateLimitCalls() {
+  return database.mock.calls.filter(([input]) => String(input).includes("/rpc/hit_mcp_rate_limit"));
 }
 
 beforeAll(async () => {
@@ -142,6 +163,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  rateWindows = new Map();
   createMatchAnswer = savedAs("created");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
@@ -495,6 +517,82 @@ describe("create_match", () => {
     const result = await callTool("create_match", valid);
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
+  });
+});
+
+describe("rate limiting", () => {
+  const OTHER_USER = "55555555-5555-4555-8555-555555555555";
+  /** Reads the body, so a streamed tool call has finished before the next step. */
+  const callList = async (token: string) => {
+    const response = await rpc(
+      { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_groups", arguments: {} } }, token);
+    const body = await response.text();
+    return { status: response.status, headers: response.headers, json: () => JSON.parse(body) };
+  };
+
+  beforeEach(() => {
+    vi.stubEnv("MCP_RATE_LIMIT_PER_CLIENT", "3");
+    vi.stubEnv("MCP_RATE_LIMIT_PER_USER", "5");
+    vi.stubEnv("MCP_ALLOWED_USER_IDS", `${USER_ID}, ${OTHER_USER}`);
+  });
+
+  it("runs requests under the limit, counting each one as the caller", async () => {
+    const token = await sign(claims());
+    for (let i = 0; i < 3; i++) expect((await callList(token)).status).toBe(200);
+    expect(rateLimitCalls()).toHaveLength(3);
+    const [, init] = rateLimitCalls()[0];
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${token}`);
+  });
+
+  it("answers 429 with Retry-After over the limit, without running the tool", async () => {
+    const token = await sign(claims());
+    for (let i = 0; i < 3; i++) await callList(token);
+    const toolCalls = restCalls().length;
+
+    const response = await callList(token);
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("42");
+    expect(response.headers.get("access-control-expose-headers")).toContain("Retry-After");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.json()).toMatchObject({
+      jsonrpc: "2.0", error: { code: -32029, message: expect.stringContaining("42 seconds"), data: { retryAfter: 42 } },
+    });
+    expect(restCalls()).toHaveLength(toolCalls);
+  });
+
+  it("gives two users separate budgets", async () => {
+    const first = await sign(claims());
+    for (let i = 0; i < 3; i++) await callList(first);
+    expect((await callList(first)).status).toBe(429);
+    expect((await callList(await sign(claims({ sub: OTHER_USER })))).status).toBe(200);
+  });
+
+  it("gives each client of a user its own budget, under a shared user ceiling", async () => {
+    const chatgpt = await sign(claims());
+    const claude = await sign(claims({ client_id: "other-client" }));
+    for (let i = 0; i < 3; i++) await callList(chatgpt);
+    expect((await callList(chatgpt)).status).toBe(429);
+    // The user total is now 4 of 5: the second client gets one request in.
+    expect((await callList(claude)).status).toBe(200);
+    expect((await callList(claude)).status).toBe(429);
+  });
+
+  it("only counts verified callers", async () => {
+    expect((await rpc(listTools, await sign(claims(), foreignKey))).status).toBe(401);
+    expect(rateLimitCalls()).toHaveLength(0);
+  });
+
+  it("lets requests through when the counter is unavailable", async () => {
+    stubSupabase((url) =>
+      url.pathname === "/rest/v1/rpc/hit_mcp_rate_limit" ? new Response("down", { status: 503 }) : undefined);
+    expect((await callList(await sign(claims()))).status).toBe(200);
+  });
+
+  it.each([["0"], ["-1"], ["many"], [""]])("falls back to the default limits for %j", async (value) => {
+    vi.stubEnv("MCP_RATE_LIMIT_PER_CLIENT", value);
+    vi.stubEnv("MCP_RATE_LIMIT_PER_USER", value);
+    const { getMcpRateLimits, DEFAULT_CLIENT_LIMIT, DEFAULT_USER_LIMIT } = await import("./rate-limit");
+    expect(getMcpRateLimits()).toEqual({ perClient: DEFAULT_CLIENT_LIMIT, perUser: DEFAULT_USER_LIMIT });
   });
 });
 

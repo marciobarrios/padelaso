@@ -1,7 +1,9 @@
 import * as Sentry from "@sentry/nextjs";
+import type { AuthInfo } from "@modelcontextprotocol/server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { verifyMcpAccessToken } from "./auth";
 import { getMcpConfig, RESOURCE_METADATA_PATH } from "./config";
+import { checkMcpRateLimit, rateLimitedResponse } from "./rate-limit";
 import { registerTools } from "./tools";
 
 const INSTRUCTIONS =
@@ -23,6 +25,15 @@ const mcp = createMcpHandler(registerTools, {
 });
 
 /**
+ * Runs after the token is verified, so budgets are per verified user and
+ * client. Over the limit, the request is answered here and never reaches a tool.
+ */
+async function rateLimited(request: Request & { auth?: AuthInfo }): Promise<Response> {
+  const retryAfter = request.auth ? await checkMcpRateLimit(request.auth) : null;
+  return retryAfter === null ? mcp(request) : rateLimitedResponse(retryAfter);
+}
+
+/**
  * Bearer tokens only, never cookies, so any origin may call the endpoint;
  * browser-based clients such as the MCP Inspector need these headers.
  */
@@ -30,7 +41,7 @@ export const MCP_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Mcp-Protocol-Version, Mcp-Session-Id, Last-Event-ID",
-  "Access-Control-Expose-Headers": "WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version",
+  "Access-Control-Expose-Headers": "WWW-Authenticate, Retry-After, Mcp-Session-Id, Mcp-Protocol-Version",
   "Access-Control-Max-Age": "86400",
 } as const;
 
@@ -44,7 +55,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   let response: Response;
   try {
     const config = getMcpConfig(request);
-    const authenticated = withMcpAuth(mcp, (_req, token) => verifyMcpAccessToken(token, config), {
+    const authenticated = withMcpAuth(rateLimited, (_req, token) => verifyMcpAccessToken(token, config), {
       required: true,
       resourceUrl: new URL(config.resource).origin,
       resourceMetadataPath: RESOURCE_METADATA_PATH,
