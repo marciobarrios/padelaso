@@ -18,6 +18,8 @@ const API = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
 let admin: SupabaseClient;
 let clientId: string;
 let memberId: string;
+let member: Awaited<ReturnType<typeof createUser>>;
+let stranger: Awaited<ReturnType<typeof createUser>>;
 let memberSessionJwt: string;
 let oauthToken: string;
 let callback: URL;
@@ -66,7 +68,7 @@ async function createGroup(name: string, userId: string) {
 }
 
 /** The browser half of the flow: authorize, sign in, consent, follow the redirect. */
-async function authorize(user: { client: SupabaseClient }) {
+async function authorize(user: { client: SupabaseClient }, deny = false) {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const url = new URL(`${API()}/auth/v1/oauth/authorize`);
@@ -86,18 +88,21 @@ async function authorize(user: { client: SupabaseClient }) {
 
   const details = must(await user.client.auth.oauth.getAuthorizationDetails(authorizationId));
   expect(details).toMatchObject({ authorization_id: authorizationId, client: { id: clientId } });
-  const approved = must(await user.client.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true }));
+  const approved = must(await user.client.auth.oauth[deny ? "denyAuthorization" : "approveAuthorization"](authorizationId, { skipBrowserRedirect: true }));
   return { redirect: new URL(approved.redirect_url), verifier };
 }
 
-async function exchange(code: string, verifier: string) {
-  const response = await fetch(`${API()}/auth/v1/oauth/token`, {
+async function tokenRequest(params: Record<string, string>) {
+  return fetch(`${API()}/auth/v1/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI,
-      client_id: clientId, code_verifier: verifier,
-    }),
+    body: new URLSearchParams({ client_id: clientId, ...params }),
+  });
+}
+
+async function exchange(code: string, verifier: string) {
+  const response = await tokenRequest({
+    grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier: verifier,
   });
   expect(response.status).toBe(200);
   return (await response.json()) as { access_token: string; refresh_token: string };
@@ -116,8 +121,8 @@ async function rpc(body: unknown, token?: string) {
   }));
 }
 
-async function callTool(name: string, args: Record<string, unknown> = {}) {
-  const response = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, oauthToken);
+async function callTool(name: string, args: Record<string, unknown> = {}, token = oauthToken) {
+  const response = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, token);
   expect(response.status).toBe(200);
   const text = await response.text();
   const json = response.headers.get("content-type")?.includes("text/event-stream")
@@ -137,8 +142,8 @@ beforeAll(async () => {
   }));
   clientId = client.client_id;
 
-  const member = await createUser("member");
-  const stranger = await createUser("stranger");
+  member = await createUser("member");
+  stranger = await createUser("stranger");
   memberId = member.id;
   memberSessionJwt = member.jwt;
   groupId = await createGroup(`MCP ${run}`, member.id);
@@ -180,6 +185,87 @@ afterAll(async () => {
 });
 
 describe("MCP over Supabase OAuth on the real stack", () => {
+  it("connects two unrelated users independently and isolates their groups", async () => {
+    vi.stubEnv("MCP_ALLOWED_USER_IDS", `${memberId},${stranger.id}`);
+    try {
+      const flow = await authorize(stranger);
+      const token = (await exchange(flow.redirect.searchParams.get("code")!, flow.verifier)).access_token;
+      for (const [bearer, own, other] of [[oauthToken, groupId, otherGroupId], [token, otherGroupId, groupId]]) {
+        const result = await callTool("list_groups", {}, bearer);
+        expect(result.isError).toBeFalsy();
+        expect(result.structuredContent.groups.map((g: { id: string }) => g.id)).toEqual([own]);
+        const denied = await callTool("list_players", { group_id: other }, bearer);
+        expect(denied.isError).toBe(true);
+        expect(denied.content[0].text).toMatch(/Group not found/);
+      }
+    } finally {
+      vi.stubEnv("MCP_ALLOWED_USER_IDS", memberId);
+    }
+  });
+
+  it("rejects a genuinely issued access token after its expiry with 401", async () => {
+    const claims = JSON.parse(Buffer.from(oauthToken.split(".")[1], "base64url").toString());
+    // Advance only the application clock; keep the signed token intact and real I/O running.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime((claims.exp + 1) * 1000);
+    try {
+      const response = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, oauthToken);
+      expect(response.status).toBe(401);
+      expect(response.headers.get("www-authenticate")).toContain('error="invalid_token"');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects a replayed authorization code", async () => {
+    const user = await createUser("code-replay");
+    const flow = await authorize(user);
+    const code = flow.redirect.searchParams.get("code")!;
+    await exchange(code, flow.verifier);
+    const replay = await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier: flow.verifier });
+    expect(replay.status).toBe(400);
+    expect(await replay.json()).toMatchObject({ error: "invalid_grant" });
+  });
+
+  it("rejects refresh of tokens issued before the user revoked the grant", async () => {
+    const user = await createUser("revoked");
+    const flow = await authorize(user);
+    const tokens = await exchange(flow.redirect.searchParams.get("code")!, flow.verifier);
+    must(await user.client.auth.oauth.revokeGrant({ clientId }));
+    const response = await tokenRequest({ grant_type: "refresh_token", refresh_token: tokens.refresh_token });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error_code).toMatch(/^(refresh_token_not_found|session_not_found)$/);
+  });
+
+  it("rejects a rotated refresh token replay outside the reuse interval", async () => {
+    const user = await createUser("refresh-replay");
+    const flow = await authorize(user);
+    const tokens = await exchange(flow.redirect.searchParams.get("code")!, flow.verifier);
+    const refresh = (token: string) => tokenRequest({ grant_type: "refresh_token", refresh_token: token });
+    const first = await refresh(tokens.refresh_token);
+    expect(first.status).toBe(200);
+    const rotated = await first.json();
+    expect(rotated.refresh_token).not.toBe(tokens.refresh_token);
+    // Supabase tolerates immediate retries and reuse of the current token's parent.
+    // Rotate again so the replayed token is a grandparent, then outwait the grace period.
+    expect((await refresh(rotated.refresh_token)).status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 11_000));
+    const replay = await refresh(tokens.refresh_token);
+    expect(replay.status).toBe(400);
+    expect(await replay.json()).toMatchObject({ error_code: "refresh_token_already_used" });
+  });
+
+  it("denied consent returns access_denied and never an authorization code", async () => {
+    const user = await createUser("denied");
+    const flow = await authorize(user, true);
+    expect(`${flow.redirect.origin}${flow.redirect.pathname}`).toBe(REDIRECT_URI);
+    expect(flow.redirect.searchParams.get("state")).toBe("state-123");
+    expect(flow.redirect.searchParams.get("error")).toBe("access_denied");
+    expect(flow.redirect.searchParams.has("code")).toBe(false);
+    const grants = must(await user.client.auth.oauth.listGrants());
+    expect(grants).toEqual([]);
+  });
+
   it("returns to the registered callback with the code and state", () => {
     expect(`${callback.origin}${callback.pathname}`).toBe(REDIRECT_URI);
     expect(callback.searchParams.get("state")).toBe("state-123");
