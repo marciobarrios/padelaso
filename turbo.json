@@ -31,7 +31,11 @@
         "NEXT_PUBLIC_SENTRY_DSN",
         "SENTRY_ORG",
         "SENTRY_PROJECT",
-        "SENTRY_AUTH_TOKEN"
+        "SENTRY_AUTH_TOKEN",
+        "MCP_RESOURCE_URL",
+        "MCP_ALLOWED_CLIENT_IDS",
+        "MCP_RATE_LIMIT_PER_CLIENT",
+        "MCP_RATE_LIMIT_PER_USER"
       ]
     },
     "@padelaso/mobile#build": {
