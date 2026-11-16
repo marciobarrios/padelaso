@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/mcp/route";
+import { canUseMcpClient } from "./client-admission";
 
 /**
  * MAR-98 end to end on the local stack: a real OAuth 2.1 authorization-code
@@ -10,7 +11,7 @@ import { POST } from "@/app/api/mcp/route";
  */
 
 const ORIGIN = "https://padelaso.test";
-const REDIRECT_URI = "http://127.0.0.1:8976/oauth/callback";
+const REDIRECT_URI = "https://chatgpt.com/connector/oauth/padelaso-integration";
 const PASSWORD = "integration-test-password";
 const run = randomUUID().slice(0, 8);
 const API = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -28,6 +29,8 @@ let otherGroupId: string;
 let ana: string;
 let ids: Record<"Ana" | "Pablo" | "Lucía" | "Marta", string>;
 const createdUsers: string[] = [];
+const createdClients: string[] = [];
+let registrationEndpoint: string;
 
 function must<T>(result: { data: T | null; error: unknown }): T {
   if (result.error) throw result.error;
@@ -68,12 +71,12 @@ async function createGroup(name: string, userId: string) {
 }
 
 /** The browser half of the flow: authorize, sign in, consent, follow the redirect. */
-async function authorize(user: { client: SupabaseClient }, deny = false) {
+async function authorize(user: { client: SupabaseClient }, deny = false, oauthClientId = clientId) {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const url = new URL(`${API()}/auth/v1/oauth/authorize`);
   url.search = new URLSearchParams({
-    response_type: "code", client_id: clientId, redirect_uri: REDIRECT_URI, scope: "email",
+    response_type: "code", client_id: oauthClientId, redirect_uri: REDIRECT_URI, scope: "email",
     state: "state-123", code_challenge: challenge, code_challenge_method: "S256",
     resource: `${ORIGIN}/api/mcp`,
   }).toString();
@@ -87,23 +90,23 @@ async function authorize(user: { client: SupabaseClient }, deny = false) {
   expect(authorizationId).toMatch(/^[A-Za-z0-9]{32}$/);
 
   const details = must(await user.client.auth.oauth.getAuthorizationDetails(authorizationId));
-  expect(details).toMatchObject({ authorization_id: authorizationId, client: { id: clientId } });
+  expect(details).toMatchObject({ authorization_id: authorizationId, client: { id: oauthClientId } });
   const approved = must(await user.client.auth.oauth[deny ? "denyAuthorization" : "approveAuthorization"](authorizationId, { skipBrowserRedirect: true }));
   return { redirect: new URL(approved.redirect_url), verifier };
 }
 
-async function tokenRequest(params: Record<string, string>) {
+async function tokenRequest(params: Record<string, string>, oauthClientId = clientId) {
   return fetch(`${API()}/auth/v1/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ client_id: clientId, ...params }),
+    body: new URLSearchParams({ client_id: oauthClientId, ...params }),
   });
 }
 
-async function exchange(code: string, verifier: string) {
+async function exchange(code: string, verifier: string, oauthClientId = clientId) {
   const response = await tokenRequest({
     grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier: verifier,
-  });
+  }, oauthClientId);
   expect(response.status).toBe(200);
   return (await response.json()) as { access_token: string; refresh_token: string };
 }
@@ -135,12 +138,26 @@ beforeAll(async () => {
   admin = createClient(API(), process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const client = must(await admin.auth.admin.oauth.createClient({
-    client_name: `MCP integration ${run}`,
-    redirect_uris: [REDIRECT_URI],
-    token_endpoint_auth_method: "none",
-  }));
+  // Local gateway exposes GoTrue discovery under /auth/v1; the hosted
+  // RFC 8414 root alias is not routed by the CLI stack.
+  const discovery = await fetch(`${API()}/auth/v1/.well-known/oauth-authorization-server`);
+  expect(discovery.status).toBe(200);
+  const metadata = await discovery.json();
+  registrationEndpoint = metadata.registration_endpoint;
+  expect(typeof registrationEndpoint).toBe("string");
+  // Only ever register on the disposable local stack, never a hosted endpoint.
+  expect(new URL(registrationEndpoint).origin).toBe(new URL(API()).origin);
+  const registered = await fetch(registrationEndpoint, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_name: `MCP DCR ${run}`, redirect_uris: [REDIRECT_URI], token_endpoint_auth_method: "none" }),
+  });
+  expect(registered.status).toBe(201);
+  const client = await registered.json();
   clientId = client.client_id;
+  createdClients.push(clientId);
+  vi.stubEnv("MCP_SELF_SERVICE_ENABLED", "true");
+  vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
+  expect(await canUseMcpClient(clientId)).toBe(true);
 
   member = await createUser("member");
   stranger = await createUser("stranger");
@@ -168,7 +185,7 @@ beforeAll(async () => {
   oauthToken = (await exchange(callback.searchParams.get("code")!, flow.verifier)).access_token;
 
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
-  vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", clientId);
+
 });
 
 afterAll(async () => {
@@ -180,10 +197,57 @@ afterAll(async () => {
     await admin.from("groups").delete().eq("id", id);
   }
   for (const id of createdUsers) await admin.auth.admin.deleteUser(id);
-  if (clientId) await admin.auth.admin.oauth.deleteClient(clientId);
+  for (const id of createdClients) await admin.auth.admin.oauth.deleteClient(id);
 });
 
 describe("MCP over Supabase OAuth on the real stack", () => {
+  it("retains manual client admission and rollback without changing existing connections", async () => {
+    const legacy = must(await admin.auth.admin.oauth.createClient({ client_name: `Legacy ${run}`, redirect_uris: [REDIRECT_URI], token_endpoint_auth_method: "none" }));
+    createdClients.push(legacy.client_id);
+    expect(await canUseMcpClient(legacy.client_id)).toBe(false);
+    vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", legacy.client_id);
+    vi.stubEnv("MCP_SELF_SERVICE_ENABLED", "false");
+    try {
+      expect(await canUseMcpClient(legacy.client_id)).toBe(true);
+      const user = await createUser("legacy");
+      const flow = await authorize(user, false, legacy.client_id);
+      const tokens = await exchange(flow.redirect.searchParams.get("code")!, flow.verifier, legacy.client_id);
+      expect((await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, tokens.access_token)).status).toBe(200);
+      expect(await canUseMcpClient(clientId)).toBe(false);
+    } finally {
+      vi.stubEnv("MCP_SELF_SERVICE_ENABLED", "true");
+      vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
+    }
+  });
+
+  it("refuses DCR clients with untrusted callbacks even when Supabase registers them", async () => {
+    const response = await fetch(registrationEndpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: "Not ChatGPT", redirect_uris: ["https://evil.test/callback"], token_endpoint_auth_method: "none" }),
+    });
+    expect(response.status).toBe(201);
+    const client = await response.json();
+    createdClients.push(client.client_id);
+    expect(await canUseMcpClient(client.client_id)).toBe(false);
+  });
+
+  it.each(["javascript:alert(1)", "https://chatgpt.com/connector/oauth/test#fragment"])("rejects invalid registration redirects: %s", async (uri) => {
+    const response = await fetch(registrationEndpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ redirect_uris: [uri], token_endpoint_auth_method: "none" }),
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects an authorization redirect that differs from the registered callback", async () => {
+    const url = new URL(`${API()}/auth/v1/oauth/authorize`);
+    url.search = new URLSearchParams({ response_type: "code", client_id: clientId,
+      redirect_uri: "https://evil.test/callback", code_challenge: "a".repeat(43), code_challenge_method: "S256" }).toString();
+    const response = await fetch(url, { redirect: "manual" });
+    expect(response.status).toBe(400);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
   it("connects two unrelated users independently and isolates their groups", async () => {
     const flow = await authorize(stranger);
     const token = (await exchange(flow.redirect.searchParams.get("code")!, flow.verifier)).access_token;

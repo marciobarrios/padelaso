@@ -3,7 +3,7 @@
 Padelaso exposes a remote [Model Context Protocol](https://modelcontextprotocol.io) server so
 assistants such as ChatGPT and Claude can read a user's groups, players, match history and
 stats, and record new matches. Users sign in with their Padelaso account through Supabase
-Auth's OAuth 2.1 server. Access is open to all signed-in, non-anonymous users through allowlisted clients. Phase 1 (MAR-98) added the
+Auth's OAuth 2.1 server. Access is open to all signed-in, non-anonymous users through admitted OAuth clients (manual allowlist or opt-in ChatGPT self-service). Phase 1 (MAR-98) added the
 read tools; phase 2 (MAR-99) adds `create_match`. No tool edits or deletes data.
 
 | | |
@@ -25,11 +25,14 @@ runtime. Every request builds a fresh MCP server, so there is no session store o
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Existing public project settings. The issuer is derived from the URL. |
 | `MCP_RESOURCE_URL` | Canonical MCP URL, e.g. `https://app.padelaso.com/api/mcp`. Must be `https`, or `http` on localhost, and end in `/api/mcp`. Required in production (`VERCEL_ENV=production`): without it the endpoint and its metadata answer `500`. Elsewhere, if unset, the deployment's own origin is used, which suits previews and local development. |
-| `MCP_ALLOWED_CLIENT_IDS` | Comma-separated OAuth client IDs allowed to call the server. Empty denies every client. |
+| `MCP_ALLOWED_CLIENT_IDS` | Comma-separated manually approved OAuth client IDs. Retain existing IDs during rollout and rollback. |
+| `MCP_SELF_SERVICE_ENABLED` | Exact value `true` additionally admits Supabase DCR clients whose registered callbacks all match the ChatGPT policy below. Unset/other values keep manual-only admission. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Existing server-only key, additionally used to read OAuth client registration metadata when checking self-service admission. Never forwarded to tools or browsers. |
 | `MCP_RATE_LIMIT_PER_CLIENT` | Requests per minute for one user through one OAuth client. Default `60`. See [Rate limits](#rate-limits). |
 | `MCP_RATE_LIMIT_PER_USER` | Requests per minute for one user across all their clients. Default `120`. |
 
-No service-role key is used anywhere in the MCP path.
+Tool data access always uses the caller's token and RLS. The admin client is used only for the
+self-service registration lookup, after bearer signature verification (and in server-side consent).
 
 ## Authorization
 
@@ -43,9 +46,10 @@ string are ignored. `verifyMcpAccessToken` (`src/lib/mcp/auth.ts`) then:
    `role = authenticated`, a UUID `sub`, and a non-anonymous user.
 3. Requires a `client_id` claim. Supabase adds it only to tokens issued by its OAuth server,
    so ordinary web and native sessions are rejected.
-4. Requires the client to be in `MCP_ALLOWED_CLIENT_IDS`. No user allowlist is required.
+4. Requires the client to pass the shared admission policy below. No user allowlist is required.
 
-Steps 2 and 3 and the client check also run on the token's unverified payload before step 1.
+Steps 2 and 3 also run on the token's unverified payload before step 1. When self-service is
+disabled, the manual client allowlist is checked there too.
 Anyone can send a token, and for an unknown key or an HS256 token `getClaims` calls Supabase
 Auth, so tokens that could never pass are refused without a network call. Only the verified
 claims are trusted afterwards.
@@ -227,68 +231,147 @@ immediately. `url` is `<app origin>/matches/<id>`, derived from `MCP_RESOURCE_UR
 
 All of them reach the model as tool errors ending in "Nothing was saved."
 
+## Registration decision and trust policy (MAR-154)
+
+**Use native Supabase dynamic client registration (DCR, RFC 7591).** ChatGPT supports DCR when
+CIMD is unavailable; Supabase's documented OAuth server exposes DCR but does not currently
+advertise CIMD. We do not add an OAuth proxy or implement CIMD ourselves. The decision and
+trust policy were recorded on MAR-154 before implementation. Sources checked 16 November 2026:
+[Supabase setup](https://supabase.com/docs/guides/auth/oauth-server/getting-started),
+[OpenAI authentication](https://developers.openai.com/plugins/build/auth).
+
+`src/lib/mcp/client-admission.ts` is shared by the consent page, consent action and MCP verifier:
+
+- Existing `MCP_ALLOWED_CLIENT_IDS` entries keep working without a registry lookup.
+- With `MCP_SELF_SERVICE_ENABLED=true`, other UUID client IDs are looked up using the project's
+  server-only `auth.admin.oauth.getClient`. At the MCP boundary this happens **after** JWT
+  signature/issuer/audience/role/expiry checks. No admission cache outlives registration changes.
+- The record must match the ID, have `registration_type=dynamic`, and have at least one callback.
+  **Every** registered URI must exactly match one of these serialized forms:
+  `https://chatgpt.com/connector_platform_oauth_redirect` or
+  `https://chatgpt.com/connector/oauth/{callback_id}` (nonempty ASCII letters, digits, `_` or `-`).
+  No alternate host, port, credentials, query, fragment, encoding or extra path segment is accepted.
+  Supabase still matches each authorization request's redirect URI exactly against registration.
+- Manual clients outside the explicit allowlist, deleted clients, and untrusted callbacks fail
+  closed. Registry outages return a generic server error at the MCP boundary; no tool runs. They emit
+  a fixed Sentry exception tagged `operation=mcp-client-registry`, stripping request context,
+  raw upstream errors and metadata. Monitor this operation during rollout.
+- This trusts the **callback destination**, not a client-supplied name or verified publisher.
+  An arbitrary registrant may copy ChatGPT's name and callbacks, but cannot receive a code at
+  their own destination through this policy. User authentication/consent and PKCE remain required.
+  DCR itself is public and may store rejected registrations; monitor Supabase Auth's registration
+  abuse/rate limits. MCP limits still apply per user/client and across all a user's clients.
+- Other MCP clients remain supported through the explicit manual allowlist. Extending automatic
+  admission to another provider requires a separately reviewed callback policy.
+
+Supabase retains authorization-code/PKCE validation, refresh rotation/replay rejection, consent
+and grant revocation. Existing group RLS, Data API restrictions, tool authorization, audit and
+request limits are unchanged. Resource-bound audience tokens are still not claimed: this uses
+Supabase's `aud=authenticated` contract described above.
+
 ## Supabase OAuth server setup
 
 **Local.** `supabase/config.toml` enables `[auth.oauth_server]` with
-`authorization_url_path = "/oauth/consent"` and dynamic registration off. Restart the stack
-(`supabase stop && supabase start`) after pulling. The consent page is then
-`http://127.0.0.1:3000/oauth/consent`.
+`authorization_url_path = "/oauth/consent"` and `allow_dynamic_registration = true` for integration
+tests. Restart only your own stack after configuration changes. Local DCR alone does not open
+admission: set `MCP_SELF_SERVICE_ENABLED=true` on your local app too. The local gateway serves
+discovery at `<LOCAL_SUPABASE_URL>/auth/v1/.well-known/oauth-authorization-server`; unlike the
+hosted gateway, it does not route the root `/.well-known/oauth-authorization-server/auth/v1` alias.
 
-**Production** (dashboard; `supabase config push` is not assumed to cover it):
+**Production rollout (owner, after code review and merge):**
 
-1. **Authentication → OAuth Server**: enable the server, set the authorization path to
-   `/oauth/consent`, leave dynamic client registration **off**.
-2. **Authentication → URL Configuration**: Site URL must be the product app origin (the consent
-   URL is Site URL + path).
-3. **JWT signing keys**: prefer an asymmetric key (ES256/RS256). HS256 works but makes every MCP
-   request call Supabase Auth to validate the token, and the `openid` scope requires asymmetric
-   keys.
-4. **Authentication → OAuth Apps → Add client**: name `ChatGPT`, the redirect URI from the next
-   section, confidential client. Its token endpoint auth method (`client_secret_basic` or
-   `client_secret_post`) must match the one set in ChatGPT; Supabase rejects any other. Copy the
-   client ID and secret.
-5. In Vercel (product project): set `MCP_RESOURCE_URL`, `MCP_ALLOWED_CLIENT_IDS` (the client ID),
-   then redeploy. Vercel applies env var changes
-   only to new deployments, so redeploy after every change, including allowlist edits.
+1. Keep the existing OAuth clients and `MCP_ALLOWED_CLIENT_IDS` unchanged. Confirm the existing
+   connection works before rollout. Do not distribute its confidential client secret; it is retired in step 7.
+2. Confirm **Authentication → OAuth Server** is enabled, authorization path `/oauth/consent`,
+   and **Authentication → URL Configuration → Site URL** is `https://app.padelaso.com`.
+   Prefer asymmetric JWT signing keys. Keep the existing one-hour access-token expiry.
+3. Deploy this code with self-service disabled first; verify the existing connection still works.
+   Ensure the product's server-only `SUPABASE_SERVICE_ROLE_KEY` is available for registry reads.
+4. Enable dynamic registration in **Authentication → OAuth Server**. This is a hosted setting;
+   editing `supabase/config.toml` alone does not change it. Fetch
+   `<SUPABASE_URL>/.well-known/oauth-authorization-server/auth/v1` and confirm it now advertises
+   `registration_endpoint`, authorization-code/refresh support and `S256`. Do not fabricate metadata.
+5. Set `MCP_SELF_SERVICE_ENABLED=true` in the production Vercel app project and redeploy once.
+   Keep `MCP_RESOURCE_URL=https://app.padelaso.com/api/mcp` and the existing manual IDs.
+   New users/connections then need no admin client registration, secret handoff or redeploy.
+6. Complete the authorized ChatGPT acceptance checklist below. Metadata and integration tests
+   alone do not establish production success. Keep MAR-154 open until this passes; MAR-108's
+   user-facing guide is blocked on the verified result.
+7. Retire the confidential ChatGPT client ("ChatGPT (old)"). It is registered for a single
+   connector's callback, so it can't serve other users, and its secret must never be shared. After
+   the acceptance checklist passes and your own connection runs through DCR, remove its ID from
+   `MCP_ALLOWED_CLIENT_IDS`, redeploy, and delete the client in **Authentication → OAuth Apps**.
 
-**Registration decision: manual first, dynamic registration off.** Enable dynamic registration
-only if ChatGPT can't complete the flow with a manually registered client. Record the failure
-here if that happens. With dynamic registration on, `MCP_ALLOWED_CLIENT_IDS` would have to be
-replaced (for example by a redirect-URI policy), since client IDs would no longer be known in
-advance.
-
-**RFC 9207 `iss`.** Supabase Auth's authorize handler returns only `code` and `state`; it
-doesn't add `iss` to the authorization response. The OAuth integration test logs what the local
-stack returns (`[MAR-98] authorization response iss parameter`). Without `iss`, register the
-**connector-specific callback URL that ChatGPT shows** when you create the connector, not the
-generic `https://chatgpt.com/connector_platform_oauth_redirect`.
+**Rollback:** set `MCP_SELF_SERVICE_ENABLED=false` and redeploy. Existing manual IDs continue to
+work; self-service-only clients are refused at consent and MCP admission, including already issued
+bearers. Disable Supabase DCR to stop new registrations too (this alone does not revoke existing
+clients/grants). Do not delete legacy clients or alter RLS. To end an individual connection, revoke
+its grant in Padelaso Settings → Integraciones. Revocation blocks refresh; an issued access token
+may remain usable until expiry, at most **one hour** with the documented production configuration.
+Do not claim instant bearer revocation. Re-enable the flag to restore still-valid dynamic clients;
+a revoked grant requires reconnecting. Automated tests cover manual admission during rollback.
 
 ## Connecting ChatGPT
 
-1. In ChatGPT's connector settings, choose **Add custom MCP server** (developer mode may need to
-   be enabled first).
-2. URL: the `MCP_RESOURCE_URL` value. Authentication: **OAuth**.
-3. Open **Advanced OAuth settings**. Copy the callback URL ChatGPT shows and register it on the
-   Supabase client (setup step 4). Enter the client ID and secret, and set **Token endpoint auth
-   method** to the method the Supabase client uses. Don't assume ChatGPT's default matches it: on
-   the first production connection ChatGPT used `client_secret_post` against a client registered
-   for `client_secret_basic`.
-4. Save and connect. ChatGPT discovers Supabase from the protected resource metadata, sends you
-   to `/oauth/consent`, and through Google sign-in if needed (the `authorization_id` survives
-   the round trip). Approve.
-5. Try: "What groups am I in on Padelaso?", "Show my last five matches", "What are Pablo's
-   stats?" Compare the numbers with the app's player page.
-6. Record a match: "Save today's match: Ana and Pablo beat Lucía and Marta 6-4, 3-6, 7-5." The
-   model should resolve the four players, restate the details, and ChatGPT should ask for
-   confirmation before calling `create_match`. Open the returned link, and check that asking
-   again doesn't create a second match.
+As of 16 November 2026, OpenAI's
+[connection requirements](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
+describe custom MCP support on ChatGPT web for Business and Enterprise/Edu, with account and
+workspace policy restrictions. Business creation/publishing requires an admin/owner;
+Enterprise/Edu can delegate creation via RBAC, while publishing remains admin/owner-only.
+Confirm the actual account's available controls; do not promise access for every plan.
 
-### Second client check
+After production rollout, use **Add custom MCP server** in Plugins (or the legacy Apps → Create
+surface when shown). Enter `https://app.padelaso.com/api/mcp`, choose OAuth/DCR, and leave manual
+client ID/secret fields empty. ChatGPT discovers Supabase, registers its callback, and opens the
+Padelaso sign-in and consent flow. Sign in with your own Padelaso account, review the destination
+and permissions, then approve. Supabase may skip repeat consent for an already approved grant.
+If DCR isn't offered or the callback differs, stop and investigate rather than sharing a secret.
+Without RFC 9207 `iss`, ChatGPT uses its callback-ID-specific `/connector/oauth/{callback_id}`
+path; the policy also supports the documented stable callback for eligible/older connections.
 
-Repeat with Claude (custom connector) or the MCP Inspector
-(`npx @modelcontextprotocol/inspector`). Register a separate Supabase OAuth client with that
-client's callback, add its ID to `MCP_ALLOWED_CLIENT_IDS`, and connect. Nothing in the server is
-ChatGPT-specific; CORS allows browser-based clients because authentication is bearer-only.
+### Live acceptance checklist (required; outstanding)
+
+Use an explicitly authorized account, **Test group only**. The routine saved browser state is
+read-only; obtain separate authorization for connecting, refreshing and disconnecting.
+Never expose credentials, bearer/refresh tokens, authorization codes, or user email in evidence.
+
+1. On a supported ChatGPT account/workspace, add a previously unconfigured connection using only
+   the MCP URL and OAuth/DCR. Confirm no admin provisioning, client secret or per-user deploy.
+2. Sign in, review consent and approve. Query groups, confirm Test membership before any further
+   calls, then query only Test players/matches. Do not query another group's data or record matches.
+3. Reconnect and verify repeat consent behavior. Exercise renewal after access-token expiry,
+   checking that reads still work without another sign-in; never capture the token exchange.
+4. Disconnect/revoke the grant in Settings → Integraciones, confirm refresh/reconnect requires
+   authorization again, and distinguish blocked refresh from residual bearer lifetime (≤1 hour).
+5. Re-check an existing manually approved connection and record the actual plan/workspace,
+   outcome, deployment SHA and residual lifetime. No secrets in the issue, PR or captures.
+
+## Connecting other clients (manual public clients)
+
+Any Padelaso user can connect (MAR-149), so **no user is ever given a client secret**: a secret
+handed to every user protects nothing. Clients outside the ChatGPT DCR policy use **one manually
+registered public client per app**, shared by all its users:
+
+1. **Authentication → OAuth Apps → Add client**: the app's exact callback as redirect URI and
+   **Public Client** on (PKCE, token endpoint auth method `none`). The client type can't be changed
+   after creation.
+2. Add the client ID to `MCP_ALLOWED_CLIENT_IDS` and redeploy, once per app.
+3. Users enter the MCP URL and that client ID and leave any secret field empty. The client ID isn't
+   secret, so user-facing guides (MAR-136) may show it.
+
+If a client shows its callback, register exactly that. Otherwise read the `redirect_uri` that the
+rejected `/oauth/authorize` request sent, in Supabase **Logs → Auth**. A callback that differs per
+user or per connection can't be served by one shared client; that client needs its own reviewed
+DCR callback policy (see above).
+
+| Client | Redirect URI | Connector form | Status |
+| --- | --- | --- | --- |
+| Grok Bot | `https://www.cursor.com/agents/mcp/oauth/callback` (Grok Bot uses Cursor's connector backend, so consent may name it Cursor) | Custom connector → **Remote HTTPS**, URL `https://app.padelaso.com/api/mcp`, Client ID, Client Secret **empty**, no HTTP headers | Works, 16 November 2026 (one account; not yet checked whether the callback is the same for every user) |
+| Claude | To check | To check | Outstanding: check DCR support first, then a public client |
+
+Desktop MCP settings that offer only a URL and a bearer token, with no client ID field (for
+example Codex in the ChatGPT desktop app), are unverified. They likely register themselves with
+localhost callbacks, which neither policy admits.
 
 ### Troubleshooting
 
@@ -297,8 +380,11 @@ Problems seen during the first production connection (November 2026):
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | ChatGPT: "Couldn't discover OAuth settings" | The protected resource metadata answers `500`. Runtime logs show `MCP_RESOURCE_URL must be set in production`. | Set `MCP_RESOURCE_URL` and redeploy. A variable added after the last deployment isn't applied yet. |
-| Consent page: "Esta aplicación todavía no puede conectarse a Padelaso" | The client is not allowlisted. | Compare `MCP_ALLOWED_CLIENT_IDS` with the OAuth client ID (**Authentication → OAuth Apps**), then redeploy. |
-| ChatGPT shows an error right after approving | The token exchange fails. Supabase Auth logs show `invalid authentication method: client is registered for 'client_secret_basic' but 'client_secret_post' was used`. | Make the token endpoint auth method match in ChatGPT and on the Supabase client. |
+| Consent page: "Esta aplicación todavía no puede conectarse a Padelaso" | The client failed admission. | Check the rollout flag, DCR registration type and every registered callback; for manual clients compare `MCP_ALLOWED_CLIENT_IDS`. Redeploy after env edits. |
+| ChatGPT shows an error right after approving | The token exchange fails. Supabase Auth logs show `invalid authentication method: client is registered for 'client_secret_basic' but 'client_secret_post' was used`. | Make the token endpoint auth method match in ChatGPT and on the Supabase client. Applies only to the legacy confidential client; public clients use `none`. |
+| Error before the consent page | The redirect URI isn't registered on the client. | Copy the `redirect_uri` from Supabase **Logs → Auth** into the client's redirect URIs. |
+| ChatGPT requests manual credentials / DCR is unavailable | Hosted DCR isn't enabled or discovery is stale. | Verify the real `registration_endpoint`, then recreate the connection so ChatGPT re-discovers it. |
+| Consent/MCP fails with client verification unavailable | The server-only admin key or OAuth registry is unavailable. | Restore the key/service; never bypass admission. |
 
 After any fix, start the connection again from the client. An authorization request that was
 already shown on the consent page may have expired.
@@ -325,19 +411,19 @@ already shown on the consent page may have expired.
   record through `create_match`, and pass the pre-request guard only for the tools' requests.
   Ordinary sessions are unchanged, and every `public` table must be covered.
 - `src/app/oauth/consent/consent.test.ts`: authorization ID parsing (Supabase IDs are
-  32-character alphanumerics, not UUIDs), the login round trip, and server-side allowlist
+  32-character alphanumerics, not UUIDs), the login round trip, and shared server-side client admission
   enforcement in the consent action.
 - `packages/data/tests/reads.test.ts`: full-history paging under a `max_rows` cap and filter
   injection.
 - `src/lib/mcp/oauth.integration.test.ts` (`pnpm test:integration`, needs `supabase start`;
-  runs in CI): a real authorization-code + PKCE flow through the local OAuth server, then MCP
+  runs in CI): native DCR discovery/registration, rollback admission, and a real authorization-code + PKCE flow through the local OAuth server, then MCP
   calls with the issued token against real RLS, including recording a match, its retries, and
   refused requests sent straight to `create_match`, and the same token refused (`403`) by the
   Data API for other tables, writes and RPCs.
 - Manual, outstanding: the second-client check above, and recording a match from ChatGPT
   (step 6 above). The `create_match` migration is applied in production.
 
-Connection management and hardening are tracked in MAR-100. MAR-149 opens access to all users while retaining the client allowlist.
+Connection management and hardening are tracked in MAR-100. MAR-149 opens user access; MAR-154 adds opt-in self-service client admission. The final installation guide belongs to MAR-108.
 
 
 ## Tool-call telemetry

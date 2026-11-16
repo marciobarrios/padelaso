@@ -32,8 +32,8 @@ minimum_password_length = 6
 
 # MAR-98: OAuth 2.1 server for the MCP endpoint. Supabase sends users to
 # site_url + authorization_url_path with an authorization_id. Clients are
-# registered manually; dynamic registration stays off (see apps/app/MCP.md).
+# registered dynamically for local tests; app admission is opt-in (see apps/app/MCP.md).
 [auth.oauth_server]
 enabled = true
 authorization_url_path = "/oauth/consent"
-allow_dynamic_registration = false
+allow_dynamic_registration = true

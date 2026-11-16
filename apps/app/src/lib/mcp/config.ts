@@ -47,7 +47,7 @@ function allowlist(value: string | undefined): ReadonlySet<string> {
   return new Set((value ?? "").split(/[\s,]+/).filter(Boolean));
 }
 
-/** Registered OAuth clients allowed to call the MCP server. Empty denies all. */
+/** Explicitly approved OAuth clients. Self-service admission is checked separately. */
 export function isAllowedMcpClient(clientId: string): boolean {
   return allowlist(process.env.MCP_ALLOWED_CLIENT_IDS).has(clientId);
 }
