@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         <section aria-labelledby="revocar" className="space-y-4">
           <h2 id="revocar" className={heading}>Cómo dejar de compartir datos</h2>
           <p>Puedes desconectar Padelaso desde la configuración de conectores o integraciones de tu asistente. Esto deja de usar la conexión en ese cliente; no garantiza que se haya revocado el permiso en Padelaso.</p>
-          <p>La gestión de permisos desde los ajustes de Padelaso todavía no está disponible. Para revocar el permiso en Padelaso, solicita la revocación al responsable del servicio.</p>
+          <p>Para revocar el permiso en Padelaso, abre <a href="https://app.padelaso.com/settings" className={link}>Ajustes de Padelaso</a>, busca el cliente en la sección Integraciones, pulsa Desconectar y confirma la desconexión.</p>
           <p>Al revocar el permiso, el cliente deja de poder renovar su acceso. Un acceso ya emitido puede seguir funcionando hasta una hora, hasta que caduque. Para volver a conectar después tendrás que autorizarlo de nuevo.</p>
         </section>
 
