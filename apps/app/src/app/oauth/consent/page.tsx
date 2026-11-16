@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isAllowedMcpClient } from "@/lib/mcp/config";
+import { canUseMcpClient } from "@/lib/mcp/client-admission";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { describeScopes, isSafeClientRedirect, loginPath, parseAuthorizationId } from "./_lib";
 import { ConsentForm } from "./consent-form";
@@ -97,7 +97,7 @@ export default async function ConsentPage({
   const clientName = details.client.name?.trim() || "Una aplicación";
   const destination = hostOf(details.redirect_uri);
   const identity = describeScopes(details.scope);
-  const canApprove = isAllowedMcpClient(details.client.id);
+  const canApprove = await canUseMcpClient(details.client.id);
 
   return (
     <Shell>

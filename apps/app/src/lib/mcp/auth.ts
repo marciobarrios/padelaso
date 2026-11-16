@@ -3,6 +3,7 @@ import { OAuthError, OAuthErrorCode, type AuthInfo } from "@modelcontextprotocol
 import { z } from "zod";
 import { createAnonSupabaseClient } from "@/lib/supabase-user";
 import { isAllowedMcpClient, type McpConfig } from "./config";
+import { canUseMcpClient } from "./client-admission";
 
 export interface McpUser {
   userId: string;
@@ -53,7 +54,7 @@ function checkClaims(payload: unknown, config: McpConfig) {
   if (claims.exp <= Date.now() / 1000) throw invalid("The access token has expired");
   if (!claims.client_id) throw invalid("An OAuth access token is required");
   // 403, not 401: signing in again with the same client cannot fix this.
-  if (!isAllowedMcpClient(claims.client_id)) throw forbidden("MCP access is not enabled for this client");
+  if (process.env.MCP_SELF_SERVICE_ENABLED !== "true" && !isAllowedMcpClient(claims.client_id)) throw forbidden("MCP access is not enabled for this client");
   return { ...claims, client_id: claims.client_id };
 }
 
@@ -62,8 +63,8 @@ function checkClaims(payload: unknown, config: McpConfig) {
  *
  * `getClaims` checks the signature against the project's JWKS (cached per
  * process) for asymmetric keys, and asks Supabase Auth for symmetric keys, then
- * checks expiry. This adds the issuer, audience and role checks, and requires an
- * allowlisted OAuth client.
+ * checks expiry. This adds the issuer, audience and role checks, and requires a
+ * client admitted by the shared manual/self-service policy.
  *
  * Throws `invalid_token` (401) when the token is unusable here, and
  * `insufficient_scope` (403) when it is valid but the client has
@@ -94,6 +95,14 @@ export async function verifyMcpAccessToken(token: string | undefined, config: Mc
 
   // Only the verified claims are trusted from here on.
   const claims = checkClaims(payload, config);
+  let allowed: boolean;
+  try {
+    // Never spend an admin API call on a client_id from an unverified token.
+    allowed = await canUseMcpClient(claims.client_id);
+  } catch {
+    throw new OAuthError(OAuthErrorCode.ServerError, "Client verification is temporarily unavailable");
+  }
+  if (!allowed) throw forbidden("MCP access is not enabled for this client");
 
   return {
     token,

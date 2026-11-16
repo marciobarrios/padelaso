@@ -2,6 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { describeScopes, isSafeClientRedirect, loginPath, parseAuthorizationId } from "./_lib";
 
+const { getClient } = vi.hoisted(() => ({ getClient: vi.fn() }));
+vi.mock("@/lib/supabase-admin", () => ({
+  createAdminSupabaseClient: () => ({ auth: { admin: { oauth: { getClient } } } }),
+}));
+
 const auth = {
   getUser: vi.fn(),
   oauth: {
@@ -86,6 +91,22 @@ describe("decideAuthorization", () => {
     auth.getUser.mockResolvedValue({ data: { user } });
     expect(await redirectOf(decideAuthorization(form({ authorization_id: ID, decision: "approve" })))).toBe(CALLBACK);
     expect(auth.oauth.approveAuthorization).toHaveBeenCalledWith(ID, { skipBrowserRedirect: true });
+  });
+
+  it("approves a dynamically registered client without a deployed client ID", async () => {
+    vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
+    vi.stubEnv("MCP_SELF_SERVICE_ENABLED", "true");
+    getClient.mockResolvedValue({ data: { client_id: CLIENT.id, registration_type: "dynamic", redirect_uris: ["https://chatgpt.com/connector/oauth/abc"] }, error: null });
+    expect(await redirectOf(decideAuthorization(form({ authorization_id: ID, decision: "approve" })))).toBe(CALLBACK);
+    expect(auth.oauth.approveAuthorization).toHaveBeenCalledOnce();
+  });
+
+  it("never approves an untrusted dynamic client through a direct action call", async () => {
+    vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
+    vi.stubEnv("MCP_SELF_SERVICE_ENABLED", "true");
+    getClient.mockResolvedValue({ data: { client_id: CLIENT.id, registration_type: "dynamic", redirect_uris: ["https://evil.test/callback"] }, error: null });
+    expect(await redirectOf(decideAuthorization(form({ authorization_id: ID, decision: "approve" })))).toBe(`/oauth/consent?authorization_id=${ID}`);
+    expect(auth.oauth.approveAuthorization).not.toHaveBeenCalled();
   });
 
   it("denies without requiring access", async () => {

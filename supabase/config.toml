@@ -36,4 +36,4 @@ minimum_password_length = 6
 [auth.oauth_server]
 enabled = true
 authorization_url_path = "/oauth/consent"
-allow_dynamic_registration = false
+allow_dynamic_registration = true

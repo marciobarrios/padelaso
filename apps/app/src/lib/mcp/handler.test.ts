@@ -261,6 +261,31 @@ describe("MCP authorization boundary", () => {
     expect(restCalls()).toHaveLength(0);
   });
 
+  it("admits dynamic ChatGPT clients only after verifying their token", async () => {
+    vi.stubEnv("MCP_SELF_SERVICE_ENABLED", "true");
+    vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
+    stubSupabase((url) => url.pathname === `/auth/v1/admin/oauth/clients/${CLIENT_ID}`
+      ? Response.json({ client_id: CLIENT_ID, registration_type: "dynamic", redirect_uris: ["https://chatgpt.com/connector/oauth/test"] })
+      : undefined);
+    expect((await rpc(listTools, await sign(claims(), foreignKey))).status).toBe(401);
+    expect(database.mock.calls.some(([url]) => String(url).includes("/admin/oauth/"))).toBe(false);
+    expect((await rpc(listTools, await sign(claims()))).status).toBe(200);
+  });
+
+  it.each([
+    ["an untrusted destination", 200, { client_id: CLIENT_ID, registration_type: "dynamic", redirect_uris: ["https://evil.test/callback"] }, 403],
+    ["a removed registration", 404, { message: "not found" }, 403],
+    ["a registry outage", 503, { message: "unavailable" }, 500],
+  ])("refuses dynamic clients with %s", async (_label, status, body, expected) => {
+    vi.stubEnv("MCP_SELF_SERVICE_ENABLED", "true");
+    vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
+    stubSupabase((url) => url.pathname.includes("/admin/oauth/") ? Response.json(body, { status: Number(status) }) : undefined);
+    expect((await rpc(listTools, await sign(claims()))).status).toBe(expected);
+    expect(restCalls()).toHaveLength(0);
+  });
+
   it("denies every client when the client allowlist is empty", async () => {
     vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "");
     expect((await rpc(listTools, await sign(claims()))).status).toBe(403);
