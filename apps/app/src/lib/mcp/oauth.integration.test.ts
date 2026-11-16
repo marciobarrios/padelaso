@@ -227,11 +227,27 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     expect(await replay.json()).toMatchObject({ error: "invalid_grant" });
   });
 
+  it("keeps OAuth refresh working after local web sign-out", async () => {
+    const user = await createUser("local-signout");
+    const flow = await authorize(user);
+    const tokens = await exchange(flow.redirect.searchParams.get("code")!, flow.verifier);
+    expect((await user.client.auth.signOut({ scope: "local" })).error).toBeNull();
+    const response = await tokenRequest({ grant_type: "refresh_token", refresh_token: tokens.refresh_token });
+    expect(response.status).toBe(200);
+    const refreshed = await response.json();
+    expect(refreshed.access_token).toEqual(expect.any(String));
+  });
+
   it("rejects refresh of tokens issued before the user revoked the grant", async () => {
     const user = await createUser("revoked");
     const flow = await authorize(user);
     const tokens = await exchange(flow.redirect.searchParams.get("code")!, flow.verifier);
+    const grants = must(await user.client.auth.oauth.listGrants());
+    expect(grants.some((grant) => grant.client.id === clientId)).toBe(true);
+    const claims = JSON.parse(Buffer.from(tokens.access_token.split(".")[1], "base64url").toString());
+    expect(claims.exp - claims.iat).toBeLessThanOrEqual(3600);
     must(await user.client.auth.oauth.revokeGrant({ clientId }));
+    expect(must(await user.client.auth.oauth.listGrants())).toEqual([]);
     const response = await tokenRequest({ grant_type: "refresh_token", refresh_token: tokens.refresh_token });
     expect(response.status).toBe(400);
     expect((await response.json()).error_code).toMatch(/^(refresh_token_not_found|session_not_found)$/);
