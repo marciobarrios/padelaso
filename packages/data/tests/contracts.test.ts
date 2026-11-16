@@ -60,15 +60,19 @@ describe('portable native contract', () => {
     expect(matches[1].createdBy).toBeUndefined();
     expect(() => mapMatch({ ...row, created_by: 42 })).toThrow();
   });
-  it('reads retired events in snapshots and acknowledgements without allowing new ones', () => {
-    const snapshot = { ...fixture, events: fixture.events.map(event => ({ ...event, type: 'bola_fuera' })) };
+  it.each([
+    'bola_fuera', 'bola_perdida', 'vibora', 'bajada_muro', 'caida_epica',
+    'raquetazo_cristal', 'chiquita', 'remontada', 'raquetazo_companero',
+    'globo', 'magic', 'cano', 'set_perfecto',
+  ])('reads retired %s in snapshots and acknowledgements without allowing new ones', (type) => {
+    const snapshot = { ...fixture, events: fixture.events.map(event => ({ ...event, type })) };
     expect(snapshotSchema.parse(snapshot)).toEqual(snapshot);
     expect(acknowledgementSchema.parse({ ...ackFixture, snapshot }).snapshot).toEqual(snapshot);
     const { kind, setId, team, delta, ...base } = command;
     void kind; void setId; void team; void delta;
     const eventCommand = { ...base, kind: 'event.create', eventId: 'event-new', playerId: 'ana' };
     expect(commandSchema.safeParse({ ...eventCommand, type: 'ace' }).success).toBe(true);
-    expect(commandSchema.safeParse({ ...eventCommand, type: 'bola_fuera' }).success).toBe(false);
+    expect(commandSchema.safeParse({ ...eventCommand, type }).success).toBe(false);
     expect(snapshotSchema.safeParse({ ...snapshot, events: [{ ...snapshot.events[0], type: 'unknown' }] }).success).toBe(false);
   });
   it('round trips Unicode, nulls, score transforms and win statistics', () => {

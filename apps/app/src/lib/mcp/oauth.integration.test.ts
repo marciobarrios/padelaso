@@ -330,7 +330,7 @@ describe("MCP over Supabase OAuth on the real stack", () => {
       team1: [ids.Ana, ids.Marta],
       team2: [ids.Pablo, ids["Lucía"]],
       sets: [{ team1: 6, team2: 3 }, { team1: 7, team2: 6 }],
-      events: [{ player_id: ids.Marta, type: "vibora" }],
+      events: [{ player_id: ids.Marta, type: "salvada_top" }],
       idempotency_key: randomUUID(),
     };
 
@@ -339,7 +339,7 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     expect(created.structuredContent).toMatchObject({
       status: "created",
       match: { winner: "team1", team1: { players: [{ name: "Ana" }, { name: "Marta" }] } },
-      events: [{ player: { name: "Marta" }, type: "vibora" }],
+      events: [{ player: { name: "Marta" }, type: "salvada_top" }],
     });
     const matchId = created.structuredContent.match.id;
     expect(created.structuredContent.url).toBe(`${ORIGIN}/matches/${matchId}`);
@@ -352,7 +352,7 @@ describe("MCP over Supabase OAuth on the real stack", () => {
 
     const row = must(await admin.from("matches").select("created_by, match_events(type, created_by)")
       .eq("id", matchId).single()) as { created_by: string; match_events: { type: string; created_by: string }[] };
-    expect(row).toEqual({ created_by: memberId, match_events: [{ type: "vibora", created_by: memberId }] });
+    expect(row).toEqual({ created_by: memberId, match_events: [{ type: "salvada_top", created_by: memberId }] });
 
     // The new match is part of the normal history and stats right away.
     const history = await callTool("list_matches", { group_id: groupId, limit: 1 });

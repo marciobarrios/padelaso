@@ -416,7 +416,7 @@ describe("create_match", () => {
       ...valid,
       played_at: "2026-11-14T19:00:00+01:00",
       court: 3,
-      events: [{ player_id: ANA, type: "ace" }, { player_id: MARTA, type: "vibora" }],
+      events: [{ player_id: ANA, type: "ace" }, { player_id: MARTA, type: "salvada_top" }],
       idempotency_key: "c7c1a4f6-1f0e-4a8e-9f4c-3d1b2a6e5f70",
     }, token);
 
@@ -431,7 +431,7 @@ describe("create_match", () => {
         sets: [{ team1Score: 6, team2Score: 4 }, { team1Score: 3, team2Score: 6 }, { team1Score: 7, team2Score: 5 }],
         date: "2026-11-14T18:00:00.000Z",
         courtNumber: 3,
-        events: [{ playerId: ANA, type: "ace" }, { playerId: MARTA, type: "vibora" }],
+        events: [{ playerId: ANA, type: "ace" }, { playerId: MARTA, type: "salvada_top" }],
         idempotencyKey: "c7c1a4f6-1f0e-4a8e-9f4c-3d1b2a6e5f70",
       },
     });
@@ -449,7 +449,7 @@ describe("create_match", () => {
       },
       events: [
         { player: { id: ANA, name: "Ana" }, type: "ace", label: "Ace" },
-        { player: { id: MARTA, name: "Marta" }, type: "vibora", label: "Víbora letal" },
+        { player: { id: MARTA, name: "Marta" }, type: "salvada_top", label: "Salvada top" },
       ],
       url: `${ORIGIN}/matches/${MATCH_ID}`,
     });
