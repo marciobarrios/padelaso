@@ -5,6 +5,10 @@ import { mapMatch } from "@padelaso/data/mappers";
 import { GET as metadata } from "@/app/.well-known/oauth-protected-resource/[[...resource]]/route";
 import { OPTIONS, POST } from "@/app/api/mcp/route";
 
+const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
+vi.mock("@sentry/nextjs", () => ({ captureException, withScope: (fn: (scope: unknown) => void) =>
+  fn({ clear() {}, addEventProcessor() {} }) }));
+
 const SUPABASE = "https://project.supabase.co";
 const ISSUER = `${SUPABASE}/auth/v1`;
 const ORIGIN = "https://padelaso.test";
@@ -142,6 +146,8 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  captureException.mockClear();
+  vi.spyOn(console, "info").mockImplementation(() => {});
   createMatchAnswer = savedAs("created");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
@@ -152,6 +158,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -537,5 +544,65 @@ describe("protected resource metadata", () => {
   it("refuses a misconfigured canonical URL", async () => {
     vi.stubEnv("MCP_RESOURCE_URL", "http://padelaso.com/api/mcp");
     expect((await rpc(listTools, await sign(claims()))).status).toBe(500);
+  });
+});
+
+
+describe("MCP tool audit", () => {
+  function entry(outcome: string, tool: string) {
+    expect(console.info).toHaveBeenCalledTimes(1);
+    const value = JSON.parse(vi.mocked(console.info).mock.calls[0][0]);
+    expect(value).toEqual({ event: "mcp-tool-call", userId: USER_ID, clientId: CLIENT_ID,
+      tool, outcome, durationMs: expect.any(Number) });
+    expect(value.durationMs).toBeGreaterThanOrEqual(0);
+    return value;
+  }
+
+  it("logs only identity, tool, outcome and duration on success", async () => {
+    await callTool("list_players", { group_id: GROUP_ID, name: "Ana" });
+    entry("ok", "list_players");
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("logs expected denials without Sentry or input data", async () => {
+    await callTool("list_players", { group_id: "66666666-6666-4666-8666-666666666666", name: "private-name" });
+    entry("denied", "list_players");
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("audits invalid arguments as denied", async () => {
+    await callTool("list_players", { group_id: "invalid" });
+    entry("denied", "list_players");
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("audits malformed wire parameters as denied", async () => {
+    await rpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_players", arguments: "invalid" } }, await sign(claims()));
+    entry("denied", "list_players");
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("audits unknown tools without logging their arbitrary names", async () => {
+    await rpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "private-name", arguments: {} } }, await sign(claims()));
+    entry("denied", "unknown");
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("reports output validation failures as errors", async () => {
+    stubSupabase((url) => url.pathname === "/rest/v1/groups" ? Response.json([{ id: GROUP_ID, name: null, emoji: "x" }]) : undefined);
+    await callTool("list_groups", {});
+    entry("error", "list_groups");
+    expect(captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports unexpected failures without raw error payloads", async () => {
+    stubSupabase((url) => url.pathname === "/rest/v1/groups"
+      ? Response.json({ message: "private-database-payload" }, { status: 500 }) : undefined);
+    await callTool("list_groups", {});
+    entry("error", "list_groups");
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(captureException).toHaveBeenCalledWith(expect.objectContaining({ message: "MCP tool failed" }),
+      expect.objectContaining({ tags: { operation: "mcp-tool", tool: "list_groups", client: CLIENT_ID } }));
+    expect(JSON.stringify(captureException.mock.calls)).not.toContain("private-database-payload");
   });
 });

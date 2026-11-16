@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { verifyMcpAccessToken } from "./auth";
 import { getMcpConfig, RESOURCE_METADATA_PATH } from "./config";
+import { auditMcpRequest } from "./audit";
 import { registerTools } from "./tools";
 
 const INSTRUCTIONS =
@@ -44,7 +45,11 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   let response: Response;
   try {
     const config = getMcpConfig(request);
-    const authenticated = withMcpAuth(mcp, (_req, token) => verifyMcpAccessToken(token, config), {
+    let caller: Awaited<ReturnType<typeof verifyMcpAccessToken>>;
+    const authenticated = withMcpAuth((req) => auditMcpRequest(req, caller, mcp), async (_req, token) => {
+      caller = await verifyMcpAccessToken(token, config);
+      return caller;
+    }, {
       required: true,
       resourceUrl: new URL(config.resource).origin,
       resourceMetadataPath: RESOURCE_METADATA_PATH,

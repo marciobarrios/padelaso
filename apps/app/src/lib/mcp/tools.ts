@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs";
+import { toolAudit } from "./audit";
 import type { CallToolResult, McpServer, ServerContext } from "@modelcontextprotocol/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -355,15 +355,19 @@ function errorResult(message: string): CallToolResult {
 }
 
 /** Runs a tool as the verified caller and converts failures into safe results. */
-function run<A, R extends Record<string, unknown>>(name: string, body: (caller: Caller, args: A) => Promise<R>) {
+function run<A, R extends Record<string, unknown>>(body: (caller: Caller, args: A) => Promise<R>) {
   return async (args: A, ctx: ServerContext): Promise<CallToolResult> => {
     try {
       const { userId, token, appOrigin } = mcpUserFrom(ctx.http?.authInfo);
       const result = await body({ client: createUserSupabaseClient(token), userId, appOrigin }, args);
       return { structuredContent: result, content: [{ type: "text", text: JSON.stringify(result) }] };
     } catch (error) {
-      if (error instanceof ToolInputError) return errorResult(error.message);
-      Sentry.captureException(error, { tags: { operation: "mcp-tool", tool: name } });
+      const audit = toolAudit.getStore();
+      if (error instanceof ToolInputError) {
+        if (audit) audit.outcome = "denied";
+        return errorResult(error.message);
+      }
+      if (audit) audit.outcome = "error";
       return errorResult("Padelaso data is temporarily unavailable. Try again shortly.");
     }
   };
@@ -376,7 +380,7 @@ export function registerTools(server: McpServer) {
     inputSchema: z.object({}),
     outputSchema: outputs.list_groups,
     annotations: READ_ONLY,
-  }, run("list_groups", (caller) => listGroups(caller)));
+  }, run((caller) => listGroups(caller)));
 
   server.registerTool("list_players", {
     title: "List players",
@@ -389,7 +393,7 @@ export function registerTools(server: McpServer) {
     }),
     outputSchema: outputs.list_players,
     annotations: READ_ONLY,
-  }, run("list_players", listPlayers));
+  }, run(listPlayers));
 
   server.registerTool("list_matches", {
     title: "List matches",
@@ -402,7 +406,7 @@ export function registerTools(server: McpServer) {
     }),
     outputSchema: outputs.list_matches,
     annotations: READ_ONLY,
-  }, run("list_matches", listMatches));
+  }, run(listMatches));
 
   server.registerTool("get_player_stats", {
     title: "Get player stats",
@@ -410,7 +414,7 @@ export function registerTools(server: McpServer) {
     inputSchema: z.object({ group_id: groupId, player_id: playerId }),
     outputSchema: outputs.get_player_stats,
     annotations: READ_ONLY,
-  }, run("get_player_stats", getPlayerStats));
+  }, run(getPlayerStats));
 
   server.registerTool("create_match", {
     title: "Record match",
@@ -443,7 +447,7 @@ export function registerTools(server: McpServer) {
     }),
     outputSchema: outputs.create_match,
     annotations: RECORDS_MATCH,
-  }, run("create_match", createMatch));
+  }, run(createMatch));
 }
 
 export const TOOL_NAMES = ["list_groups", "list_players", "list_matches", "get_player_stats", "create_match"] as const;
