@@ -152,6 +152,12 @@ export default async function ConsentPage({
         </p>
       )}
 
+      <p className="text-xs text-muted-foreground">
+        Consulta cómo se comparten tus datos y cómo revocar el acceso en la{" "}
+        <a href="https://padelaso.com/privacidad" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4">
+          política de privacidad (se abre en otra pestaña)
+        </a>.
+      </p>
       <ConsentForm authorizationId={authorizationId} canApprove={canApprove} />
     </Shell>
   );

@@ -298,7 +298,7 @@ export default function Home() {
         className={`${shell} grid min-h-[100px] grid-cols-3 items-center border-t border-line py-[26px] text-[13px] text-ink-soft max-[560px]:grid-cols-1 max-[560px]:gap-3.5 max-[560px]:text-center`}
       >
         <Brand />
-        <p className="text-center max-[560px]:m-0">Hecho para grupos que se toman el pádel lo justo.</p>
+        <p className="text-center max-[560px]:m-0">Hecho para grupos que se toman el pádel lo justo.{" "}<a href="/privacidad" className="underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus">Privacidad</a></p>
         <p className="text-right max-[560px]:m-0 max-[560px]:text-center">
           © {new Date().getFullYear()} Padelaso
         </p>
