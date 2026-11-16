@@ -18,3 +18,10 @@ Reference: [Linear GitHub integration](https://linear.app/docs/github).
 - When you finish testing on an iOS Simulator or Android Emulator, release it before your final reply: close every device you opened (in T3 Code, `device_close`). An open device keeps its claim, and other threads get `DEVICE_IN_USE` until it is released.
 - Release only devices you opened. Never close another thread's session unless the user asks.
 - Also stop any dev server you started for device testing.
+
+## Saved browser session for Padelaso
+
+- Before declaring an authenticated browser check blocked, read the **Production monitoring** section of [AUTOPILOT.md](AUTOPILOT.md), even outside an autopilot run. It documents the saved `agent-browser` state at `~/.autopilot/auth/padelaso.json` and how to load, re-save and refresh it.
+- The state is local to this machine; check that it exists. Never print, commit, upload or copy its cookies or tokens into the repository.
+- Its authorization is limited to read-only production checks in the **Test** group. It does not authorize Preview sign-in, settings changes, revoking connections, or other writes. Follow the documented page scope and group checks.
+- Use the saved state sequentially across agents, re-save after every check and retain mode `600`: Supabase rotates refresh tokens. If another agent is using it, wait rather than loading a second copy. If expired, report it and follow the documented owner refresh flow.
