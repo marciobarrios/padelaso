@@ -49,10 +49,10 @@ export const EVENT_CONFIGS: EventConfig[] = [
   { type: "por_4_metros", emoji: "🦅", label: "Por 4 metros", sentiment: "positive" },
   { type: "por_3_metros", emoji: "🤯", label: "Por 3 metros", sentiment: "positive" },
   { type: "grito_guerra", emoji: "🗣️", label: "Grito de guerra", sentiment: "fun" },
-  { type: "cinta", emoji: "🍀", label: "Punto gracias a la red", sentiment: "fun" },
+  { type: "cinta", emoji: "🍀", label: "Bendita red", sentiment: "fun" },
   { type: "pelotazo", emoji: "💥", label: "Pelotazo al rival", sentiment: "negative" },
-  { type: "por_debajo_piernas", emoji: "🦵🏽", label: "Por debajo de las piernas", sentiment: "positive" },
-  { type: "tocaste_techo", emoji: "🏠", label: "Has tocado techo", sentiment: "fun" },
+  { type: "por_debajo_piernas", emoji: "🦵🏽", label: "Entre las piernas", sentiment: "positive" },
+  { type: "tocaste_techo", emoji: "🏠", label: "Al techo", sentiment: "fun" },
   { type: "por_la_puerta", emoji: "🚪", label: "Por la puerta", sentiment: "positive" },
 ];
 
