@@ -386,3 +386,7 @@ html.home-pull-to-refresh,
     @apply font-sans;
   }
 }
+
+/* Contain scroll gestures while a native confirmation is open. */
+dialog:modal { overscroll-behavior: contain; }
+dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }

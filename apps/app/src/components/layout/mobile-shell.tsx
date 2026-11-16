@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Home, Users, BarChart3, LogOut } from "lucide-react";
+import { Home, Users, BarChart3, LogOut, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGroup } from "@/components/group/group-provider";
@@ -31,6 +31,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
       {/* Group switcher bar */}
       <div className="flex items-center justify-center py-2 px-4">
         <GroupSwitcher />
+        <Link href="/settings" aria-label="Ajustes" className="absolute right-4 p-3 rounded-full focus-visible:ring-2 focus-visible:ring-ring"><Settings className="size-5" /></Link>
       </div>
       <main className="flex-1 overflow-y-auto pb-20">{children}</main>
       <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
