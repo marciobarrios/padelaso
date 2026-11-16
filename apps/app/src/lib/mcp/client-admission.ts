@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { isAllowedMcpClient } from "./config";
 
@@ -22,7 +23,15 @@ export async function canUseMcpClient(clientId: string): Promise<boolean> {
     return !!client && client.client_id === clientId && client.registration_type === "dynamic" &&
       client.redirect_uris.length > 0 && client.redirect_uris.every(isChatGptCallback);
   } catch {
-    // Do not log raw admin API errors, metadata, credentials or tokens.
+    // Auth middleware handles this error before tool telemetry. Report a fixed
+    // failure without raw admin errors, metadata or inherited request context.
+    Sentry.withScope((scope) => {
+      scope.clear();
+      scope.addEventProcessor((event) => ({ event_id: event.event_id, timestamp: event.timestamp,
+        platform: event.platform, level: event.level, exception: event.exception,
+        fingerprint: ["mcp-client-registry"], tags: { operation: "mcp-client-registry" } }));
+      Sentry.captureException(new Error("MCP client registry unavailable"));
+    });
     throw new Error("Client verification is temporarily unavailable");
   }
 }

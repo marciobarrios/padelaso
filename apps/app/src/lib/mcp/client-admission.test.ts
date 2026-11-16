@@ -2,7 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canUseMcpClient } from "./client-admission";
 
-const { getClient } = vi.hoisted(() => ({ getClient: vi.fn() }));
+const { getClient, captureException, clear, addEventProcessor } = vi.hoisted(() => ({
+  getClient: vi.fn(), captureException: vi.fn(), clear: vi.fn(), addEventProcessor: vi.fn(),
+}));
+vi.mock("@sentry/nextjs", () => ({
+  captureException, withScope: (callback: (scope: unknown) => void) => callback({ clear, addEventProcessor }),
+}));
 vi.mock("@/lib/supabase-admin", () => ({
   createAdminSupabaseClient: () => ({ auth: { admin: { oauth: { getClient } } } }),
 }));
@@ -39,6 +44,7 @@ describe("MCP client admission", () => {
     getClient.mockResolvedValue({ data: client({ redirect_uris: [uri] }), error: null });
     expect(await canUseMcpClient(ID)).toBe(true);
     expect(getClient).toHaveBeenCalledWith(ID);
+    expect(captureException).not.toHaveBeenCalled();
   });
   it.each([
     "http://chatgpt.com/connector/oauth/abc", "https://chatgpt.com.evil.test/connector/oauth/abc",
@@ -59,9 +65,15 @@ describe("MCP client admission", () => {
     expect(await canUseMcpClient(ID)).toBe(true);
     getClient.mockResolvedValue({ data: null, error: { status: 404 } });
     expect(await canUseMcpClient(ID)).toBe(false);
+    expect(captureException).not.toHaveBeenCalled();
   });
   it("fails closed with a fixed error on registry outages", async () => {
     getClient.mockResolvedValue({ data: null, error: { status: 503, message: "sensitive" } });
     await expect(canUseMcpClient(ID)).rejects.toThrow("Client verification is temporarily unavailable");
+    expect(clear).toHaveBeenCalledOnce();
+    expect(captureException).toHaveBeenCalledWith(expect.objectContaining({ message: "MCP client registry unavailable" }));
+    const sanitize = addEventProcessor.mock.calls[0][0];
+    const event = sanitize({ event_id: "event", request: { headers: { Authorization: "secret" } }, extra: { email: "private" } });
+    expect(event).toEqual({ event_id: "event", fingerprint: ["mcp-client-registry"], tags: { operation: "mcp-client-registry" } });
   });
 });

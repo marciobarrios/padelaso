@@ -253,7 +253,9 @@ trust policy were recorded on MAR-154 before implementation. Sources checked 16 
   No alternate host, port, credentials, query, fragment, encoding or extra path segment is accepted.
   Supabase still matches each authorization request's redirect URI exactly against registration.
 - Manual clients outside the explicit allowlist, deleted clients, and untrusted callbacks fail
-  closed. Registry outages return a generic server error at the MCP boundary; no tool runs.
+  closed. Registry outages return a generic server error at the MCP boundary; no tool runs. They emit
+  a fixed Sentry exception tagged `operation=mcp-client-registry`, stripping request context,
+  raw upstream errors and metadata. Monitor this operation during rollout.
 - This trusts the **callback destination**, not a client-supplied name or verified publisher.
   An arbitrary registrant may copy ChatGPT's name and callbacks, but cannot receive a code at
   their own destination through this policy. User authentication/consent and PKCE remain required.
