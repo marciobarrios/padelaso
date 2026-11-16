@@ -3,6 +3,7 @@ import type { AuthInfo } from "@modelcontextprotocol/server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { verifyMcpAccessToken } from "./auth";
 import { getMcpConfig, RESOURCE_METADATA_PATH } from "./config";
+import { auditMcpRequest } from "./audit";
 import { checkMcpRateLimit, rateLimitedResponse } from "./rate-limit";
 import { registerTools } from "./tools";
 
@@ -55,7 +56,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   let response: Response;
   try {
     const config = getMcpConfig(request);
-    const authenticated = withMcpAuth(rateLimited, (_req, token) => verifyMcpAccessToken(token, config), {
+    const authenticated = withMcpAuth((req: Request & { auth?: AuthInfo }) => auditMcpRequest(req, req.auth, rateLimited), (_req, token) => verifyMcpAccessToken(token, config), {
       required: true,
       resourceUrl: new URL(config.resource).origin,
       resourceMetadataPath: RESOURCE_METADATA_PATH,

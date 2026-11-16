@@ -340,3 +340,16 @@ already shown on the consent page may have expired.
   (step 6 above). The `create_match` migration is applied in production.
 
 Connection management and opening access beyond the allowlist are MAR-100.
+
+
+## Tool-call telemetry
+
+After authentication, each `tools/call` dispatch emits one JSON console entry:
+`event` (`mcp-tool-call`), verified `userId`, verified `clientId`, `tool`,
+`outcome` (`ok`, `denied`, `error`), and `durationMs`. Unknown tool names are
+recorded as `unknown`, since arbitrary names can contain user data. Expected
+input/permission denials are not sent to Sentry. Unexpected executor or output
+validation failures send a fixed exception tagged with tool and client; raw
+errors, arguments, results, tokens and inherited request context are excluded.
+Wire-schema denials are included. Authentication failures are handled before
+this boundary and do not represent an executed tool call.
