@@ -281,7 +281,7 @@ hosted gateway, it does not route the root `/.well-known/oauth-authorization-ser
 **Production rollout (owner, after code review and merge):**
 
 1. Keep the existing OAuth clients and `MCP_ALLOWED_CLIENT_IDS` unchanged. Confirm the existing
-   connection works before rollout. Do not distribute its confidential client secret.
+   connection works before rollout. Do not distribute its confidential client secret; it is retired in step 7.
 2. Confirm **Authentication → OAuth Server** is enabled, authorization path `/oauth/consent`,
    and **Authentication → URL Configuration → Site URL** is `https://app.padelaso.com`.
    Prefer asymmetric JWT signing keys. Keep the existing one-hour access-token expiry.
@@ -297,6 +297,10 @@ hosted gateway, it does not route the root `/.well-known/oauth-authorization-ser
 6. Complete the authorized ChatGPT acceptance checklist below. Metadata and integration tests
    alone do not establish production success. Keep MAR-154 open until this passes; MAR-108's
    user-facing guide is blocked on the verified result.
+7. Retire the confidential ChatGPT client ("ChatGPT (old)"). It is registered for a single
+   connector's callback, so it can't serve other users, and its secret must never be shared. After
+   the acceptance checklist passes and your own connection runs through DCR, remove its ID from
+   `MCP_ALLOWED_CLIENT_IDS`, redeploy, and delete the client in **Authentication → OAuth Apps**.
 
 **Rollback:** set `MCP_SELF_SERVICE_ENABLED=false` and redeploy. Existing manual IDs continue to
 work; self-service-only clients are refused at consent and MCP admission, including already issued
@@ -342,12 +346,32 @@ Never expose credentials, bearer/refresh tokens, authorization codes, or user em
 5. Re-check an existing manually approved connection and record the actual plan/workspace,
    outcome, deployment SHA and residual lifetime. No secrets in the issue, PR or captures.
 
-### Second client check
+## Connecting other clients (manual public clients)
 
-Other MCP clients can retain manually registered public/PKCE or confidential clients with their
-own exact callbacks and matching token endpoint auth method (`none`, `client_secret_basic` or
-`client_secret_post`). Add the ID to `MCP_ALLOWED_CLIENT_IDS` and redeploy once for that provider.
-Use Claude or MCP Inspector for the separate compatibility check; no existing client is deleted.
+Any Padelaso user can connect (MAR-149), so **no user is ever given a client secret**: a secret
+handed to every user protects nothing. Clients outside the ChatGPT DCR policy use **one manually
+registered public client per app**, shared by all its users:
+
+1. **Authentication → OAuth Apps → Add client**: the app's exact callback as redirect URI and
+   **Public Client** on (PKCE, token endpoint auth method `none`). The client type can't be changed
+   after creation.
+2. Add the client ID to `MCP_ALLOWED_CLIENT_IDS` and redeploy, once per app.
+3. Users enter the MCP URL and that client ID and leave any secret field empty. The client ID isn't
+   secret, so user-facing guides (MAR-136) may show it.
+
+If a client shows its callback, register exactly that. Otherwise read the `redirect_uri` that the
+rejected `/oauth/authorize` request sent, in Supabase **Logs → Auth**. A callback that differs per
+user or per connection can't be served by one shared client; that client needs its own reviewed
+DCR callback policy (see above).
+
+| Client | Redirect URI | Connector form | Status |
+| --- | --- | --- | --- |
+| Grok Bot | `https://www.cursor.com/agents/mcp/oauth/callback` (Grok Bot uses Cursor's connector backend, so consent may name it Cursor) | Custom connector → **Remote HTTPS**, URL `https://app.padelaso.com/api/mcp`, Client ID, Client Secret **empty**, no HTTP headers | Works, 16 November 2026 (one account; not yet checked whether the callback is the same for every user) |
+| Claude | To check | To check | Outstanding: check DCR support first, then a public client |
+
+Desktop MCP settings that offer only a URL and a bearer token, with no client ID field (for
+example Codex in the ChatGPT desktop app), are unverified. They likely register themselves with
+localhost callbacks, which neither policy admits.
 
 ### Troubleshooting
 
@@ -357,8 +381,8 @@ Problems seen during the first production connection (November 2026):
 | --- | --- | --- |
 | ChatGPT: "Couldn't discover OAuth settings" | The protected resource metadata answers `500`. Runtime logs show `MCP_RESOURCE_URL must be set in production`. | Set `MCP_RESOURCE_URL` and redeploy. A variable added after the last deployment isn't applied yet. |
 | Consent page: "Esta aplicación todavía no puede conectarse a Padelaso" | The client failed admission. | Check the rollout flag, DCR registration type and every registered callback; for manual clients compare `MCP_ALLOWED_CLIENT_IDS`. Redeploy after env edits. |
-| ChatGPT shows an error right after approving | The token exchange fails. Supabase Auth logs show `invalid authentication method: client is registered for 'client_secret_basic' but 'client_secret_post' was used`. | Make the token endpoint auth method match in ChatGPT and on the Supabase client. |
-
+| ChatGPT shows an error right after approving | The token exchange fails. Supabase Auth logs show `invalid authentication method: client is registered for 'client_secret_basic' but 'client_secret_post' was used`. | Make the token endpoint auth method match in ChatGPT and on the Supabase client. Applies only to the legacy confidential client; public clients use `none`. |
+| Error before the consent page | The redirect URI isn't registered on the client. | Copy the `redirect_uri` from Supabase **Logs → Auth** into the client's redirect URIs. |
 | ChatGPT requests manual credentials / DCR is unavailable | Hosted DCR isn't enabled or discovery is stale. | Verify the real `registration_endpoint`, then recreate the connection so ChatGPT re-discovers it. |
 | Consent/MCP fails with client verification unavailable | The server-only admin key or OAuth registry is unavailable. | Restore the key/service; never bypass admission. |
 
