@@ -51,8 +51,3 @@ function allowlist(value: string | undefined): ReadonlySet<string> {
 export function isAllowedMcpClient(clientId: string): boolean {
   return allowlist(process.env.MCP_ALLOWED_CLIENT_IDS).has(clientId);
 }
-
-/** Phase 1 (MAR-98) beta testers. Empty denies all until MAR-100 opens access. */
-export function isAllowedMcpUser(userId: string): boolean {
-  return allowlist(process.env.MCP_ALLOWED_USER_IDS).has(userId);
-}

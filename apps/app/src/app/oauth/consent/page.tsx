@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isAllowedMcpClient, isAllowedMcpUser } from "@/lib/mcp/config";
+import { isAllowedMcpClient } from "@/lib/mcp/config";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { describeScopes, isSafeClientRedirect, loginPath, parseAuthorizationId } from "./_lib";
 import { ConsentForm } from "./consent-form";
@@ -97,7 +97,7 @@ export default async function ConsentPage({
   const clientName = details.client.name?.trim() || "Una aplicación";
   const destination = hostOf(details.redirect_uri);
   const identity = describeScopes(details.scope);
-  const canApprove = isAllowedMcpUser(user.id) && isAllowedMcpClient(details.client.id);
+  const canApprove = isAllowedMcpClient(details.client.id);
 
   return (
     <Shell>
@@ -113,7 +113,7 @@ export default async function ConsentPage({
       {canApprove ? (
         <>
           <div className="space-y-3">
-            <h2 className="text-sm font-medium">Si lo permites, podrá:</h2>
+            <h2 className="text-sm font-medium">Permiso: leer y registrar partidos</h2>
             <ul className="space-y-2 text-sm">
               {CAN.map((item) => (
                 <li key={item} className="flex gap-2">
@@ -136,7 +136,7 @@ export default async function ConsentPage({
           </div>
           <div className="space-y-2 text-xs text-muted-foreground text-pretty">
             <p>
-              El permiso se concede con los mismos derechos que tu cuenta de Padelaso, aunque esta conexión solo permita consultar datos y registrar partidos.
+              Esta conexión permite leer los datos de tus grupos y registrar partidos.
             </p>
             <p>Si se revoca el permiso, un acceso ya emitido puede seguir funcionando hasta una hora.</p>
             {destination && (
@@ -148,7 +148,7 @@ export default async function ConsentPage({
         </>
       ) : (
         <p role="alert" className="text-muted-foreground text-pretty">
-          Las conexiones con asistentes están en pruebas y todavía no están disponibles para tu cuenta.
+          Esta aplicación todavía no puede conectarse a Padelaso.
         </p>
       )}
 

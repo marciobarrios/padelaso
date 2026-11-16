@@ -2,7 +2,7 @@ import { isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js
 import { OAuthError, OAuthErrorCode, type AuthInfo } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { createAnonSupabaseClient } from "@/lib/supabase-user";
-import { isAllowedMcpClient, isAllowedMcpUser, type McpConfig } from "./config";
+import { isAllowedMcpClient, type McpConfig } from "./config";
 
 export interface McpUser {
   userId: string;
@@ -66,7 +66,7 @@ function checkClaims(payload: unknown, config: McpConfig) {
  * allowlisted OAuth client.
  *
  * Throws `invalid_token` (401) when the token is unusable here, and
- * `insufficient_scope` (403) when it is valid but the client or the account has
+ * `insufficient_scope` (403) when it is valid but the client has
  * no MCP access.
  */
 export async function verifyMcpAccessToken(token: string | undefined, config: McpConfig): Promise<AuthInfo | undefined> {
@@ -94,7 +94,6 @@ export async function verifyMcpAccessToken(token: string | undefined, config: Mc
 
   // Only the verified claims are trusted from here on.
   const claims = checkClaims(payload, config);
-  if (!isAllowedMcpUser(claims.sub)) throw forbidden("MCP access is not enabled for this account yet");
 
   return {
     token,

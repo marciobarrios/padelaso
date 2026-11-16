@@ -175,7 +175,6 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
   vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", `other-client, ${CLIENT_ID}`);
-  vi.stubEnv("MCP_ALLOWED_USER_IDS", USER_ID);
   stubSupabase();
 });
 
@@ -249,13 +248,9 @@ describe("MCP authorization boundary", () => {
     expect((await rpc(listTools, "not-a-jwt")).status).toBe(401);
   });
 
-  it("returns 403 insufficient_scope for valid users outside the beta allowlist", async () => {
-    vi.stubEnv("MCP_ALLOWED_USER_IDS", "");
+  it("accepts valid users without a user allowlist", async () => {
     const response = await rpc(listTools, await sign(claims()));
-    expect(response.status).toBe(403);
-    const challenge = response.headers.get("www-authenticate")!;
-    expect(challenge).toContain('error="insufficient_scope"');
-    expect(challenge).toContain("resource_metadata=");
+    expect(response.status).toBe(200);
   });
 
   it("returns 403 insufficient_scope for clients that are not allowlisted", async () => {
@@ -540,7 +535,6 @@ describe("rate limiting", () => {
   beforeEach(() => {
     vi.stubEnv("MCP_RATE_LIMIT_PER_CLIENT", "3");
     vi.stubEnv("MCP_RATE_LIMIT_PER_USER", "5");
-    vi.stubEnv("MCP_ALLOWED_USER_IDS", `${USER_ID}, ${OTHER_USER}`);
   });
 
   it("runs requests under the limit, counting each one as the caller", async () => {

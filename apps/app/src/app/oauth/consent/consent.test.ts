@@ -69,7 +69,6 @@ describe("consent helpers", () => {
 describe("decideAuthorization", () => {
   beforeEach(() => {
     vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", CLIENT.id);
-    vi.stubEnv("MCP_ALLOWED_USER_IDS", USER.id);
     auth.getUser.mockResolvedValue({ data: { user: USER } });
     auth.oauth.getAuthorizationDetails.mockResolvedValue({
       data: { authorization_id: ID, redirect_uri: "https://chatgpt.com/connector/oauth/abc", client: CLIENT, user: USER, scope: "email" },
@@ -83,20 +82,19 @@ describe("decideAuthorization", () => {
     vi.clearAllMocks();
   });
 
-  it("approves on the server and returns the browser to the client", async () => {
+  it.each([USER, { id: "33333333-3333-4333-8333-333333333333", email: "other@example.com" }])("approves any signed-in user with an allowed client: $id", async (user) => {
+    auth.getUser.mockResolvedValue({ data: { user } });
     expect(await redirectOf(decideAuthorization(form({ authorization_id: ID, decision: "approve" })))).toBe(CALLBACK);
     expect(auth.oauth.approveAuthorization).toHaveBeenCalledWith(ID, { skipBrowserRedirect: true });
   });
 
   it("denies without requiring access", async () => {
-    vi.stubEnv("MCP_ALLOWED_USER_IDS", "");
     expect(await redirectOf(decideAuthorization(form({ authorization_id: ID, decision: "deny" }))))
       .toContain("error=access_denied");
     expect(auth.oauth.approveAuthorization).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["a user outside the beta", { MCP_ALLOWED_USER_IDS: "" }],
     ["a client that is not allowlisted", { MCP_ALLOWED_CLIENT_IDS: "someone-else" }],
   ])("never approves for %s, even when the action is called directly", async (_label, env) => {
     for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
