@@ -196,3 +196,45 @@ export async function getMatchDetail(client: SupabaseClient, groupId: string,
   if (error) throw error;
   return matchDetailResultSchema.parse(data);
 }
+
+// ---------- Adding events to a match ----------
+
+/** The add_match_events request. IDs only: callers resolve names first. */
+export interface AddMatchEventsRequest {
+  groupId: string;
+  matchId: string;
+  events: { playerId: string; type: string }[];
+  /** Required per-user retry key; see the add_match_events migration. */
+  idempotencyKey: string;
+}
+
+const addedEvents = matchDetail.extend({
+  status: z.enum(['added', 'replayed']),
+  /** The events this request added, in order. */
+  addedEventIds: z.array(uuid),
+});
+
+const rejectedEvents = z.object({
+  status: z.literal('rejected'),
+  code: z.enum([
+    'AUTH_REQUIRED', 'INVALID_REQUEST', 'MATCH_NOT_FOUND', 'INVALID_EVENTS', 'TOO_MANY_EVENTS',
+    'IDEMPOTENCY_KEY_REUSED', 'BUSY',
+  ]),
+  message: z.string(),
+  playerIds: z.array(z.string()).optional(),
+});
+
+export const addMatchEventsResultSchema = z.union([addedEvents, rejectedEvents]);
+export type AddMatchEventsResult = z.infer<typeof addMatchEventsResultSchema>;
+
+/**
+ * Appends events to an existing match atomically as the client's user, and
+ * returns the match as get_match_detail does. Safe to retry with the same
+ * idempotency key: the retry replays the saved result instead of adding again.
+ */
+export async function addMatchEvents(client: SupabaseClient,
+  request: AddMatchEventsRequest): Promise<AddMatchEventsResult> {
+  const { data, error } = await client.rpc('add_match_events', { p_request: request });
+  if (error) throw error;
+  return addMatchEventsResultSchema.parse(data);
+}

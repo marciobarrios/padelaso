@@ -13,7 +13,9 @@ const INSTRUCTIONS =
   "get_match shows one match with its events and their IDs. " +
   "To record a finished match, resolve all four players to IDs (ask when a name is ambiguous or unknown), " +
   "confirm the teams, set scores and date with the user, then call create_match once. " +
-  "You only see groups the signed-in user belongs to. No tool edits or deletes data.";
+  "To add highlights to a recorded match, find it with list_matches and get_match, confirm the match and " +
+  "the events with the user, then call add_match_events once. " +
+  "You only see groups the signed-in user belongs to. No tool changes or deletes existing data.";
 
 /**
  * Stateless: every request builds a fresh server, so there is no session store

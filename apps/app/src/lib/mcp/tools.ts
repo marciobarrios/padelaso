@@ -3,6 +3,7 @@ import type { CallToolResult, McpServer, ServerContext } from "@modelcontextprot
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import {
+  addMatchEvents,
   createMatchRecord,
   getMatchDetail,
   getMemberGroup,
@@ -10,6 +11,7 @@ import {
   listGroupMatchesPage,
   listGroupPlayers,
   listMemberGroups,
+  type AddMatchEventsResult,
   type CreateMatchResult,
   type PlayerSummary,
 } from "@padelaso/data/queries";
@@ -49,6 +51,17 @@ const RECORDS_MATCH = {
   readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: false,
+  openWorldHint: false,
+} as const;
+
+/**
+ * Adds events to a match and never changes or removes existing data. With the
+ * required idempotency_key, repeating a call adds nothing more.
+ */
+const ADDS_EVENTS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: true,
   openWorldHint: false,
 } as const;
 
@@ -99,6 +112,15 @@ const savedEvent = z.object({
   type: z.string(),
   label: z.string().describe("Display name of the event in Padelaso."),
 });
+const identifiedEvent = savedEvent.extend({
+  id: z.string().describe("Event ID, to name this exact event in a later correction."),
+});
+const matchVersion = z.number().describe(
+  "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused.");
+const newEvents = z.array(z.object({
+  player_id: playerId.describe("One of the four match players."),
+  type: z.enum(EVENT_CONFIGS.map((e) => e.type)),
+}));
 
 const outputs = {
   list_groups: z.object({ groups: z.array(group) }),
@@ -146,11 +168,19 @@ const outputs = {
   get_match: z.object({
     group,
     match,
-    events: z.array(savedEvent.extend({
-      id: z.string().describe("Event ID, to name this exact event in a later correction."),
-    })).describe("Every recorded event, in the order it was recorded."),
-    version: z.number().describe(
-      "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused."),
+    events: z.array(identifiedEvent).describe("Every recorded event, in the order it was recorded."),
+    version: matchVersion,
+    url: z.string().describe("Link to the match in Padelaso."),
+  }),
+  add_match_events: z.object({
+    status: z.enum(["added", "replayed"]).describe(
+      "added: saved now. replayed: this idempotency_key had already added these events, so nothing new was added."),
+    message: z.string().describe("What happened, to tell the user."),
+    group,
+    match,
+    added: z.array(identifiedEvent).describe("The events this request added, in order."),
+    events: z.array(identifiedEvent).describe("Every event of the match now, in the order it was recorded."),
+    version: matchVersion,
     url: z.string().describe("Link to the match in Padelaso."),
   }),
 };
@@ -302,6 +332,61 @@ async function getMatch(caller: Caller, args: { group_id: string; match_id: stri
       type: e.type,
       label: getEventConfig(e.type as MatchEventType).label,
     })),
+    version: result.version,
+    url: `${caller.appOrigin}/matches/${result.match.id}`,
+  };
+}
+
+type EventsRejection = Extract<AddMatchEventsResult, { status: "rejected" }>;
+
+const EVENTS_REJECTION_HINTS: Partial<Record<EventsRejection["code"], string>> = {
+  MATCH_NOT_FOUND: "Match not found in this group. Use list_matches to find match IDs.",
+  INVALID_EVENTS: "Every event must be for one of the match's four players and a current event type. " +
+    "Use get_match to see the match's players.",
+  IDEMPOTENCY_KEY_REUSED: "This idempotency_key was already used for a different request. Use a new key for each new request.",
+  BUSY: "Padelaso is saving another change to this match. Try again in a moment with the same idempotency_key.",
+};
+
+async function addEvents(caller: Caller, args: {
+  group_id: string;
+  match_id: string;
+  events: { player_id: string; type: MatchEventType }[];
+  idempotency_key: string;
+}) {
+  const [found, players] = await Promise.all([
+    requireGroup(caller, args.group_id),
+    listGroupPlayers(caller.client, args.group_id),
+  ]);
+  const result = await addMatchEvents(caller.client, {
+    groupId: found.id,
+    matchId: args.match_id,
+    events: args.events.map((e) => ({ playerId: e.player_id, type: e.type })),
+    idempotencyKey: args.idempotency_key,
+  });
+  if (result.status === "rejected") {
+    // The token was verified moments ago, so this is a server fault, not bad input.
+    if (result.code === "AUTH_REQUIRED") throw new Error("add_match_events saw no user");
+    throw new ToolInputError((EVENTS_REJECTION_HINTS[result.code] ?? result.message) + NOTHING_SAVED);
+  }
+
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  const events = result.events.map((e) => ({
+    id: e.id,
+    player: { id: e.playerId, name: names.get(e.playerId) ?? null },
+    type: e.type,
+    label: getEventConfig(e.type as MatchEventType).label,
+  }));
+  const added = new Set(result.addedEventIds);
+  return {
+    status: result.status,
+    message: result.status === "added"
+      ? `${result.addedEventIds.length === 1 ? "1 event" : `${result.addedEventIds.length} events`} added.`
+      : "These events were already added by an earlier call with the same idempotency_key. Nothing new was added.",
+    group: found,
+    match: toMatch(result.match, names),
+    // A replay names the events the first call added that still exist.
+    added: events.filter((e) => added.has(e.id)),
+    events,
     version: result.version,
     url: `${caller.appOrigin}/matches/${result.match.id}`,
   };
@@ -483,10 +568,7 @@ export function registerTools(server: McpServer) {
         "When the match was played, ISO 8601 with a UTC offset, e.g. 2026-11-14T19:00:00+01:00. " +
         "Omit when it was just played: Padelaso uses the current time."),
       court: z.number().int().min(1).max(99).optional().describe("Court number, if the user mentions one."),
-      events: z.array(z.object({
-        player_id: playerId.describe("One of the four match players."),
-        type: z.enum(EVENT_CONFIGS.map((e) => e.type)),
-      })).max(MAX_RECORDED_EVENTS).optional()
+      events: newEvents.max(MAX_RECORDED_EVENTS).optional()
         .describe(`Optional highlights the user mentions, one entry per occurrence. Types: ${recordableEvents}.`),
       // A UUID, not free text: a key the model builds from player names reads as user
       // data hidden in an identifier, and ChatGPT warns before running the call.
@@ -497,8 +579,33 @@ export function registerTools(server: McpServer) {
     outputSchema: outputs.create_match,
     annotations: RECORDS_MATCH,
   }, run(createMatch));
+
+  server.registerTool("add_match_events", {
+    title: "Add match events",
+    description:
+      "Add highlights (aces, double faults, …) to a match that is already recorded. It only adds: it never " +
+      "changes or removes existing events. Before calling: (1) find the match with list_matches and read it " +
+      "with get_match; when several matches fit what the user said, show them and ask. (2) Resolve every player " +
+      "to one of the match's four players; when a name matches several or none, ask, never guess. (3) Restate " +
+      "the match (date and teams) and every event to add to the user, and call only after they confirm. " +
+      "Generate one random UUID as idempotency_key per confirmed request and reuse it if you retry. " +
+      "Returns the events added, the updated match and a link to it.",
+    inputSchema: z.object({
+      group_id: groupId,
+      match_id: matchId,
+      events: newEvents.min(1).max(MAX_RECORDED_EVENTS).describe(
+        `The events to add, one entry per occurrence: "two aces" is two entries. ` +
+        `A match holds at most ${MAX_RECORDED_EVENTS} events. Types: ${recordableEvents}.`),
+      idempotency_key: z.uuid().describe(
+        "A random UUID generated once for each confirmed request. Reuse it only to retry the same call. " +
+        "Never put names or other details in it."),
+    }),
+    outputSchema: outputs.add_match_events,
+    annotations: ADDS_EVENTS,
+  }, run(addEvents));
 }
 
 export const TOOL_NAMES = [
   "list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "create_match",
+  "add_match_events",
 ] as const;
