@@ -322,6 +322,7 @@ As of 16 November 2026, OpenAI's
 describe custom MCP support on ChatGPT web for Business and Enterprise/Edu, with account and
 workspace policy restrictions. Business creation/publishing requires an admin/owner;
 Enterprise/Edu can delegate creation via RBAC, while publishing remains admin/owner-only.
+Verified by the owner on ChatGPT **Plus**, set up from the **macOS app** (17 November 2026, MAR-108), so the public guide lists Plus and the Mac app too.
 Confirm the actual account's available controls; do not promise access for every plan.
 
 After production rollout, use **Add custom MCP server** in Plugins (or the legacy Apps → Create
