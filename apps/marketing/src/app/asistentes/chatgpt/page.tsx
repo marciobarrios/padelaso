@@ -22,6 +22,7 @@ const examples = [
   "¿Cuáles son mis estadísticas este año? ¿Con quién gano más?",
   "¿Quién va primero en el ranking del grupo?",
   "Registra un partido: Ana y yo ganamos a Luis y Marta 6-4, 3-6, 7-5.",
+  "Añade dos aces de Ana al partido de ayer.",
 ];
 
 export default function ChatGptGuidePage() {
@@ -68,9 +69,9 @@ export default function ChatGptGuidePage() {
           <ul className="list-disc space-y-2 pl-6">
             <li>Ver los grupos a los que perteneces.</li>
             <li>Consultar los jugadores, el historial de partidos y las estadísticas de esos grupos.</li>
-            <li>Registrar partidos nuevos en esos grupos. ChatGPT te pide confirmar los detalles antes de guardarlos.</li>
+            <li>Registrar partidos nuevos en esos grupos y añadir eventos a partidos ya registrados. ChatGPT te pide confirmar los detalles antes de guardarlos.</li>
           </ul>
-          <p>Las herramientas actuales no permiten editar ni borrar partidos, jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro. Más detalles en <Link href="/privacidad" className={link}>Privacidad</Link>.</p>
+          <p>Las herramientas actuales no permiten cambiar ni borrar partidos, eventos ya registrados, jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro. Más detalles en <Link href="/privacidad" className={link}>Privacidad</Link>.</p>
         </section>
 
         <section aria-labelledby="ejemplos" className="space-y-4">

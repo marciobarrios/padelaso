@@ -1,10 +1,11 @@
-# Padelaso MCP server (MAR-98, MAR-99)
+# Padelaso MCP server (MAR-98, MAR-99, MAR-158)
 
 Padelaso exposes a remote [Model Context Protocol](https://modelcontextprotocol.io) server so
 assistants such as ChatGPT and Claude can read a user's groups, players, match history and
-stats, and record new matches. Users sign in with their Padelaso account through Supabase
+stats, record new matches and add events to recorded ones. Users sign in with their Padelaso account through Supabase
 Auth's OAuth 2.1 server. Access is open to all signed-in, non-anonymous users through admitted OAuth clients (manual allowlist or opt-in ChatGPT self-service). Phase 1 (MAR-98) added the
-read tools; phase 2 (MAR-99) adds `create_match`. No tool edits or deletes data.
+read tools; phase 2 (MAR-99) adds `create_match`; MAR-158 adds `add_match_events`. No tool
+changes or deletes existing data: the write tools only add matches and events.
 
 | | |
 | --- | --- |
@@ -14,7 +15,7 @@ read tools; phase 2 (MAR-99) adds `create_match`. No tool edits or deletes data.
 | AS metadata | `<SUPABASE_URL>/.well-known/oauth-authorization-server/auth/v1` |
 | Consent page | `/oauth/consent` |
 | Code | `src/lib/mcp/` (config, auth, tools, handler), `src/app/oauth/consent/` |
-| Write path | `public.create_match` (`supabase/migrations/20261114234718_create_match.sql`) |
+| Write paths | `public.create_match` (`supabase/migrations/20261114234718_create_match.sql`), `public.add_match_events` (`supabase/migrations/20261117180000_add_match_events.sql`) |
 
 Built with `mcp-handler` 2.3, `@modelcontextprotocol/server` 2.4 and Zod 4 on the Node.js
 runtime. Every request builds a fresh MCP server, so there is no session store or affinity.
@@ -94,10 +95,12 @@ these tokens to what the tools need
 
 - **Restrictive RLS policies** on every `public` table: no inserts, updates or deletes, and no
   reads beyond `groups`, `players` and `matches`. They apply to the Data API, GraphQL and
-  Realtime alike. Security definer functions bypass RLS, so `create_match` keeps working.
+  Realtime alike. Security definer functions bypass RLS, so `create_match` and
+  `add_match_events` keep working.
 - **A Data API pre-request guard** (`mcp_private.check_request`, set as
   `pgrst.db_pre_request` on `authenticator`): OAuth tokens may only `GET`/`HEAD` `/groups`,
-  `/players` and `/matches`, `POST /rpc/create_match`, `POST /rpc/get_match_detail` and
+  `/players` and `/matches`, `POST /rpc/create_match`, `POST /rpc/get_match_detail`,
+  `POST /rpc/add_match_events` and
   `POST /rpc/hit_mcp_rate_limit` (the rate limit counter). Anything else is a `403` with code
   `OAUTH_CLIENT_FORBIDDEN`. This covers the other RPCs, which RLS can't, and GraphQL.
 
@@ -112,8 +115,9 @@ Gaps to keep in mind:
   `jwt_expiry` (1 hour).
 
 The consent page states the single v1 permission, "leer y registrar partidos": it lists what the connection's tools do (read data,
-record matches after confirmation) and what they don't (edit or delete), never claiming the
-grant itself is limited. It is also served with `frame-ancestors 'none'` and
+record matches and add events to recorded ones after confirmation) and what they don't (change
+or delete existing matches, events, players or groups), never claiming the grant itself is
+limited. The marketing privacy page and ChatGPT guide say the same. It is also served with `frame-ancestors 'none'` and
 `X-Frame-Options: DENY` (`next.config.ts`) so it can't be framed.
 
 ## Rate limits
@@ -159,7 +163,9 @@ the default. The window length is fixed in the SQL function; changing it needs a
 
 Read tools are annotated `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`,
 `openWorldHint: false`. `create_match` is `readOnlyHint: false`, `destructiveHint: false`,
-`idempotentHint: false`, `openWorldHint: false`. Every tool declares an `outputSchema`.
+`idempotentHint: false`, `openWorldHint: false`. `add_match_events` is `readOnlyHint: false`,
+`destructiveHint: false`, `idempotentHint: true` (its key is required), `openWorldHint: false`.
+Every tool declares an `outputSchema`.
 Results return `structuredContent` and the same JSON as text. Outputs contain display data
 only: no invite codes, account IDs, creators or internal fields.
 
@@ -171,6 +177,7 @@ only: no invite codes, account IDs, creators or internal fields.
 | `get_match` | `group_id`, `match_id` | `group`, `match` (as in `list_matches`), `events: [{ id, player, type, label }]`, `version`, `url` |
 | `get_player_stats` | `group_id`, `player_id` | `group`, `player`, `matches`, `wins`, `losses`, `undecided`, `winRate`, `currentStreak`, `bestStreak`, `recentForm`, `ranking`, `partners` |
 | `create_match` | `group_id`, `team1` and `team2` (two player IDs each), `sets` (1–5 of `{ team1, team2 }` games), optional `played_at`, `court`, `events`, `idempotency_key` | `status`, `message`, `group`, `match` (as in `list_matches`), `events`, `url` |
+| `add_match_events` | `group_id`, `match_id`, `events` (1–50 of `{ player_id, type }`), `idempotency_key` (UUID) | `status`, `message`, `group`, `match` (as in `list_matches`), `added` and `events` (as in `get_match`), `version`, `url` |
 
 - `isYou` marks the player linked to the signed-in user, so "my stats" works without exposing
   user IDs.
@@ -183,7 +190,8 @@ only: no invite codes, account IDs, creators or internal fields.
   keep their recorded order, and unknown (retired) types and deleted players still show, so they
   can be corrected. `version` is the match's revision (`native_private.match_state.revision`):
   triggers bump it on every change to its teams, sets, date, court or events, whoever makes it.
-  Edit tools (MAR-158 to MAR-160) will take it back to refuse changes based on a stale read.
+  Edit tools that change or remove data (MAR-159, MAR-160) will take it back to refuse changes
+  based on a stale read. `add_match_events` doesn't: appending can't overwrite anything.
   It reads through `public.get_match_detail` (`supabase/migrations/20261117090000_get_match_detail.sql`),
   a security definer function that checks membership itself: OAuth tokens still can't read
   `match_events` directly. A missing match, another group's match and a group the caller isn't in
@@ -238,6 +246,48 @@ immediately. `url` is `<app origin>/matches/<id>`, derived from `MCP_RESOURCE_UR
 | `INVALID_SETS`, `INVALID_DATE`, `INVALID_EVENTS`, `INVALID_REQUEST` | The request breaks a rule above |
 | `IDEMPOTENCY_KEY_REUSED` | The key already saved a different match |
 | `BUSY` | Another match for the group held the lock for 3 seconds; nothing was saved |
+
+All of them reach the model as tool errors ending in "Nothing was saved."
+
+## Adding events to a match (MAR-158)
+
+`add_match_events` appends events ("two aces for Ana") to a recorded match. The tool
+description and server instructions tell the model to find the match with `list_matches` and
+`get_match`, ask when several matches or players fit, and restate the match and every event
+before calling; the client asks the user to confirm, as for `create_match`. The tool calls
+`public.add_match_events` through the caller's client, which checks everything and saves in
+one transaction:
+
+- **Authorization.** Security definer, like `create_match`: it requires `auth.uid()` and
+  membership of the match's group, and sets `created_by` to the caller. A missing match,
+  another group's match and a group the caller isn't in all return `MATCH_NOT_FOUND`, as
+  `get_match` does. Membership is checked before a replay, so a former member can't read
+  through a retry.
+- **Rules.** 1–50 events per call, each for one of the match's four players (others are named
+  in `playerIds`) and of a current type. Unlike `create_match`, the database checks the
+  vocabulary itself: `match_private.recordable_event_types()` mirrors `EVENT_CONFIGS`, and the
+  integration test records every type, so the two can't drift silently. A match holds at most
+  50 events (`MAX_RECORDED_EVENTS`), counting those already recorded.
+- **Retries.** Two events of the same type for the same player are legitimate, so there is no
+  duplicate window: `idempotency_key` is required. It is kept per user for 48 hours in
+  `match_private.event_receipts`. The same key and request replays (`status: "replayed"`,
+  with the events the first call added); the same key with a different request is refused.
+- **Concurrency.** An advisory lock per match serializes calls, so a concurrent retry waits and
+  then finds the receipt. The match row is share-locked, so its teams can't change and it can't
+  be deleted until the events are saved.
+- **Atomicity.** Events and receipt are written in one transaction; any failure leaves
+  nothing, and refused requests save no receipt.
+
+Added events are ordinary rows: they bump the match's `version`, and the web, mobile and stats
+see them immediately. The result is the updated match as `get_match` returns it, plus `added`.
+
+| Error code | Meaning |
+| --- | --- |
+| `MATCH_NOT_FOUND` | Not a member, no such match, or a match of another group |
+| `INVALID_EVENTS`, `INVALID_REQUEST` | Wrong event shape or type, a player outside the match, or a missing or malformed key |
+| `TOO_MANY_EVENTS` | The match would pass 50 events |
+| `IDEMPOTENCY_KEY_REUSED` | The key already added different events |
+| `BUSY` | Another call held the match for 3 seconds; nothing was saved |
 
 All of them reach the model as tool errors ending in "Nothing was saved."
 
@@ -412,7 +462,8 @@ already shown on the consent page may have expired.
   initialize, the tool list and annotations, the caller-scoped client, tool outputs, stats parity
   with the domain package, cross-group requests, error redaction and metadata. For
   `create_match`: the request sent as the caller, the saved summary and link, invalid input that
-  never reaches the database, and how refusals, replays and duplicates are reported.
+  never reaches the database, and how refusals, replays and duplicates are reported. The same for
+  `add_match_events`, plus its idempotent annotation and required key.
 - `supabase/tests/create_match_test.sql` (`pnpm test:db`): privileges, authorization, every
   validation rule, replays, key reuse, the duplicate window, per-user keys, atomicity of match
   plus events, and two concurrent identical requests creating one match.
@@ -422,6 +473,10 @@ already shown on the consent page may have expired.
 - `supabase/tests/get_match_detail_test.sql` (`pnpm test:db`): privileges, events with IDs in
   order, a version that changes with every event and match change, and the same "not found" for
   missing matches, other groups' matches and non-members, including with an OAuth token.
+- `supabase/tests/add_match_events_test.sql` (`pnpm test:db`): privileges, authorization (non-members,
+  other groups' matches, a former member's replay), every validation rule, the per-match limit,
+  replays, key reuse, per-user keys, OAuth tokens, atomicity, and two concurrent identical calls
+  adding the events once.
 - `supabase/tests/mcp_rate_limits_test.sql` (`pnpm test:db`): privileges, ordinary sessions
   refused, counts per user + client and per user, cleanup of old windows and of deleted users.
 - `supabase/tests/oauth_client_lockdown_test.sql` (`pnpm test:db`): OAuth tokens read only
@@ -436,7 +491,8 @@ already shown on the consent page may have expired.
 - `src/lib/mcp/oauth.integration.test.ts` (`pnpm test:integration`, needs `supabase start`;
   runs in CI): native DCR discovery/registration, rollback admission, and a real authorization-code + PKCE flow through the local OAuth server, then MCP
   calls with the issued token against real RLS, including recording a match, its retries, and
-  refused requests sent straight to `create_match`, and the same token refused (`403`) by the
+  refused requests sent straight to `create_match`, adding every current event type to a match
+  with concurrent and later retries (MAR-158), and the same token refused (`403`) by the
   Data API for other tables, writes and RPCs.
 - Manual, outstanding: the second-client check above, and recording a match from ChatGPT
   (step 6 above). The `create_match` migration is applied in production.
