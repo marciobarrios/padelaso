@@ -4,9 +4,11 @@
 
 @custom-variant dark (&:is([data-theme$="-dark"] *));
 
+/* Only the document scrolls on home. Never add <main> here: it is an
+   overflow-y:auto box that doesn't overflow, and Chrome then stops the scroll
+   chain at it, so touch scrolling the page does nothing on Android. */
 html.home-pull-to-refresh,
-.home-pull-to-refresh body,
-.home-pull-to-refresh main {
+.home-pull-to-refresh body {
   overscroll-behavior-y: none;
 }
 
