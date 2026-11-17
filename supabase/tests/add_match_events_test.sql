@@ -354,50 +354,13 @@ SELECT is(
 );
 
 -- ------------------------------------------------------------
--- Atomicity: a failing event insert leaves nothing behind.
--- ------------------------------------------------------------
-RESET ROLE;
-DELETE FROM public.match_events
-WHERE match_id = '60000000-0000-0000-0000-000000000081' AND id <> '70000000-0000-0000-0000-000000000081';
-
-CREATE FUNCTION pg_temp.fail_on_cinta()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $function$
-BEGIN
-  IF new.type = 'cinta' THEN
-    RAISE EXCEPTION 'event insert failed';
-  END IF;
-  RETURN new;
-END;
-$function$;
-
-CREATE TRIGGER fail_on_cinta BEFORE INSERT ON public.match_events
-  FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_on_cinta();
-
-SET LOCAL ROLE authenticated;
-SET LOCAL request.jwt.claim.sub = '10000000-0000-0000-0000-000000000081';
-SELECT throws_ok(
-  $$ SELECT public.add_match_events(pg_temp.request('{"idempotencyKey": "add-key-atomic",
-       "events": [{"playerId": "50000000-0000-0000-0000-000000000081", "type": "ace"},
-                  {"playerId": "50000000-0000-0000-0000-000000000082", "type": "cinta"}]}')) $$,
-  'P0001',
-  'event insert failed',
-  'a failing event insert fails the whole call'
-);
-
-RESET ROLE;
-DROP TRIGGER fail_on_cinta ON public.match_events;
-SELECT is(pg_temp.match_events(), 1::bigint, 'none of the call''s events were kept');
-SELECT is(
-  (SELECT count(*) FROM match_private.event_receipts WHERE idempotency_key = 'add-key-atomic'),
-  0::bigint,
-  'nor its receipt'
-);
-
--- ------------------------------------------------------------
 -- Concurrency: two identical calls at once add the events once.
 -- ------------------------------------------------------------
+-- Runs before the atomicity check below: its DROP TRIGGER holds an exclusive
+-- lock on match_events until this transaction ends, which would block the
+-- other connections.
+RESET ROLE;
+
 CREATE FUNCTION pg_temp.local_db_connection_string()
 RETURNS text
 LANGUAGE sql
@@ -517,6 +480,48 @@ BEGIN
   PERFORM extensions.dblink_disconnect('add_setup');
 END;
 $cleanup$;
+
+-- ------------------------------------------------------------
+-- Atomicity: a failing event insert leaves nothing behind.
+-- ------------------------------------------------------------
+RESET ROLE;
+DELETE FROM public.match_events
+WHERE match_id = '60000000-0000-0000-0000-000000000081' AND id <> '70000000-0000-0000-0000-000000000081';
+
+CREATE FUNCTION pg_temp.fail_on_cinta()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF new.type = 'cinta' THEN
+    RAISE EXCEPTION 'event insert failed';
+  END IF;
+  RETURN new;
+END;
+$function$;
+
+CREATE TRIGGER fail_on_cinta BEFORE INSERT ON public.match_events
+  FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_on_cinta();
+
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub = '10000000-0000-0000-0000-000000000081';
+SELECT throws_ok(
+  $$ SELECT public.add_match_events(pg_temp.request('{"idempotencyKey": "add-key-atomic",
+       "events": [{"playerId": "50000000-0000-0000-0000-000000000081", "type": "ace"},
+                  {"playerId": "50000000-0000-0000-0000-000000000082", "type": "cinta"}]}')) $$,
+  'P0001',
+  'event insert failed',
+  'a failing event insert fails the whole call'
+);
+
+RESET ROLE;
+DROP TRIGGER fail_on_cinta ON public.match_events;
+SELECT is(pg_temp.match_events(), 1::bigint, 'none of the call''s events were kept');
+SELECT is(
+  (SELECT count(*) FROM match_private.event_receipts WHERE idempotency_key = 'add-key-atomic'),
+  0::bigint,
+  'nor its receipt'
+);
 
 SELECT * FROM finish();
 
