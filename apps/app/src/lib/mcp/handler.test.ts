@@ -97,6 +97,16 @@ const foundMatch = () => ({
   version: 12,
 });
 
+type AddRequest = { groupId: string; matchId: string; events: { playerId: string; type: string }[]; idempotencyKey: string };
+/** What add_match_events answers; tests replace it to simulate other outcomes. */
+let addEventsAnswer: (request: AddRequest) => unknown;
+const ADDED_IDS = ["99999999-9999-4999-8999-999999999993", "99999999-9999-4999-8999-999999999994"];
+const addedAs = (status: string) => (request: AddRequest) => {
+  const before = foundMatch();
+  const added = request.events.map((e, i) => ({ id: ADDED_IDS[i], ...e }));
+  return { ...before, status, events: [...before.events, ...added], version: 14, addedEventIds: added.map((e) => e.id) };
+};
+
 /** Rate limit counters by window, as public.hit_mcp_rate_limit keeps them. */
 let rateWindows: Map<string, number>;
 
@@ -130,6 +140,9 @@ function stubSupabase(overrides: Route = () => undefined) {
     if (url.pathname === "/rest/v1/rpc/hit_mcp_rate_limit") return Response.json(hitRateLimit(init));
     if (url.pathname === "/rest/v1/rpc/get_match_detail") {
       return Response.json(matchDetailAnswer(JSON.parse(String(init?.body))));
+    }
+    if (url.pathname === "/rest/v1/rpc/add_match_events") {
+      return Response.json(addEventsAnswer(JSON.parse(String(init?.body)).p_request));
     }
     if (url.pathname === "/rest/v1/rpc/create_match") {
       return Response.json(createMatchAnswer(JSON.parse(String(init?.body)).p_request));
@@ -192,6 +205,7 @@ beforeEach(() => {
   rateWindows = new Map();
   createMatchAnswer = savedAs("created");
   matchDetailAnswer = foundMatch;
+  addEventsAnswer = addedAs("added");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
@@ -330,7 +344,7 @@ describe("MCP authorization boundary", () => {
 });
 
 describe("MCP protocol and tools", () => {
-  it("initializes and advertises the read tools and create_match", async () => {
+  it("initializes and advertises the read tools and the write tools", async () => {
     const token = await sign(claims());
     const init = await rpc({
       jsonrpc: "2.0", id: 0, method: "initialize",
@@ -342,10 +356,11 @@ describe("MCP protocol and tools", () => {
     const { result } = await payload(await rpc(listTools, token));
     const tools = result.tools as { name: string; annotations: Record<string, boolean>; outputSchema?: object }[];
     expect(tools.map((t) => t.name).sort())
-      .toEqual(["create_match", "get_match", "get_player_stats", "list_groups", "list_matches", "list_players"]);
+      .toEqual(["add_match_events", "create_match", "get_match", "get_player_stats", "list_groups", "list_matches", "list_players"]);
+    const writes = ["create_match", "add_match_events"];
     for (const tool of tools) {
       expect(tool.annotations).toMatchObject({
-        readOnlyHint: tool.name !== "create_match", destructiveHint: false, openWorldHint: false,
+        readOnlyHint: !writes.includes(tool.name), destructiveHint: false, openWorldHint: false,
       });
       expect(tool.outputSchema).toBeDefined();
     }
@@ -631,6 +646,126 @@ describe("get_match", () => {
   it("refuses an unexpected database answer", async () => {
     matchDetailAnswer = () => ({ ...foundMatch(), version: undefined });
     const result = await callTool("get_match", args);
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+});
+
+describe("add_match_events", () => {
+  const KEY = "5f0c2a9e-3b7d-4c1e-8a6f-2d9b4e7c1a30";
+  const args = {
+    group_id: GROUP_ID,
+    match_id: MATCH_ID,
+    events: [{ player_id: ANA, type: "ace" }, { player_id: ANA, type: "ace" }],
+    idempotency_key: KEY,
+  };
+  const rpcCalls = () => restCalls().filter(([input]) => String(input).includes("/rpc/add_match_events"));
+
+  it("is an idempotent, non-destructive write", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    const tool = result.tools.find((t: { name: string }) => t.name === "add_match_events");
+    expect(tool.annotations).toEqual({
+      readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false,
+    });
+    expect(tool.inputSchema.required.sort()).toEqual(["events", "group_id", "idempotency_key", "match_id"]);
+  });
+
+  it("adds through the add_match_events function as the caller", async () => {
+    const token = await sign(claims());
+    const result = await callTool("add_match_events", args, token);
+
+    expect(result.isError).toBeFalsy();
+    const [[, init]] = rpcCalls();
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${token}`);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      p_request: {
+        groupId: GROUP_ID,
+        matchId: MATCH_ID,
+        events: [{ playerId: ANA, type: "ace" }, { playerId: ANA, type: "ace" }],
+        idempotencyKey: KEY,
+      },
+    });
+
+    const ace = (id: string) => ({ id, player: { id: ANA, name: "Ana" }, type: "ace", label: "Ace" });
+    expect(result.structuredContent).toEqual({
+      status: "added",
+      message: "2 events added.",
+      group: groupRow,
+      match: {
+        id: MATCH_ID, date: "2026-11-16T19:00:00.000Z", court: 4,
+        team1: { players: [{ id: ANA, name: "Ana" }, { id: PABLO, name: "Pablo" }], setsWon: 2 },
+        team2: { players: [{ id: LUCIA, name: "Lucía" }, { id: GONE, name: null }], setsWon: 1 },
+        sets: [{ team1: 6, team2: 3 }, { team1: 4, team2: 6 }, { team1: 7, team2: 5 }],
+        winner: "team1",
+      },
+      added: [ace(ADDED_IDS[0]), ace(ADDED_IDS[1])],
+      events: [
+        ace(EVENT_IDS[0]),
+        { id: EVENT_IDS[1], player: { id: GONE, name: null }, type: "old_event", label: "old_event" },
+        ace(ADDED_IDS[0]),
+        ace(ADDED_IDS[1]),
+      ],
+      version: 14,
+      url: `${ORIGIN}/matches/${MATCH_ID}`,
+    });
+    expect(JSON.stringify(result.structuredContent)).not.toContain(USER_ID);
+  });
+
+  it("reports a retry that found the earlier call", async () => {
+    addEventsAnswer = addedAs("replayed");
+    const result = await callTool("add_match_events", args);
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent.status).toBe("replayed");
+    expect(result.structuredContent.message).toMatch(/Nothing new was added/);
+    expect(result.structuredContent.added.map((e: { id: string }) => e.id)).toEqual(ADDED_IDS);
+  });
+
+  it.each([
+    ["no events", { events: [] }],
+    ["51 events", { events: Array(51).fill({ player_id: ANA, type: "ace" }) }],
+    ["a retired event type", { events: [{ player_id: ANA, type: "bola_fuera" }] }],
+    ["an unknown event type", { events: [{ player_id: ANA, type: "smash" }] }],
+    ["a player name instead of an ID", { events: [{ player_id: "Ana", type: "ace" }] }],
+    ["a missing idempotency key", { idempotency_key: undefined }],
+    ["an idempotency key that is not a UUID", { idempotency_key: "two-aces-for-ana" }],
+    ["a match name instead of an ID", { match_id: "yesterday" }],
+  ])("never saves %s", async (_label, overrides) => {
+    const result = await callTool("add_match_events", { ...args, ...overrides });
+    expect(result.isError).toBe(true);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it("never saves into a group the caller cannot see", async () => {
+    const result = await callTool("add_match_events", { ...args, group_id: "66666666-6666-4666-8666-666666666666" });
+    expect(result.content[0].text).toMatch(/Group not found/);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it.each([
+    ["MATCH_NOT_FOUND", /Match not found in this group. Use list_matches/],
+    ["INVALID_EVENTS", /four players.*Use get_match/],
+    ["IDEMPOTENCY_KEY_REUSED", /already used for a different request/],
+    ["TOO_MANY_EVENTS", /at most 50 events; this one has 49/],
+    ["BUSY", /same idempotency_key/],
+  ])("explains a %s refusal from the database", async (code, message) => {
+    addEventsAnswer = () => ({ status: "rejected", code, message: "A match can have at most 50 events; this one has 49." });
+    const result = await callTool("add_match_events", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(message);
+    expect(result.content[0].text).toMatch(/Nothing was saved/);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  it("treats a missing user in the database as a server error", async () => {
+    addEventsAnswer = () => ({ status: "rejected", code: "AUTH_REQUIRED", message: "Sign in again." });
+    const result = await callTool("add_match_events", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/temporarily unavailable/);
+  });
+
+  it("refuses an unexpected database answer instead of reporting success", async () => {
+    addEventsAnswer = (request) => ({ ...(addedAs("added")(request) as object), addedEventIds: undefined });
+    const result = await callTool("add_match_events", args);
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
   });

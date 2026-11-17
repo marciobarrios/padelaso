@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { EVENT_CONFIGS } from "@padelaso/domain/events";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/mcp/route";
 import { canUseMcpClient } from "./client-admission";
@@ -478,6 +479,66 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     const outsider = await dataClient(stranger.jwt)
       .rpc("get_match_detail", { p_group_id: groupId, p_match_id: matchId });
     expect(outsider.data).toEqual(wrongGroup.data);
+  });
+
+  it("adds events to an existing match exactly once, even when retried (MAR-158)", async () => {
+    const created = await callTool("create_match", {
+      group_id: groupId,
+      team1: [ids.Ana, ids.Pablo],
+      team2: [ids["Lucía"], ids.Marta],
+      sets: [{ team1: 6, team2: 4 }],
+      events: [{ player_id: ids.Ana, type: "ace" }],
+      idempotency_key: randomUUID(),
+    });
+    const matchId = created.structuredContent.match.id;
+    const savedEvents = async () => must(await admin.from("match_events").select("id, player_id, type, created_by")
+      .eq("match_id", matchId).order("sequence")) as { id: string; player_id: string; type: string; created_by: string }[];
+
+    // Every current event type, so the database's vocabulary can't drift from EVENT_CONFIGS.
+    const players = [ids.Ana, ids.Pablo, ids["Lucía"], ids.Marta];
+    const events = EVENT_CONFIGS.map((e, i) => ({ player_id: players[i % 4], type: e.type }));
+    const key = randomUUID();
+    const request = { group_id: groupId, match_id: matchId, events, idempotency_key: key };
+
+    // Two identical calls at once, as a client retrying a timed-out request might.
+    const [one, two] = await Promise.all([callTool("add_match_events", request), callTool("add_match_events", request)]);
+    expect(one.isError || two.isError).toBeFalsy();
+    expect([one.structuredContent.status, two.structuredContent.status].sort()).toEqual(["added", "replayed"]);
+
+    const saved = await savedEvents();
+    expect(saved).toHaveLength(1 + events.length);
+    expect(saved.slice(1).map((e) => ({ player_id: e.player_id, type: e.type })))
+      .toEqual(events.map((e) => ({ player_id: e.player_id, type: e.type })));
+    expect(new Set(saved.map((e) => e.created_by))).toEqual(new Set([memberId]));
+    expect(one.structuredContent).toMatchObject({
+      match: { id: matchId },
+      added: saved.slice(1).map((e) => ({ id: e.id, player: { id: e.player_id }, type: e.type })),
+      events: saved.map((e) => ({ id: e.id })),
+      url: `${ORIGIN}/matches/${matchId}`,
+    });
+    const detail = await callTool("get_match", { group_id: groupId, match_id: matchId });
+    expect(detail.structuredContent.version).toBe(one.structuredContent.version);
+
+    // A later retry replays; the same key for another request, and invalid requests, save nothing.
+    const retry = await callTool("add_match_events", request);
+    expect(retry.structuredContent).toMatchObject({ status: "replayed", added: one.structuredContent.added });
+    const reused = await callTool("add_match_events", { ...request, events: [{ player_id: ids.Ana, type: "ace" }] });
+    expect(reused.content[0].text).toMatch(/already used for a different request/);
+    const outsider = await callTool("add_match_events", {
+      ...request, idempotency_key: randomUUID(), events: [{ player_id: ids.Ana, type: "ace" }, { player_id: randomUUID(), type: "ace" }],
+    });
+    expect(outsider.content[0].text).toMatch(/four players.*Nothing was saved/);
+    expect(await savedEvents()).toHaveLength(1 + events.length);
+
+    // Straight to the database function: a non-member, and a retired type, are refused.
+    const direct = { groupId, matchId, events: [{ playerId: ids.Ana, type: "ace" }], idempotencyKey: randomUUID() };
+    const nonMember = await dataClient(stranger.jwt).rpc("add_match_events", { p_request: direct });
+    expect(nonMember.data).toEqual({ status: "rejected", code: "MATCH_NOT_FOUND", message: "Match not found in this group." });
+    const retired = await dataClient(oauthToken).rpc("add_match_events", {
+      p_request: { ...direct, events: [{ playerId: ids.Ana, type: "vibora" }] },
+    });
+    expect(retired.data).toMatchObject({ status: "rejected", code: "INVALID_EVENTS" });
+    expect(await savedEvents()).toHaveLength(1 + events.length);
   });
 
   describe("direct Data API access with the OAuth token (MAR-144)", () => {
