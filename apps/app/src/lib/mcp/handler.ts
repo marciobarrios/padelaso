@@ -10,6 +10,7 @@ import { registerTools } from "./tools";
 const INSTRUCTIONS =
   "Padelaso tracks padel matches among groups of friends. Start with list_groups, " +
   "resolve player names with list_players, then use list_matches or get_player_stats. " +
+  "get_match shows one match with its events and their IDs. " +
   "To record a finished match, resolve all four players to IDs (ask when a name is ambiguous or unknown), " +
   "confirm the teams, set scores and date with the user, then call create_match once. " +
   "You only see groups the signed-in user belongs to. No tool edits or deletes data.";

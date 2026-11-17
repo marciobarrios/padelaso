@@ -438,6 +438,48 @@ describe("MCP over Supabase OAuth on the real stack", () => {
       .in("group_id", [groupId, otherGroupId])).count).toBe(before);
   });
 
+  it("shows a match's event IDs and version only to its group (MAR-157)", async () => {
+    const created = await callTool("create_match", {
+      group_id: groupId,
+      team1: [ids.Ana, ids.Pablo],
+      team2: [ids["Lucía"], ids.Marta],
+      sets: [{ team1: 6, team2: 2 }],
+      events: [{ player_id: ids.Ana, type: "ace" }, { player_id: ids.Marta, type: "salvada_top" }],
+      idempotency_key: randomUUID(),
+    });
+    const matchId = created.structuredContent.match.id;
+    const saved = must(await admin.from("match_events").select("id, player_id, type")
+      .eq("match_id", matchId).order("sequence")) as { id: string; player_id: string; type: string }[];
+
+    const detail = await callTool("get_match", { group_id: groupId, match_id: matchId });
+    expect(detail.isError).toBeFalsy();
+    expect(detail.structuredContent).toMatchObject({
+      match: { id: matchId, sets: [{ team1: 6, team2: 2 }] },
+      events: saved.map((e) => ({ id: e.id, player: { id: e.player_id }, type: e.type })),
+      version: expect.any(Number),
+      url: `${ORIGIN}/matches/${matchId}`,
+    });
+
+    // Any change to the match's events, from any writer, changes the version.
+    must(await admin.from("match_events").delete().eq("id", saved[1].id));
+    const after = await callTool("get_match", { group_id: groupId, match_id: matchId });
+    expect(after.structuredContent.events.map((e: { id: string }) => e.id)).toEqual([saved[0].id]);
+    expect(after.structuredContent.version).toBeGreaterThan(detail.structuredContent.version);
+
+    const missing = await callTool("get_match", { group_id: groupId, match_id: randomUUID() });
+    expect(missing.content[0].text).toMatch(/Match not found/);
+    const otherGroup = await callTool("get_match", { group_id: otherGroupId, match_id: matchId });
+    expect(otherGroup.content[0].text).toMatch(/Group not found/);
+
+    // Straight to the database function: the wrong group, and a non-member, see nothing.
+    const wrongGroup = await dataClient(oauthToken)
+      .rpc("get_match_detail", { p_group_id: otherGroupId, p_match_id: matchId });
+    expect(wrongGroup.data).toEqual({ status: "rejected", code: "MATCH_NOT_FOUND", message: "Match not found in this group." });
+    const outsider = await dataClient(stranger.jwt)
+      .rpc("get_match_detail", { p_group_id: groupId, p_match_id: matchId });
+    expect(outsider.data).toEqual(wrongGroup.data);
+  });
+
   describe("direct Data API access with the OAuth token (MAR-144)", () => {
     const forbidden = { code: "OAUTH_CLIENT_FORBIDDEN" };
 

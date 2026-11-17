@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import {
   createMatchRecord,
+  getMatchDetail,
   getMemberGroup,
   listAllGroupMatches,
   listGroupMatchesPage,
@@ -67,6 +68,7 @@ interface Caller {
 
 const groupId = z.uuid().describe("Group ID from list_groups.");
 const playerId = z.uuid().describe("Player ID from list_players.");
+const matchId = z.uuid().describe("Match ID from list_matches.");
 
 const group = z.object({ id: z.string(), name: z.string(), emoji: z.string() });
 const player = z.object({
@@ -139,6 +141,16 @@ const outputs = {
     group,
     match,
     events: z.array(savedEvent),
+    url: z.string().describe("Link to the match in Padelaso."),
+  }),
+  get_match: z.object({
+    group,
+    match,
+    events: z.array(savedEvent.extend({
+      id: z.string().describe("Event ID, to name this exact event in a later correction."),
+    })).describe("Every recorded event, in the order it was recorded."),
+    version: z.number().describe(
+      "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused."),
     url: z.string().describe("Link to the match in Padelaso."),
   }),
 };
@@ -266,6 +278,32 @@ async function createMatch(caller: Caller, args: {
       label: getEventConfig(e.type as MatchEventType).label,
     })),
     url: `${caller.appOrigin}/matches/${saved.id}`,
+  };
+}
+
+async function getMatch(caller: Caller, args: { group_id: string; match_id: string }) {
+  const [found, players, result] = await Promise.all([
+    requireGroup(caller, args.group_id),
+    listGroupPlayers(caller.client, args.group_id),
+    getMatchDetail(caller.client, args.group_id, args.match_id),
+  ]);
+  if (result.status === "rejected") {
+    // The token was verified moments ago, so this is a server fault, not bad input.
+    if (result.code === "AUTH_REQUIRED") throw new Error("get_match_detail saw no user");
+    throw new ToolInputError("Match not found in this group. Use list_matches to find match IDs.");
+  }
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  return {
+    group: found,
+    match: toMatch(result.match, names),
+    events: result.events.map((e) => ({
+      id: e.id,
+      player: { id: e.playerId, name: names.get(e.playerId) ?? null },
+      type: e.type,
+      label: getEventConfig(e.type as MatchEventType).label,
+    })),
+    version: result.version,
+    url: `${caller.appOrigin}/matches/${result.match.id}`,
   };
 }
 
@@ -397,7 +435,8 @@ export function registerTools(server: McpServer) {
 
   server.registerTool("list_matches", {
     title: "List matches",
-    description: "List a group's match history, newest first, with teams, set scores and winner. Optionally only one player's matches.",
+    description: "List a group's match history, newest first, with teams, set scores and winner. Optionally only one player's matches. " +
+      "Use get_match for one match's events.",
     inputSchema: z.object({
       group_id: groupId,
       player_id: playerId.optional().describe("Only matches this player played."),
@@ -407,6 +446,16 @@ export function registerTools(server: McpServer) {
     outputSchema: outputs.list_matches,
     annotations: READ_ONLY,
   }, run(listMatches));
+
+  server.registerTool("get_match", {
+    title: "Get match",
+    description: "One match of a group with every recorded event and its ID, plus a version. " +
+      "Find the match with list_matches first; when several matches fit what the user said, show them and ask. " +
+      "Use the event IDs and version to target an exact event or match in a correction.",
+    inputSchema: z.object({ group_id: groupId, match_id: matchId }),
+    outputSchema: outputs.get_match,
+    annotations: READ_ONLY,
+  }, run(getMatch));
 
   server.registerTool("get_player_stats", {
     title: "Get player stats",
@@ -450,4 +499,6 @@ export function registerTools(server: McpServer) {
   }, run(createMatch));
 }
 
-export const TOOL_NAMES = ["list_groups", "list_players", "list_matches", "get_player_stats", "create_match"] as const;
+export const TOOL_NAMES = [
+  "list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "create_match",
+] as const;
