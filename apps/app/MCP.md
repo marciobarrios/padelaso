@@ -313,6 +313,10 @@ a revoked grant requires reconnecting. Automated tests cover manual admission du
 
 ## Connecting ChatGPT
 
+The public, user-facing guide is [padelaso.com/asistentes/chatgpt](https://padelaso.com/asistentes/chatgpt)
+(`apps/marketing/src/app/asistentes/chatgpt/page.tsx`, MAR-108). Keep it in sync with this section
+when the ChatGPT flow, plan requirements or consent copy change.
+
 As of 16 November 2026, OpenAI's
 [connection requirements](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
 describe custom MCP support on ChatGPT web for Business and Enterprise/Edu, with account and
