@@ -40,7 +40,7 @@ export default function ChatGptGuidePage() {
           <h2 id="requisitos" className="font-[850]">Antes de empezar</h2>
           <ul className="list-disc space-y-2 pl-6">
             <li>Necesitas una cuenta de Padelaso y pertenecer al menos a un grupo.</li>
-            <li>Necesitas ChatGPT en la web con un plan de pago: funciona con Plus, y también con Business, Enterprise y Edu, donde tu administrador puede limitarlo. Consulta los <a href="https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt" className={link}>requisitos actuales de OpenAI</a>.</li>
+            <li>Necesitas ChatGPT en la web. Funciona con los planes Plus, Business, Enterprise y Edu; en Business, Enterprise y Edu, tu administrador puede limitarlo. Consulta los <a href="https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt" className={link}>requisitos actuales de OpenAI</a>.</li>
             <li>No necesitas ningún ID de cliente ni contraseña de aplicación: solo la URL de Padelaso y tu propia cuenta.</li>
           </ul>
         </aside>
