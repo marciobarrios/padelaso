@@ -80,6 +80,23 @@ const savedAs = (status: string, minutesAgo = 0) => (request: CreateRequest) => 
   events: request.events.map((e, i) => ({ id: `88888888-8888-4888-8888-88888888888${i}`, ...e })),
 });
 
+/** What get_match_detail answers; tests replace it to simulate other outcomes. */
+let matchDetailAnswer: (request: { p_group_id: string; p_match_id: string }) => unknown;
+const EVENT_IDS = ["99999999-9999-4999-8999-999999999991", "99999999-9999-4999-8999-999999999992"];
+const foundMatch = () => ({
+  status: "found",
+  match: {
+    id: MATCH_ID, groupId: GROUP_ID, date: "2026-11-16T19:00:00.000Z", createdAt: "2026-11-16T21:00:00.000Z",
+    courtNumber: 4, team1: [ANA, PABLO], team2: [LUCIA, GONE],
+    sets: [{ team1Score: 6, team2Score: 3 }, { team1Score: 4, team2Score: 6 }, { team1Score: 7, team2Score: 5 }],
+  },
+  events: [
+    { id: EVENT_IDS[0], playerId: ANA, type: "ace" },
+    { id: EVENT_IDS[1], playerId: GONE, type: "old_event" },
+  ],
+  version: 12,
+});
+
 /** Rate limit counters by window, as public.hit_mcp_rate_limit keeps them. */
 let rateWindows: Map<string, number>;
 
@@ -111,6 +128,9 @@ function stubSupabase(overrides: Route = () => undefined) {
     }
     if (url.pathname === "/rest/v1/players") return json(players);
     if (url.pathname === "/rest/v1/rpc/hit_mcp_rate_limit") return Response.json(hitRateLimit(init));
+    if (url.pathname === "/rest/v1/rpc/get_match_detail") {
+      return Response.json(matchDetailAnswer(JSON.parse(String(init?.body))));
+    }
     if (url.pathname === "/rest/v1/rpc/create_match") {
       return Response.json(createMatchAnswer(JSON.parse(String(init?.body)).p_request));
     }
@@ -171,6 +191,7 @@ beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
   rateWindows = new Map();
   createMatchAnswer = savedAs("created");
+  matchDetailAnswer = foundMatch;
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
@@ -321,7 +342,7 @@ describe("MCP protocol and tools", () => {
     const { result } = await payload(await rpc(listTools, token));
     const tools = result.tools as { name: string; annotations: Record<string, boolean>; outputSchema?: object }[];
     expect(tools.map((t) => t.name).sort())
-      .toEqual(["create_match", "get_player_stats", "list_groups", "list_matches", "list_players"]);
+      .toEqual(["create_match", "get_match", "get_player_stats", "list_groups", "list_matches", "list_players"]);
     for (const tool of tools) {
       expect(tool.annotations).toMatchObject({
         readOnlyHint: tool.name !== "create_match", destructiveHint: false, openWorldHint: false,
@@ -542,6 +563,74 @@ describe("create_match", () => {
   it("refuses an unexpected database answer instead of reporting success", async () => {
     createMatchAnswer = () => ({ status: "created" });
     const result = await callTool("create_match", valid);
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+});
+
+describe("get_match", () => {
+  const args = { group_id: GROUP_ID, match_id: MATCH_ID };
+  const rpcCalls = () => restCalls().filter(([input]) => String(input).includes("/rpc/get_match_detail"));
+
+  it("returns the match with its event IDs and version, read as the caller", async () => {
+    const token = await sign(claims());
+    const result = await callTool("get_match", args, token);
+
+    expect(result.isError).toBeFalsy();
+    const [[, init]] = rpcCalls();
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${token}`);
+    expect(JSON.parse(String(init?.body))).toEqual({ p_group_id: GROUP_ID, p_match_id: MATCH_ID });
+
+    expect(result.structuredContent).toEqual({
+      group: groupRow,
+      match: {
+        id: MATCH_ID, date: "2026-11-16T19:00:00.000Z", court: 4,
+        team1: { players: [{ id: ANA, name: "Ana" }, { id: PABLO, name: "Pablo" }], setsWon: 2 },
+        team2: { players: [{ id: LUCIA, name: "Lucía" }, { id: GONE, name: null }], setsWon: 1 },
+        sets: [{ team1: 6, team2: 3 }, { team1: 4, team2: 6 }, { team1: 7, team2: 5 }],
+        winner: "team1",
+      },
+      events: [
+        { id: EVENT_IDS[0], player: { id: ANA, name: "Ana" }, type: "ace", label: "Ace" },
+        // Unknown types and deleted players still show, so they can be corrected.
+        { id: EVENT_IDS[1], player: { id: GONE, name: null }, type: "old_event", label: "old_event" },
+      ],
+      version: 12,
+      url: `${ORIGIN}/matches/${MATCH_ID}`,
+    });
+    expect(JSON.stringify(result.structuredContent)).not.toContain(USER_ID);
+  });
+
+  it("treats a match it cannot see as missing, without leaking whether it exists", async () => {
+    matchDetailAnswer = () => ({ status: "rejected", code: "MATCH_NOT_FOUND", message: "Match not found in this group." });
+    const result = await callTool("get_match", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/Match not found in this group. Use list_matches/);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  it("treats another group as missing", async () => {
+    const result = await callTool("get_match", { ...args, group_id: "66666666-6666-4666-8666-666666666666" });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/Group not found/);
+  });
+
+  it("validates IDs before touching the database", async () => {
+    const result = await callTool("get_match", { ...args, match_id: "m3" });
+    expect(result.isError).toBe(true);
+    expect(restCalls()).toHaveLength(0);
+  });
+
+  it("treats a missing user in the database as a server error", async () => {
+    matchDetailAnswer = () => ({ status: "rejected", code: "AUTH_REQUIRED", message: "Sign in to read matches." });
+    const result = await callTool("get_match", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/temporarily unavailable/);
+  });
+
+  it("refuses an unexpected database answer", async () => {
+    matchDetailAnswer = () => ({ ...foundMatch(), version: undefined });
+    const result = await callTool("get_match", args);
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
   });

@@ -165,3 +165,34 @@ export async function createMatchRecord(client: SupabaseClient, request: CreateM
   if (error) throw error;
   return createMatchResultSchema.parse(data);
 }
+
+// ---------- Reading one match for edits ----------
+
+const matchDetail = savedMatch.extend({
+  status: z.literal('found'),
+  /** Changes with every change to the match or its events, whoever makes it. */
+  version: z.number().int().nonnegative(),
+});
+
+const missingMatch = z.object({
+  status: z.literal('rejected'),
+  code: z.enum(['AUTH_REQUIRED', 'MATCH_NOT_FOUND']),
+  message: z.string(),
+});
+
+export const matchDetailResultSchema = z.union([matchDetail, missingMatch]);
+export type MatchDetailResult = z.infer<typeof matchDetailResultSchema>;
+
+/**
+ * One match of a group with its events' IDs and its version, as the caller.
+ * MATCH_NOT_FOUND covers missing matches, other groups' matches and groups the
+ * caller isn't in alike.
+ */
+export async function getMatchDetail(client: SupabaseClient, groupId: string,
+  matchId: string): Promise<MatchDetailResult> {
+  const { data, error } = await client.rpc('get_match_detail', {
+    p_group_id: uuid.parse(groupId), p_match_id: uuid.parse(matchId),
+  });
+  if (error) throw error;
+  return matchDetailResultSchema.parse(data);
+}

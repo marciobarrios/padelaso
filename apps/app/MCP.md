@@ -97,8 +97,8 @@ these tokens to what the tools need
   Realtime alike. Security definer functions bypass RLS, so `create_match` keeps working.
 - **A Data API pre-request guard** (`mcp_private.check_request`, set as
   `pgrst.db_pre_request` on `authenticator`): OAuth tokens may only `GET`/`HEAD` `/groups`,
-  `/players` and `/matches`, `POST /rpc/create_match` and `POST /rpc/hit_mcp_rate_limit` (the
-  rate limit counter). Anything else is a `403` with code
+  `/players` and `/matches`, `POST /rpc/create_match`, `POST /rpc/get_match_detail` and
+  `POST /rpc/hit_mcp_rate_limit` (the rate limit counter). Anything else is a `403` with code
   `OAUTH_CLIENT_FORBIDDEN`. This covers the other RPCs, which RLS can't, and GraphQL.
 
 Tokens without `client_id` (web and native sessions) pass both layers unchanged. A new tool
@@ -168,6 +168,7 @@ only: no invite codes, account IDs, creators or internal fields.
 | `list_groups` | — | `groups: [{ id, name, emoji }]` |
 | `list_players` | `group_id`, optional `name` (case- and accent-insensitive substring) | `group`, `players: [{ id, name, emoji, isYou }]` |
 | `list_matches` | `group_id`, optional `player_id`, `limit` 1–50 (default 10), `offset` 0–10000 | `group`, `matches: [{ id, date, court, team1, team2, sets, winner }]`, `nextOffset` |
+| `get_match` | `group_id`, `match_id` | `group`, `match` (as in `list_matches`), `events: [{ id, player, type, label }]`, `version`, `url` |
 | `get_player_stats` | `group_id`, `player_id` | `group`, `player`, `matches`, `wins`, `losses`, `undecided`, `winRate`, `currentStreak`, `bestStreak`, `recentForm`, `ranking`, `partners` |
 | `create_match` | `group_id`, `team1` and `team2` (two player IDs each), `sets` (1–5 of `{ team1, team2 }` games), optional `played_at`, `court`, `events`, `idempotency_key` | `status`, `message`, `group`, `match` (as in `list_matches`), `events`, `url` |
 
@@ -178,6 +179,15 @@ only: no invite codes, account IDs, creators or internal fields.
 - Stats reuse `@padelaso/domain/stats` (`calculatePlayerStats`, `getRecentForm`,
   `getPartnerStats`, `getRankedPlayerStats`) over the group's full history, so they match the
   app's player page and all-time stats ranking.
+- `get_match` (MAR-157) lets a model target one exact match and event for a correction. Events
+  keep their recorded order, and unknown (retired) types and deleted players still show, so they
+  can be corrected. `version` is the match's revision (`native_private.match_state.revision`):
+  triggers bump it on every change to its teams, sets, date, court or events, whoever makes it.
+  Edit tools (MAR-158 to MAR-160) will take it back to refuse changes based on a stale read.
+  It reads through `public.get_match_detail` (`supabase/migrations/20261117090000_get_match_detail.sql`),
+  a security definer function that checks membership itself: OAuth tokens still can't read
+  `match_events` directly. A missing match, another group's match and a group the caller isn't in
+  all answer "Match not found".
 - Match reads live in `@padelaso/data/queries`. Paging and the player filter run in the
   database. Full-history reads page until PostgREST's exact count is reached, so the API's
   `max_rows` cap can't truncate stats.
@@ -409,6 +419,9 @@ already shown on the consent page may have expired.
 - `src/lib/mcp/handler.test.ts` (rate limiting): requests under the limit, `429` with
   `Retry-After` over it without running the tool, separate budgets for two users and for two
   clients of one user under the shared user total, the counter failing open, and invalid limits.
+- `supabase/tests/get_match_detail_test.sql` (`pnpm test:db`): privileges, events with IDs in
+  order, a version that changes with every event and match change, and the same "not found" for
+  missing matches, other groups' matches and non-members, including with an OAuth token.
 - `supabase/tests/mcp_rate_limits_test.sql` (`pnpm test:db`): privileges, ordinary sessions
   refused, counts per user + client and per user, cleanup of old windows and of deleted users.
 - `supabase/tests/oauth_client_lockdown_test.sql` (`pnpm test:db`): OAuth tokens read only
