@@ -28,7 +28,7 @@ export default function PrivacyPage() {
 
         <section aria-labelledby="clientes" className="space-y-4">
           <h2 id="clientes" className={heading}>Asistentes y clientes conectados</h2>
-          <p>Conectar un cliente, como ChatGPT, es opcional. Al autorizarlo, le permites solicitar datos de Padelaso en tu nombre. Conecta solo aplicaciones de confianza.</p>
+          <p>Conectar un cliente, como ChatGPT, es opcional. Al autorizarlo, le permites solicitar datos de Padelaso en tu nombre. Conecta solo aplicaciones de confianza. Consulta <Link href="/asistentes/chatgpt" className={link}>cómo conectar ChatGPT</Link>.</p>
           <ul className="list-disc space-y-3 pl-6">
             <li>Puede consultar los grupos a los que perteneces, sus jugadores, el historial de partidos y sus estadísticas. Esto incluye datos de otros jugadores de esos grupos, como nombres y resultados.</li>
             <li>Puede registrar partidos nuevos con sus equipos, marcadores, fecha, pista y eventos. Revisa y confirma los detalles en el cliente antes de guardarlos. Los partidos registrados aparecen en Padelaso y afectan a las estadísticas del grupo.</li>
