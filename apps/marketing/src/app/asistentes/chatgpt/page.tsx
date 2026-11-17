@@ -70,7 +70,7 @@ export default function ChatGptGuidePage() {
             <li>Consultar los jugadores, el historial de partidos y las estadísticas de esos grupos.</li>
             <li>Registrar partidos nuevos en esos grupos. ChatGPT te pide confirmar los detalles antes de guardarlos.</li>
           </ul>
-          <p>No puede editar ni borrar partidos, jugadores ni grupos, ni ver grupos de los que no eres miembro. Más detalles en <Link href="/privacidad" className={link}>Privacidad</Link>.</p>
+          <p>Las herramientas actuales no permiten editar ni borrar partidos, jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro. Más detalles en <Link href="/privacidad" className={link}>Privacidad</Link>.</p>
         </section>
 
         <section aria-labelledby="ejemplos" className="space-y-4">
