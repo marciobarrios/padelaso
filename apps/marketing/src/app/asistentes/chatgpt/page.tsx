@@ -40,7 +40,7 @@ export default function ChatGptGuidePage() {
           <h2 id="requisitos" className="font-[850]">Antes de empezar</h2>
           <ul className="list-disc space-y-2 pl-6">
             <li>Necesitas una cuenta de Padelaso y pertenecer al menos a un grupo.</li>
-            <li>Necesitas ChatGPT en la web. Funciona con los planes Plus, Business, Enterprise y Edu; en Business, Enterprise y Edu, tu administrador puede limitarlo. Consulta los <a href="https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt" className={link}>requisitos actuales de OpenAI</a>.</li>
+            <li>Puedes añadirlo desde ChatGPT en la web o en la app de Mac. Funciona con los planes Plus, Business, Enterprise y Edu; en Business, Enterprise y Edu, tu administrador puede limitarlo. Consulta los <a href="https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt" className={link}>requisitos actuales de OpenAI</a>.</li>
             <li>No necesitas ningún ID de cliente ni contraseña de aplicación: solo la URL de Padelaso y tu propia cuenta.</li>
           </ul>
         </aside>
@@ -49,7 +49,7 @@ export default function ChatGptGuidePage() {
           <h2 id="pasos" className={heading}>Cómo conectarlo</h2>
           <p>Los nombres de los botones aparecen en inglés, tal como los muestra ChatGPT; si lo usas en español, pueden estar traducidos.</p>
           <ol className="list-decimal space-y-5 pl-6 marker:font-[850]">
-            <li>Abre <a href="https://chatgpt.com/plugins" className={link}>Plugins en ChatGPT</a>, pulsa <strong>+</strong> (o <strong>Add</strong>) arriba a la derecha y elige <strong>Add custom MCP server</strong>. No uses la pestaña <strong>MCPs</strong>: añade servidores locales y no funciona con Padelaso.</li>
+            <li>Abre <strong>Plugins</strong> en ChatGPT (en la web, <a href="https://chatgpt.com/plugins" className={link}>chatgpt.com/plugins</a>), pulsa <strong>+</strong> (o <strong>Add</strong>) arriba a la derecha y elige <strong>Add custom MCP server</strong>. No uses la pestaña <strong>MCPs</strong>: añade servidores locales y no funciona con Padelaso.</li>
             <li className="space-y-3">
               <p>Escribe <strong>Padelaso</strong> como nombre y pega esta URL en <strong>Server URL</strong>, dentro de <strong>Connection</strong>:</p>
               <CopyUrl url={mcpUrl} />
