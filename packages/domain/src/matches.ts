@@ -34,8 +34,8 @@ export function applyScoreDelta(
 // ---------- Recording a finished match ----------
 // The create_match and update_match database functions enforce the same rules,
 // so keep supabase/migrations/*_create_match.sql and *_update_match.sql in step
-// with these values.
-
+// with these values, and the user-facing rules on padelaso.com/asistentes
+// (apps/marketing/src/app/asistentes/page.tsx).
 export const MAX_RECORDED_SETS = 5;
 export const MAX_SET_SCORE = 99;
 export const MAX_RECORDED_EVENTS = 50;
