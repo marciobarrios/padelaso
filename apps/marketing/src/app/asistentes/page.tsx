@@ -44,7 +44,7 @@ const rules = [
   "De 1 a 5 sets, con juegos de 0 a 99 por equipo. Un set 0-0 no cuenta: no lo incluyas.",
   "La fecha es la de ahora si no dices otra. No puede ser futura ni de hace más de un año.",
   "La pista (de 1 a 99) y los eventos (aces, dobles faltas, jugadas del partido…) son opcionales. Hasta 50 eventos por partido, siempre de alguno de los cuatro jugadores.",
-  "Si el asistente intenta guardar otra vez un partido que ya guardó hace menos de 15 minutos (mismo grupo, mismos equipos y resultado, y una fecha de hasta 12 horas de diferencia), Padelaso le devuelve el que ya existe en lugar de crear uno repetido.",
+  "Si en los últimos 15 minutos ya se guardó un partido igual (mismo grupo, mismos equipos y resultado, y una fecha de hasta 12 horas de diferencia), Padelaso devuelve ese partido en lugar de crear uno repetido.",
 ];
 
 export default function AssistantsHelpPage() {
