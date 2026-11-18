@@ -21,9 +21,10 @@
 --
 -- Concurrency: expectedVersion is the version get_match_detail returned
 -- (native_private.match_state.revision). If the match or its events changed
--- since, the update is refused with STALE_VERSION. The match row is locked for
--- update first, so no other writer (web, native, add_match_events) can change
--- the match or add events between the check and the write.
+-- since, the update is refused with STALE_VERSION. The match row and its
+-- match_state row are locked for update first, so no other writer (web, native,
+-- add_match_events) can change the match or its events between the check and
+-- the write.
 --
 -- Retries: the idempotency key is required, scoped per user and kept 48 hours.
 -- The same key with the same request replays the result (the first call already
@@ -256,9 +257,12 @@ begin
       v_status := 'replayed';
       v_changed := v_receipt.changed;
     else
+      -- Locked too: deleting an event takes no lock on the match row, but bumps
+      -- this one, so it can't slip in between the check and the write.
       select revision into strict v_version
       from native_private.match_state
-      where match_id = v_match_id;
+      where match_id = v_match_id
+      for update;
       if v_version <> v_expected_version then
         return match_private.error('STALE_VERSION',
           'The match changed since it was read. Read it again before changing it.')

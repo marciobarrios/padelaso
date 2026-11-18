@@ -1009,7 +1009,7 @@ describe("update_match", () => {
     ["an unplayed set", { patch: { sets: [{ team1: 6, team2: 4 }, { team1: 0, team2: 0 }] } }],
     ["a date without a UTC offset", { patch: { played_at: "2026-11-15T20:00:00" } }],
     ["court 0", { patch: { court: 0 } }],
-    ["an unknown field", { patch: { events: [] } }],
+    ["an unknown field next to a valid one", { patch: { court: 3, events: [] } }],
     ["a missing version", { expected_version: undefined }],
     ["a missing idempotency key", { idempotency_key: undefined }],
     ["an idempotency key that is not a UUID", { idempotency_key: "fix-score" }],

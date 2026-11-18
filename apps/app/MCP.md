@@ -366,9 +366,10 @@ one transaction:
   implicitly.
 - **Concurrency.** `expected_version` must equal the match's current version, or the call is
   refused with `STALE_VERSION` and the current version; the model reads the match again and
-  reconfirms. The match row is locked `FOR UPDATE` before the check, which also blocks event
-  inserts through the foreign key, so no writer (web, native, `add_match_events`) can slip in
-  between the check and the write. One `UPDATE` moves the version by exactly one.
+  reconfirms. The match row is locked `FOR UPDATE` (which also blocks event inserts
+  through the foreign key) and so is its `match_state` row (which event deletes bump) before
+  the check, so no writer (web, native, `add_match_events`) can slip in between the check and
+  the write. One `UPDATE` moves the version by exactly one.
 - **Retries.** `idempotency_key` is required, kept per user for 48 hours in
   `match_private.update_receipts`. The first call moves the version, so a plain retry would look
   stale; the receipt makes the same key and request replay (`status: "replayed"`, with the

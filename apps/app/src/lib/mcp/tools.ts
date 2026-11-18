@@ -876,7 +876,7 @@ export function registerTools(server: McpServer) {
         played_at: playedAt.optional().describe(
           "When the match was played, ISO 8601 with a UTC offset, e.g. 2026-11-14T19:00:00+01:00."),
         court: z.number().int().min(1).max(99).nullable().optional().describe("Court number, or null to clear it."),
-      }).describe("Only the fields to change. Leave out everything that stays the same."),
+      }).strict().describe("Only the fields to change. Leave out everything that stays the same."),
       idempotency_key: z.uuid().describe(
         "A random UUID generated once for each confirmed correction. Reuse it only to retry the same call. " +
         "Never put names or other details in it."),
