@@ -246,6 +246,10 @@ everything again and saves the match and its events in one transaction:
   failure leaves nothing. Refused requests save no receipt, so a fixed request can reuse the
   key.
 
+The rules above are explained to users on [padelaso.com/asistentes](https://padelaso.com/asistentes)
+(`apps/marketing/src/app/asistentes/page.tsx`, MAR-136), together with what assistants can do and
+how they confirm before saving. Update that page in the same PR when the rules or tools change.
+
 Created matches are ordinary rows: the web, mobile, native scoring state and stats see them
 immediately. `url` is `<app origin>/matches/<id>`, derived from `MCP_RESOURCE_URL`.
 

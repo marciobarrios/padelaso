@@ -84,7 +84,7 @@ export default function ChatGptGuidePage() {
               <li key={example} className="rounded-sm border border-line bg-card px-4 py-3">@Padelaso {example}</li>
             ))}
           </ul>
-          <p className="text-sm text-ink-soft">Si perteneces a varios grupos, dile en cuál quieres consultar o registrar.</p>
+          <p className="text-sm text-ink-soft">Si perteneces a varios grupos, dile en cuál quieres consultar o registrar. Cómo registra un partido y qué reglas sigue: <Link href="/asistentes" className={link}>Padelaso en tu asistente de IA</Link>.</p>
         </section>
 
         <section aria-labelledby="desconectar" className="space-y-4">
@@ -97,6 +97,7 @@ export default function ChatGptGuidePage() {
           <ul className="list-disc space-y-2 pl-6">
             <li><strong>No ves Add custom MCP server:</strong> tu plan o tu espacio de trabajo no lo permite. Pregunta a tu administrador.</li>
             <li><strong>ChatGPT te pide un ID o secreto de cliente:</strong> no los necesitas. Borra el plugin y vuelve a crearlo con la URL y OAuth.</li>
+            <li><strong>ChatGPT dice que no puede registrar o corregir partidos:</strong> puede tener guardada una lista antigua de herramientas. Empieza un chat nuevo; si sigue igual, desconéctalo y vuelve a conectarlo.</li>
             <li><strong>Padelaso no responde en el chat:</strong> escribe @ y elige Padelaso de nuevo, o desconéctalo y vuelve a conectarlo.</li>
           </ul>
         </section>

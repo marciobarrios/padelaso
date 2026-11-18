@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { OAuthGrant } from "@supabase/supabase-js";
 
 const CHATGPT_GUIDE_URL = "https://padelaso.com/asistentes/chatgpt";
+const ASSISTANTS_HELP_URL = "https://padelaso.com/asistentes";
 const REVOCATION_NOTE = "Al desconectar, la aplicación no podrá renovar su acceso. El acceso que ya tiene puede durar hasta 1 hora.";
 
 export function Integrations() {
@@ -49,6 +50,7 @@ export function Integrations() {
         <h2 id="integrations-title" className="text-xl font-bold font-heading">Integraciones</h2>
         <p className="text-sm text-muted-foreground">Aplicaciones de IA conectadas a tu cuenta de Padelaso.</p>
         <p className="text-sm text-muted-foreground">{REVOCATION_NOTE}</p>
+        <p className="text-sm"><a href={ASSISTANTS_HELP_URL} className="underline underline-offset-4">Qué puedes pedirle a un asistente</a></p>
       </div>
       {(!user || isLoading) && <p role="status">Cargando conexiones…</p>}
       {error && <div role="alert" className="space-y-2"><p>No se pudieron cargar las conexiones.</p><Button variant="outline" onClick={() => void mutate()}>Reintentar</Button></div>}
