@@ -22,6 +22,9 @@ describe("MCP consent page", () => {
     vi.stubEnv("MCP_ALLOWED_CLIENT_IDS", "client");
     render(await ConsentPage(params));
     expect(screen.getByText("Permiso: leer y registrar partidos")).toBeTruthy();
+    // States every write the tools can make, including removing one event (MAR-159).
+    expect(screen.getByText(/Quitar un evento registrado por error, de uno en uno/)).toBeTruthy();
+    expect(screen.getByText("No incluye herramientas para cambiar ni borrar partidos, jugadores ni grupos")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Permitir" }) as HTMLButtonElement).disabled).toBe(false);
   });
   it.each(["", "another-client"])("blames the client when not allowlisted (%s)", async (clients) => {

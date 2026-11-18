@@ -22,7 +22,7 @@ export default function PrivacyPage() {
       <article className="mt-8 space-y-10 text-base leading-relaxed">
         <header className="space-y-4">
           <h1 className="font-pixel text-4xl leading-tight tracking-tight sm:text-5xl">Privacidad</h1>
-          <p className="text-sm text-ink-soft">Actualizado el 17 de noviembre de 2026</p>
+          <p className="text-sm text-ink-soft">Actualizado el 18 de noviembre de 2026</p>
           <p>Esta primera sección de privacidad explica las conexiones de Padelaso con asistentes de inteligencia artificial mediante MCP (Model Context Protocol).</p>
         </header>
 
@@ -33,7 +33,8 @@ export default function PrivacyPage() {
             <li>Puede consultar los grupos a los que perteneces, sus jugadores, el historial de partidos y sus estadísticas. Esto incluye datos de otros jugadores de esos grupos, como nombres y resultados.</li>
             <li>Puede registrar partidos nuevos con sus equipos, marcadores, fecha, pista y eventos. Revisa y confirma los detalles en el cliente antes de guardarlos. Los partidos registrados aparecen en Padelaso y afectan a las estadísticas del grupo.</li>
             <li>Puede añadir eventos a partidos ya registrados. Revisa y confirma los eventos en el cliente antes de guardarlos. Aparecen en el partido y en las estadísticas del grupo.</li>
-            <li>Las herramientas actuales no permiten cambiar ni borrar partidos, eventos ya registrados, jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro.</li>
+            <li>Puede quitar un evento registrado por error, de uno en uno. Revisa y confirma el evento en el cliente antes de quitarlo. Desaparece del partido y de las estadísticas del grupo.</li>
+            <li>Las herramientas actuales no permiten cambiar ni borrar partidos, jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro.</li>
           </ul>
           <p>La pantalla de autorización también indica si se comparten datos de identidad, como tu correo o tu perfil, según los permisos solicitados.</p>
         </section>

@@ -17,10 +17,11 @@ const CAN = [
   "Ver los grupos a los que perteneces",
   "Consultar los jugadores, el historial de partidos y las estadísticas de esos grupos",
   "Registrar partidos nuevos en esos grupos y añadir eventos a partidos ya registrados, después de que confirmes los detalles",
+  "Quitar un evento registrado por error, de uno en uno, después de que confirmes cuál",
 ];
 // The grant is a full account token, so this describes the connection's tools
 // and never promises that the application is unable to do more.
-const NOT_OFFERED = ["No incluye herramientas para cambiar ni borrar partidos, eventos ya registrados, jugadores ni grupos"];
+const NOT_OFFERED = ["No incluye herramientas para cambiar ni borrar partidos, jugadores ni grupos"];
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -136,7 +137,7 @@ export default async function ConsentPage({
           </div>
           <div className="space-y-2 text-xs text-muted-foreground text-pretty">
             <p>
-              Esta conexión permite leer los datos de tus grupos, registrar partidos y añadirles eventos.
+              Esta conexión permite leer los datos de tus grupos, registrar partidos, añadirles eventos y quitar eventos.
             </p>
             <p>Si se revoca el permiso, un acceso ya emitido puede seguir funcionando hasta una hora.</p>
             {destination && (

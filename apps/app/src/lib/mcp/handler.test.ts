@@ -107,6 +107,15 @@ const addedAs = (status: string) => (request: AddRequest) => {
   return { ...before, status, events: [...before.events, ...added], version: 14, addedEventIds: added.map((e) => e.id) };
 };
 
+type RemoveRequest = { groupId: string; matchId: string; eventId: string; expectedVersion: number };
+/** What remove_match_event answers; tests replace it to simulate other outcomes. */
+let removeEventAnswer: (request: RemoveRequest) => unknown;
+const removedAs = (status: string) => (request: RemoveRequest) => {
+  const before = foundMatch();
+  const removed = before.events.find((e) => e.id === request.eventId)!;
+  return { ...before, status, events: before.events.filter((e) => e !== removed), version: 13, removedEvent: removed };
+};
+
 /** Rate limit counters by window, as public.hit_mcp_rate_limit keeps them. */
 let rateWindows: Map<string, number>;
 
@@ -143,6 +152,9 @@ function stubSupabase(overrides: Route = () => undefined) {
     }
     if (url.pathname === "/rest/v1/rpc/add_match_events") {
       return Response.json(addEventsAnswer(JSON.parse(String(init?.body)).p_request));
+    }
+    if (url.pathname === "/rest/v1/rpc/remove_match_event") {
+      return Response.json(removeEventAnswer(JSON.parse(String(init?.body)).p_request));
     }
     if (url.pathname === "/rest/v1/rpc/create_match") {
       return Response.json(createMatchAnswer(JSON.parse(String(init?.body)).p_request));
@@ -206,6 +218,7 @@ beforeEach(() => {
   createMatchAnswer = savedAs("created");
   matchDetailAnswer = foundMatch;
   addEventsAnswer = addedAs("added");
+  removeEventAnswer = removedAs("removed");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
@@ -356,11 +369,14 @@ describe("MCP protocol and tools", () => {
     const { result } = await payload(await rpc(listTools, token));
     const tools = result.tools as { name: string; annotations: Record<string, boolean>; outputSchema?: object }[];
     expect(tools.map((t) => t.name).sort())
-      .toEqual(["add_match_events", "create_match", "get_match", "get_player_stats", "list_groups", "list_matches", "list_players"]);
-    const writes = ["create_match", "add_match_events"];
+      .toEqual(["add_match_events", "create_match", "get_match", "get_player_stats", "list_groups", "list_matches", "list_players",
+        "remove_match_event"]);
+    const writes = ["create_match", "add_match_events", "remove_match_event"];
     for (const tool of tools) {
       expect(tool.annotations).toMatchObject({
-        readOnlyHint: !writes.includes(tool.name), destructiveHint: false, openWorldHint: false,
+        readOnlyHint: !writes.includes(tool.name),
+        destructiveHint: tool.name === "remove_match_event",
+        openWorldHint: false,
       });
       expect(tool.outputSchema).toBeDefined();
     }
@@ -766,6 +782,116 @@ describe("add_match_events", () => {
   it("refuses an unexpected database answer instead of reporting success", async () => {
     addEventsAnswer = (request) => ({ ...(addedAs("added")(request) as object), addedEventIds: undefined });
     const result = await callTool("add_match_events", args);
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+});
+
+describe("remove_match_event", () => {
+  const args = { group_id: GROUP_ID, match_id: MATCH_ID, event_id: EVENT_IDS[0], expected_version: 12 };
+  const rpcCalls = () => restCalls().filter(([input]) => String(input).includes("/rpc/remove_match_event"));
+
+  it("is a destructive, idempotent write that asks for confirmation", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    const tool = result.tools.find((t: { name: string }) => t.name === "remove_match_event");
+    expect(tool.annotations).toEqual({
+      readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false,
+    });
+    expect(tool.inputSchema.required.sort()).toEqual(["event_id", "expected_version", "group_id", "match_id"]);
+    expect(tool.description).toMatch(/call only after they confirm/);
+    expect(tool.description).toMatch(/version from that get_match/);
+  });
+
+  it("removes through the remove_match_event function as the caller", async () => {
+    const token = await sign(claims());
+    const result = await callTool("remove_match_event", args, token);
+
+    expect(result.isError).toBeFalsy();
+    const [[, init]] = rpcCalls();
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${token}`);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      p_request: { groupId: GROUP_ID, matchId: MATCH_ID, eventId: EVENT_IDS[0], expectedVersion: 12 },
+    });
+
+    expect(result.structuredContent).toEqual({
+      status: "removed",
+      message: "Event removed.",
+      group: groupRow,
+      match: {
+        id: MATCH_ID, date: "2026-11-16T19:00:00.000Z", court: 4,
+        team1: { players: [{ id: ANA, name: "Ana" }, { id: PABLO, name: "Pablo" }], setsWon: 2 },
+        team2: { players: [{ id: LUCIA, name: "Lucía" }, { id: GONE, name: null }], setsWon: 1 },
+        sets: [{ team1: 6, team2: 3 }, { team1: 4, team2: 6 }, { team1: 7, team2: 5 }],
+        winner: "team1",
+      },
+      removed: { id: EVENT_IDS[0], player: { id: ANA, name: "Ana" }, type: "ace", label: "Ace" },
+      events: [{ id: EVENT_IDS[1], player: { id: GONE, name: null }, type: "old_event", label: "old_event" }],
+      version: 13,
+      url: `${ORIGIN}/matches/${MATCH_ID}`,
+    });
+    expect(JSON.stringify(result.structuredContent)).not.toContain(USER_ID);
+  });
+
+  it("removes a retired event type of a deleted player", async () => {
+    const result = await callTool("remove_match_event", { ...args, event_id: EVENT_IDS[1] });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent.removed).toEqual(
+      { id: EVENT_IDS[1], player: { id: GONE, name: null }, type: "old_event", label: "old_event" });
+  });
+
+  it("reports a retry that found the event already removed", async () => {
+    removeEventAnswer = removedAs("already_removed");
+    const result = await callTool("remove_match_event", args);
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent.status).toBe("already_removed");
+    expect(result.structuredContent.message).toMatch(/already been removed.*Nothing changed/);
+    expect(result.structuredContent.removed.id).toBe(EVENT_IDS[0]);
+  });
+
+  it.each([
+    ["an event name instead of an ID", { event_id: "ace" }],
+    ["a missing version", { expected_version: undefined }],
+    ["a negative version", { expected_version: -1 }],
+    ["a fractional version", { expected_version: 12.5 }],
+    ["a version as text", { expected_version: "12" }],
+    ["a match name instead of an ID", { match_id: "yesterday" }],
+  ])("never removes with %s", async (_label, overrides) => {
+    const result = await callTool("remove_match_event", { ...args, ...overrides });
+    expect(result.isError).toBe(true);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it("never removes from a group the caller cannot see", async () => {
+    const result = await callTool("remove_match_event", { ...args, group_id: "66666666-6666-4666-8666-666666666666" });
+    expect(result.content[0].text).toMatch(/Group not found/);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it.each([
+    ["MATCH_NOT_FOUND", /Match not found in this group. Use list_matches/],
+    ["EVENT_NOT_FOUND", /Event not found in this match. Use get_match/],
+    ["STALE_VERSION", /changed since you read it. Call get_match again/],
+    ["BUSY", /Try again in a moment/],
+    ["INVALID_REQUEST", /expectedVersion must be the version/],
+  ])("explains a %s refusal from the database", async (code, message) => {
+    removeEventAnswer = () => ({ status: "rejected", code, message: "expectedVersion must be the version from get_match." });
+    const result = await callTool("remove_match_event", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(message);
+    expect(result.content[0].text).toMatch(/Nothing was removed/);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  it("treats a missing user in the database as a server error", async () => {
+    removeEventAnswer = () => ({ status: "rejected", code: "AUTH_REQUIRED", message: "Sign in again." });
+    const result = await callTool("remove_match_event", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/temporarily unavailable/);
+  });
+
+  it("refuses an unexpected database answer instead of reporting success", async () => {
+    removeEventAnswer = (request) => ({ ...(removedAs("removed")(request) as object), removedEvent: undefined });
+    const result = await callTool("remove_match_event", args);
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
   });
