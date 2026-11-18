@@ -601,6 +601,96 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     expect(await savedIds()).toEqual(remaining);
   });
 
+  it("corrects only the requested fields, refusing stale, replayed and unsafe changes (MAR-160)", async () => {
+    const created = await callTool("create_match", {
+      group_id: groupId,
+      team1: [ids.Ana, ids.Pablo],
+      team2: [ids["Lucía"], ids.Marta],
+      // A score no earlier test records, so the duplicate window doesn't return another match.
+      sets: [{ team1: 7, team2: 5 }],
+      court: 2,
+      events: [{ player_id: ids["Lucía"], type: "ace" }],
+      idempotency_key: randomUUID(),
+    });
+    expect(created.structuredContent.status).toBe("created");
+    const matchId = created.structuredContent.match.id;
+    const row = async () => must(await admin.from("matches")
+      .select("team1, team2, sets, date, court_number, created_by, match_events(id)")
+      .eq("id", matchId).single()) as Record<string, unknown>;
+    const pablo = async () => (await callTool("get_player_stats", { group_id: groupId, player_id: ids.Pablo }))
+      .structuredContent as { wins: number; losses: number };
+    const original = await row();
+    const statsBefore = await pablo();
+    const { version } = (await callTool("get_match", { group_id: groupId, match_id: matchId })).structuredContent;
+
+    // The score only: team 1 lost after all.
+    const score = {
+      group_id: groupId, match_id: matchId, expected_version: version,
+      patch: { sets: [{ team1: 3, team2: 6 }, { team1: 2, team2: 6 }] }, idempotency_key: randomUUID(),
+    };
+    const corrected = await callTool("update_match", score);
+    expect(corrected.isError).toBeFalsy();
+    expect(corrected.structuredContent).toMatchObject({
+      status: "updated", changed: ["sets"], match: { id: matchId, winner: "team2", court: 2 },
+      url: `${ORIGIN}/matches/${matchId}`,
+    });
+    expect(await row()).toEqual({
+      ...original, sets: [{ team1Score: 3, team2Score: 6 }, { team1Score: 2, team2Score: 6 }],
+    });
+    // Stats and ranking read the corrected result right away.
+    const statsAfter = await pablo();
+    expect(statsAfter).toMatchObject({ wins: statsBefore.wins - 1, losses: statsBefore.losses + 1 });
+    const detail = await callTool("get_match", { group_id: groupId, match_id: matchId });
+    expect(detail.structuredContent.version).toBe(corrected.structuredContent.version);
+    expect(corrected.structuredContent.version).toBeGreaterThan(version);
+
+    // A retry replays; a new correction from the old read is stale.
+    const retry = await callTool("update_match", score);
+    expect(retry.structuredContent).toMatchObject({ status: "replayed", version: corrected.structuredContent.version });
+    const stale = await callTool("update_match", { ...score, idempotency_key: randomUUID(), patch: { court: 5 } });
+    expect(stale.content[0].text).toMatch(/changed since it was read.*Nothing was saved/);
+
+    // Lucía has an event, so she can't leave the match for a fifth player.
+    const current = corrected.structuredContent.version;
+    const jose = (must(await admin.from("players")
+      .insert({ name: "José", emoji: "J", group_id: groupId, created_by: memberId }).select("id").single()) as { id: string }).id;
+    const dropLucia = await callTool("update_match", {
+      ...score, expected_version: current, idempotency_key: randomUUID(),
+      patch: { team1: [ids.Ana, ids.Pablo], team2: [ids.Marta, jose] },
+    });
+    expect(dropLucia.content[0].text).toMatch(/still have events in it: Lucía.*Nothing was saved/);
+    must(await admin.from("players").delete().eq("id", jose));
+
+    // Swapping Pablo and Marta keeps everyone, so it is allowed.
+    const playedAt = new Date(Date.now() - 2 * 86_400_000);
+    playedAt.setUTCMilliseconds(0);
+    const swapped = await callTool("update_match", {
+      ...score, expected_version: current, idempotency_key: randomUUID(),
+      patch: { team1: [ids.Ana, ids.Marta], team2: [ids["Lucía"], ids.Pablo], played_at: playedAt.toISOString(), court: null },
+    });
+    expect(swapped.structuredContent).toMatchObject({
+      status: "updated", changed: ["team1", "team2", "played_at", "court"],
+      events: [{ player: { id: ids["Lucía"] }, type: "ace" }],
+    });
+    const final = await row();
+    expect(final).toMatchObject({
+      team1: [ids.Ana, ids.Marta], team2: [ids["Lucía"], ids.Pablo],
+      sets: [{ team1Score: 3, team2Score: 6 }, { team1Score: 2, team2Score: 6 }],
+      court_number: null, created_by: memberId, match_events: original.match_events,
+    });
+    expect(Date.parse(final.date as string)).toBe(playedAt.getTime());
+
+    // Straight to the database function: a non-member sees nothing and changes nothing.
+    const nonMember = await dataClient(stranger.jwt).rpc("update_match", {
+      p_request: {
+        groupId, matchId, expectedVersion: swapped.structuredContent.version,
+        patch: { courtNumber: 9 }, idempotencyKey: randomUUID(),
+      },
+    });
+    expect(nonMember.data).toEqual({ status: "rejected", code: "MATCH_NOT_FOUND", message: "Match not found in this group." });
+    expect(await row()).toEqual(final);
+  });
+
   describe("direct Data API access with the OAuth token (MAR-144)", () => {
     const forbidden = { code: "OAUTH_CLIENT_FORBIDDEN" };
 

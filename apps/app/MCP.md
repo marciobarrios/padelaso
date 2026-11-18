@@ -1,12 +1,13 @@
-# Padelaso MCP server (MAR-98, MAR-99, MAR-158, MAR-159)
+# Padelaso MCP server (MAR-98, MAR-99, MAR-158, MAR-159, MAR-160)
 
 Padelaso exposes a remote [Model Context Protocol](https://modelcontextprotocol.io) server so
 assistants such as ChatGPT and Claude can read a user's groups, players, match history and
-stats, record new matches, add events to recorded ones and remove a mistaken event. Users sign in with their Padelaso account through Supabase
+stats, record new matches, add events to recorded ones, remove a mistaken event and correct a match. Users sign in with their Padelaso account through Supabase
 Auth's OAuth 2.1 server. Access is open to all signed-in, non-anonymous users through admitted OAuth clients (manual allowlist or opt-in ChatGPT self-service). Phase 1 (MAR-98) added the
 read tools; phase 2 (MAR-99) adds `create_match`; MAR-158 adds `add_match_events`; MAR-159 adds
-`remove_match_event`. The only tool that removes data is `remove_match_event`, one event at a
-time; no tool changes or deletes matches, players or groups.
+`remove_match_event`; MAR-160 adds `update_match`, which corrects a match's teams, score, date or
+court. The only tool that removes data is `remove_match_event`, one event at a time; no tool
+deletes matches, players or groups.
 
 | | |
 | --- | --- |
@@ -16,7 +17,7 @@ time; no tool changes or deletes matches, players or groups.
 | AS metadata | `<SUPABASE_URL>/.well-known/oauth-authorization-server/auth/v1` |
 | Consent page | `/oauth/consent` |
 | Code | `src/lib/mcp/` (config, auth, tools, handler), `src/app/oauth/consent/` |
-| Write paths | `public.create_match` (`supabase/migrations/20261114234718_create_match.sql`), `public.add_match_events` (`supabase/migrations/20261117180000_add_match_events.sql`), `public.remove_match_event` (`supabase/migrations/20261118100000_remove_match_event.sql`) |
+| Write paths | `public.create_match` (`supabase/migrations/20261114234718_create_match.sql`), `public.add_match_events` (`supabase/migrations/20261117180000_add_match_events.sql`), `public.remove_match_event` (`supabase/migrations/20261118100000_remove_match_event.sql`), `public.update_match` (`supabase/migrations/20261118110000_update_match.sql`) |
 
 Built with `mcp-handler` 2.3, `@modelcontextprotocol/server` 2.4 and Zod 4 on the Node.js
 runtime. Every request builds a fresh MCP server, so there is no session store or affinity.
@@ -97,11 +98,11 @@ these tokens to what the tools need
 - **Restrictive RLS policies** on every `public` table: no inserts, updates or deletes, and no
   reads beyond `groups`, `players` and `matches`. They apply to the Data API, GraphQL and
   Realtime alike. Security definer functions bypass RLS, so `create_match`,
-  `add_match_events` and `remove_match_event` keep working.
+  `add_match_events`, `remove_match_event` and `update_match` keep working.
 - **A Data API pre-request guard** (`mcp_private.check_request`, set as
   `pgrst.db_pre_request` on `authenticator`): OAuth tokens may only `GET`/`HEAD` `/groups`,
   `/players` and `/matches`, `POST /rpc/create_match`, `POST /rpc/get_match_detail`,
-  `POST /rpc/add_match_events`, `POST /rpc/remove_match_event` and
+  `POST /rpc/add_match_events`, `POST /rpc/remove_match_event`, `POST /rpc/update_match` and
   `POST /rpc/hit_mcp_rate_limit` (the rate limit counter). Anything else is a `403` with code
   `OAUTH_CLIENT_FORBIDDEN`. This covers the other RPCs, which RLS can't, and GraphQL.
 
@@ -116,8 +117,9 @@ Gaps to keep in mind:
   `jwt_expiry` (1 hour).
 
 The consent page states the single v1 permission, "leer y registrar partidos": it lists what the connection's tools do (read data,
-record matches, add events to recorded ones and remove one mistaken event at a time, after
-confirmation) and what they don't (change or delete matches, players or groups), never claiming the grant itself is
+record matches, add events to recorded ones, remove one mistaken event at a time and correct a
+recorded match's date, court, teams or score, after confirmation) and what they don't (delete
+matches, change or delete players or groups), never claiming the grant itself is
 limited. The marketing privacy page and ChatGPT guide say the same. It is also served with `frame-ancestors 'none'` and
 `X-Frame-Options: DENY` (`next.config.ts`) so it can't be framed.
 
@@ -167,7 +169,9 @@ Read tools are annotated `readOnlyHint: true`, `destructiveHint: false`, `idempo
 `idempotentHint: false`, `openWorldHint: false`. `add_match_events` is `readOnlyHint: false`,
 `destructiveHint: false`, `idempotentHint: true` (its key is required), `openWorldHint: false`.
 `remove_match_event` is `readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: true`
-(a retry reports `already_removed`), `openWorldHint: false`.
+(a retry reports `already_removed`), `openWorldHint: false`. `update_match` is
+`readOnlyHint: false`, `destructiveHint: true` (it overwrites recorded values),
+`idempotentHint: true` (its key is required), `openWorldHint: false`.
 Every tool declares an `outputSchema`.
 Results return `structuredContent` and the same JSON as text. Outputs contain display data
 only: no invite codes, account IDs, creators or internal fields.
@@ -182,6 +186,7 @@ only: no invite codes, account IDs, creators or internal fields.
 | `create_match` | `group_id`, `team1` and `team2` (two player IDs each), `sets` (1–5 of `{ team1, team2 }` games), optional `played_at`, `court`, `events`, `idempotency_key` | `status`, `message`, `group`, `match` (as in `list_matches`), `events`, `url` |
 | `add_match_events` | `group_id`, `match_id`, `events` (1–50 of `{ player_id, type }`), `idempotency_key` (UUID) | `status`, `message`, `group`, `match` (as in `list_matches`), `added` and `events` (as in `get_match`), `version`, `url` |
 | `remove_match_event` | `group_id`, `match_id`, `event_id`, `expected_version` (from `get_match`) | `status`, `message`, `group`, `match` (as in `list_matches`), `removed` and `events` (as in `get_match`), `version`, `url` |
+| `update_match` | `group_id`, `match_id`, `expected_version` (from `get_match`), `patch` (any of `team1` and `team2` together, `sets`, `played_at`, `court` or `null`), `idempotency_key` (UUID) | `status`, `message`, `changed`, `group`, `match` (as in `list_matches`), `events` (as in `get_match`), `version`, `url` |
 
 - `isYou` marks the player linked to the signed-in user, so "my stats" works without exposing
   user IDs.
@@ -194,8 +199,9 @@ only: no invite codes, account IDs, creators or internal fields.
   keep their recorded order, and unknown (retired) types and deleted players still show, so they
   can be corrected. `version` is the match's revision (`native_private.match_state.revision`):
   triggers bump it on every change to its teams, sets, date, court or events, whoever makes it.
-  Tools that change or remove data take it back to refuse changes based on a stale read:
-  `remove_match_event` (MAR-159) now, the edit tool of MAR-160 later. `add_match_events` doesn't: appending can't overwrite anything.
+  Tools that change or remove data take it back as `expected_version` to refuse changes based on
+  a stale read: `remove_match_event` (MAR-159) and `update_match` (MAR-160). `add_match_events`
+  doesn't: appending can't overwrite anything.
   It reads through `public.get_match_detail` (`supabase/migrations/20261117090000_get_match_detail.sql`),
   a security definer function that checks membership itself: OAuth tokens still can't read
   `match_events` directly. A missing match, another group's match and a group the caller isn't in
@@ -333,6 +339,56 @@ immediately, as when an event is removed in the app. The removal bumps the match
 | `BUSY` | Another call held the match for 3 seconds; nothing was removed |
 
 All of them reach the model as tool errors ending in "Nothing was removed."
+
+## Correcting a match (MAR-160)
+
+`update_match` corrects a recorded match's teams, set scores, date or court. The tool
+description and server instructions tell the model to read the match with `get_match` (for its
+version), resolve new players with `list_players`, and restate the old and new values before
+calling; the tool is annotated destructive, so clients ask the user to confirm it. The tool
+checks teams and sets with the same domain rules as `create_match` (`validateMatchTeams`,
+`validateMatchSets`, which `validateMatchDraft` is built from), then calls
+`public.update_match` through the caller's client, which checks everything again and saves in
+one transaction:
+
+- **Partial patch.** Only the fields in `patch` change; the rest of the match and all its
+  events stay as they are. `team1` and `team2` come together, so a correction always states the
+  whole line-up; the same pair in another order is not a change. `sets` replaces the whole
+  score. `court: null` clears the court. An empty patch is refused, and a patch with the
+  current values answers `unchanged` without bumping the version. `changed` lists what moved.
+- **Authorization.** Security definer, like the other write paths: it requires `auth.uid()`
+  and membership of the match's group. A missing match, another group's match and a group the
+  caller isn't in all return `MATCH_NOT_FOUND`, checked before a replay too.
+- **Rules.** As for `create_match`: four different players of the group (others are named in
+  `playerIds`), 1–5 played sets of 0–99 games, and a date within the last year and not in the
+  future. A team change that would drop a player who has events is refused with
+  `PLAYER_HAS_EVENTS`, naming them: the events are removed explicitly first (MAR-159), never
+  implicitly.
+- **Concurrency.** `expected_version` must equal the match's current version, or the call is
+  refused with `STALE_VERSION` and the current version; the model reads the match again and
+  reconfirms. The match row is locked `FOR UPDATE` (which also blocks event inserts
+  through the foreign key) and so is its `match_state` row (which event deletes bump) before
+  the check, so no writer (web, native, `add_match_events`) can slip in between the check and
+  the write. One `UPDATE` moves the version by exactly one.
+- **Retries.** `idempotency_key` is required, kept per user for 48 hours in
+  `match_private.update_receipts`. The first call moves the version, so a plain retry would look
+  stale; the receipt makes the same key and request replay (`status: "replayed"`, with the
+  fields the first call changed). The same key with a different request is refused.
+
+Corrections are ordinary updates of `public.matches`: the web, mobile, stats and ranking read
+them immediately.
+
+| Error code | Meaning |
+| --- | --- |
+| `MATCH_NOT_FOUND` | Not a member, no such match, or a match of another group |
+| `STALE_VERSION` | The match or its events changed since `get_match`; read it again |
+| `INVALID_TEAMS`, `PLAYER_NOT_IN_GROUP` | Only one team, repeated players, or players outside the group |
+| `PLAYER_HAS_EVENTS` | A player leaving the match still has events |
+| `INVALID_SETS`, `INVALID_DATE`, `INVALID_REQUEST` | Wrong score, date, court, patch shape, version or key |
+| `IDEMPOTENCY_KEY_REUSED` | The key already made a different correction |
+| `BUSY` | Another call held the match for 3 seconds; nothing was saved |
+
+All of them reach the model as tool errors ending in "Nothing was saved."
 
 ## Registration decision and trust policy (MAR-154)
 
@@ -508,7 +564,9 @@ already shown on the consent page may have expired.
   never reaches the database, and how refusals, replays and duplicates are reported. The same for
   `add_match_events`, plus its idempotent annotation and required key. For
   `remove_match_event`: its destructive annotation, the request sent as the caller, the output,
-  `already_removed` retries, and every refusal.
+  `already_removed` retries, and every refusal. For `update_match`: its destructive annotation,
+  the patch sent in the database's vocabulary, invalid patches that never reach the database,
+  and stale, replayed and unsafe refusals.
 - `supabase/tests/create_match_test.sql` (`pnpm test:db`): privileges, authorization, every
   validation rule, replays, key reuse, the duplicate window, per-user keys, atomicity of match
   plus events, and two concurrent identical requests creating one match.
@@ -526,6 +584,11 @@ already shown on the consent page may have expired.
   (non-members, other groups' matches, a former member's replay), another match's event,
   validation, stale versions, removing exactly one event, replays, a re-recorded event ID, OAuth
   tokens, and two concurrent identical calls removing the event once.
+- `supabase/tests/update_match_test.sql` (`pnpm test:db`): privileges, authorization (non-members,
+  other groups' matches, a former member's replay), every validation rule, players with events,
+  partial patches that leave other fields and events alone, a version that moves by one, stale
+  versions, replays, key reuse, per-user keys, OAuth tokens, and two concurrent races: different
+  corrections from one version (one is stale) and identical calls (one replays).
 - `supabase/tests/mcp_rate_limits_test.sql` (`pnpm test:db`): privileges, ordinary sessions
   refused, counts per user + client and per user, cleanup of old windows and of deleted users.
 - `supabase/tests/oauth_client_lockdown_test.sql` (`pnpm test:db`): OAuth tokens read only
@@ -542,7 +605,8 @@ already shown on the consent page may have expired.
   calls with the issued token against real RLS, including recording a match, its retries, and
   refused requests sent straight to `create_match`, adding every current event type to a match
   with concurrent and later retries (MAR-158), removing one of two identical events with a stale,
-  a fresh and a repeated call (MAR-159), and the same token refused (`403`) by the
+  a fresh and a repeated call (MAR-159), correcting a match's score (stats follow), teams, date
+  and court with replayed, stale and unsafe attempts (MAR-160), and the same token refused (`403`) by the
   Data API for other tables, writes and RPCs.
 - Manual, outstanding: the second-client check above, and recording a match from ChatGPT
   (step 6 above). The `create_match` migration is applied in production.

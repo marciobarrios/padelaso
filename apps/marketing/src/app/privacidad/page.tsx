@@ -34,7 +34,8 @@ export default function PrivacyPage() {
             <li>Puede registrar partidos nuevos con sus equipos, marcadores, fecha, pista y eventos. Revisa y confirma los detalles en el cliente antes de guardarlos. Los partidos registrados aparecen en Padelaso y afectan a las estadísticas del grupo.</li>
             <li>Puede añadir eventos a partidos ya registrados. Revisa y confirma los eventos en el cliente antes de guardarlos. Aparecen en el partido y en las estadísticas del grupo.</li>
             <li>Puede quitar un evento registrado por error, de uno en uno. Revisa y confirma el evento en el cliente antes de quitarlo. Desaparece del partido y de las estadísticas del grupo.</li>
-            <li>Las herramientas actuales no permiten cambiar ni borrar partidos, jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro.</li>
+            <li>Puede corregir la fecha, la pista, los equipos o el resultado de un partido ya registrado. Revisa y confirma el cambio en el cliente antes de guardarlo. Los eventos del partido no cambian, y las estadísticas del grupo reflejan la corrección.</li>
+            <li>Las herramientas actuales no permiten borrar partidos, ni cambiar o borrar jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro.</li>
           </ul>
           <p>La pantalla de autorización también indica si se comparten datos de identidad, como tu correo o tu perfil, según los permisos solicitados.</p>
         </section>
