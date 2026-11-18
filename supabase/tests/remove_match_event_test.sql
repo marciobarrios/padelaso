@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT plan(41);
+SELECT plan(42);
 
 -- ------------------------------------------------------------
 -- Fixtures: two members of one group with two matches, and an outsider with
@@ -317,7 +317,7 @@ SELECT is(
 
 SELECT is(
   pg_temp.version(),
-  (SELECT result ->> 'version' FROM saved WHERE name = 'version before')::bigint + 1,
+  (SELECT result #>> '{}' FROM saved WHERE name = 'version before')::bigint + 1,
   'the removal bumps the version once'
 );
 
@@ -332,7 +332,7 @@ SELECT is(
 -- Retries
 -- ------------------------------------------------------------
 INSERT INTO saved VALUES ('replayed', public.remove_match_event(pg_temp.request(jsonb_build_object(
-  'expectedVersion', (SELECT result ->> 'version' FROM saved WHERE name = 'version before')::bigint))));
+  'expectedVersion', (SELECT result #>> '{}' FROM saved WHERE name = 'version before')::bigint))));
 
 SELECT is(
   (SELECT jsonb_build_object('status', result -> 'status', 'removedEvent', result -> 'removedEvent')
@@ -417,11 +417,16 @@ SELECT is(
   'EVENT_NOT_FOUND',
   'after 48 hours a retry no longer finds the removal'
 );
+SELECT is(
+  public.remove_match_event(pg_temp.request('{"eventId": "70000000-0000-0000-0000-0000000000b2"}')) ->> 'status',
+  'removed',
+  'the next removal succeeds'
+);
 RESET ROLE;
 SELECT is(
   (SELECT count(*) FROM match_private.removed_events WHERE event_id = '70000000-0000-0000-0000-0000000000b3'),
   0::bigint,
-  'and the expired record is deleted'
+  'and deletes the expired record'
 );
 
 -- ------------------------------------------------------------

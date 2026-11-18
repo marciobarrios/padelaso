@@ -689,10 +689,10 @@ export function registerTools(server: McpServer) {
       "Remove one mistaken highlight (an ace, a double fault, …) from a recorded match. It removes exactly the " +
       "event you name and nothing else; it cannot be undone except by adding the event again. Before calling: " +
       "(1) find the match with list_matches and read it with get_match; when several matches fit what the user " +
-      "said, show them and ask. (2) Pick the event by its ID from get_match; when several events fit (e.g. two " +
-      "aces for the same player), they are interchangeable, so pick any one of them, but ask when it's unclear " +
-      "which player or type the user means. (3) Restate the match (date and teams) and the event to remove " +
-      "(player and type) to the user, and call only after they confirm. Pass the version from that get_match " +
+      "said, show them and ask. (2) Pick the event by its ID from get_match; ask when it's unclear which player " +
+      "or type the user means. (3) Restate the match (date and teams) and the event to remove (player and type; " +
+      "when that player has several events of that type, also which one in get_match order, e.g. \"the second " +
+      "of Ana's two aces\") to the user, and call only after they confirm. Pass the version from that get_match " +
       "read: if the match changed since, nothing is removed and you must read it again. Retrying the same call " +
       "is safe. Returns the removed event, the updated match and a link to it.",
     inputSchema: z.object({

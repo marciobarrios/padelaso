@@ -120,8 +120,6 @@ begin
     where state.match_id = v_match_id
     for update;
 
-    delete from match_private.removed_events where retain_until < v_now;
-
     -- The live event first: native clients choose event IDs, so an ID removed
     -- here may be recorded again later, and then it must be removable.
     if exists (
@@ -153,12 +151,16 @@ begin
         removed_by = excluded.removed_by,
         removed_at = excluded.removed_at,
         retain_until = excluded.retain_until;
+
+      -- Pruned only here, so a replay or a refused call writes nothing.
+      delete from match_private.removed_events where retain_until < v_now;
       v_status := 'removed';
     else
       select jsonb_build_object('id', removed.event_id, 'playerId', removed.player_id, 'type', removed.type)
       into v_removed
       from match_private.removed_events as removed
-      where removed.event_id = v_event_id and removed.match_id = v_match_id;
+      where removed.event_id = v_event_id and removed.match_id = v_match_id
+        and removed.retain_until >= v_now;
 
       if not found then
         return match_private.error('EVENT_NOT_FOUND', 'Event not found in this match.');

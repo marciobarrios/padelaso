@@ -546,10 +546,12 @@ describe("MCP over Supabase OAuth on the real stack", () => {
       group_id: groupId,
       team1: [ids.Ana, ids.Pablo],
       team2: [ids["Lucía"], ids.Marta],
-      sets: [{ team1: 6, team2: 2 }],
+      // A score no other test uses, so the duplicate window can't return an earlier match.
+      sets: [{ team1: 6, team2: 0 }, { team1: 6, team2: 0 }],
       events: [{ player_id: ids.Ana, type: "ace" }, { player_id: ids.Ana, type: "ace" }, { player_id: ids.Pablo, type: "doble_falta" }],
       idempotency_key: randomUUID(),
     });
+    expect(created.structuredContent.status).toBe("created");
     const matchId = created.structuredContent.match.id;
     const savedIds = async () => (must(await admin.from("match_events").select("id")
       .eq("match_id", matchId).order("sequence")) as { id: string }[]).map((e) => e.id);
