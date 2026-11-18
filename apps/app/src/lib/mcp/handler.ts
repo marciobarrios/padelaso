@@ -17,8 +17,10 @@ const INSTRUCTIONS =
   "the events with the user, then call add_match_events once. " +
   "To remove one mistaken event, read the match with get_match, restate the match and that event to the user, " +
   "and only after they confirm call remove_match_event with the event ID and the version from that read. " +
+  "To correct a recorded match's teams, score, date or court, read it with get_match, confirm the old and new " +
+  "values with the user, then call update_match once with its version and only the fields that change. " +
   "You only see groups the signed-in user belongs to. Only remove_match_event removes data, one event at a time; " +
-  "no tool changes or deletes matches, players or groups.";
+  "no tool deletes matches, players or groups.";
 
 /**
  * Stateless: every request builds a fresh server, so there is no session store

@@ -12,10 +12,14 @@ import {
   listGroupPlayers,
   listMemberGroups,
   removeMatchEvent,
+  updateMatch,
   type AddMatchEventsResult,
   type CreateMatchResult,
+  type MatchField,
   type RemoveMatchEventResult,
   type PlayerSummary,
+  type UpdateMatchRequest,
+  type UpdateMatchResult,
 } from "@padelaso/data/queries";
 import { EVENT_CONFIGS, getEventConfig } from "@padelaso/domain/events";
 import {
@@ -24,6 +28,8 @@ import {
   MAX_RECORDED_SETS,
   MAX_SET_SCORE,
   validateMatchDraft,
+  validateMatchSets,
+  validateMatchTeams,
 } from "@padelaso/domain/matches";
 import {
   calculatePlayerStats,
@@ -72,6 +78,18 @@ const ADDS_EVENTS = {
  * more: the retry reports already_removed.
  */
 const REMOVES_EVENT = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+/**
+ * Overwrites a match's teams, score, date or court: destructive, so clients
+ * confirm it. With the required idempotency_key, repeating a call changes
+ * nothing more.
+ */
+const CORRECTS_MATCH = {
   readOnlyHint: false,
   destructiveHint: true,
   idempotentHint: true,
@@ -130,6 +148,9 @@ const identifiedEvent = savedEvent.extend({
 });
 const matchVersion = z.number().describe(
   "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused.");
+const playedAt = z.iso.datetime({ offset: true });
+/** update_match's field names, as the tool's input calls them. */
+const correctable = z.enum(["team1", "team2", "sets", "played_at", "court"]);
 const newEvents = z.array(z.object({
   player_id: playerId.describe("One of the four match players."),
   type: z.enum(EVENT_CONFIGS.map((e) => e.type)),
@@ -204,6 +225,18 @@ const outputs = {
     match,
     removed: identifiedEvent.describe("The event that was removed."),
     events: z.array(identifiedEvent).describe("Every event of the match now, in the order it was recorded."),
+    version: matchVersion,
+    url: z.string().describe("Link to the match in Padelaso."),
+  }),
+  update_match: z.object({
+    status: z.enum(["updated", "unchanged", "replayed"]).describe(
+      "updated: saved now. unchanged: the match already had these values, so nothing changed. " +
+      "replayed: this idempotency_key had already made this correction, so nothing more changed."),
+    message: z.string().describe("What happened, to tell the user."),
+    changed: z.array(correctable).describe("The fields this request changed."),
+    group,
+    match,
+    events: z.array(identifiedEvent).describe("Every event of the match, unchanged by this tool."),
     version: matchVersion,
     url: z.string().describe("Link to the match in Padelaso."),
   }),
@@ -471,6 +504,120 @@ async function removeEvent(caller: Caller, args: {
   };
 }
 
+type UpdateRejection = Extract<UpdateMatchResult, { status: "rejected" }>;
+
+const UPDATE_REJECTION_HINTS: Partial<Record<UpdateRejection["code"], string>> = {
+  MATCH_NOT_FOUND: "Match not found in this group. Use list_matches to find match IDs.",
+  PLAYER_NOT_IN_GROUP: "Some players are not in this group. Use list_players to find player IDs.",
+  INVALID_DATE: REJECTION_HINTS.INVALID_DATE,
+  IDEMPOTENCY_KEY_REUSED: "This idempotency_key was already used for a different request. Use a new key for each new request.",
+  BUSY: "Padelaso is saving another change to this match. Try again in a moment with the same idempotency_key.",
+};
+
+const FIELD_NAMES: Record<MatchField, z.infer<typeof correctable>> = {
+  team1: "team1", team2: "team2", sets: "sets", date: "played_at", courtNumber: "court",
+};
+
+function updateRejection(result: UpdateRejection, names: Map<string, string>) {
+  const who = (ids: string[] = []) => ids.map((id) => names.get(id) ?? id).join(", ");
+  switch (result.code) {
+    case "STALE_VERSION":
+      return `The match changed since it was read (it is now at version ${result.version}). ` +
+        "Read it again with get_match, show the user what it holds now, confirm the correction again, " +
+        "and retry with the new version and a new idempotency_key.";
+    case "PLAYER_HAS_EVENTS":
+      return `These players would leave the match but still have events in it: ${who(result.playerIds)}. ` +
+        "Ask the user whether to keep them in the match or to remove their events first.";
+    default:
+      return UPDATE_REJECTION_HINTS[result.code] ?? result.message;
+  }
+}
+
+const listFields = (fields: string[]) => fields.join(", ").replace(/, ([^,]*)$/, " and $1");
+
+async function correctMatch(caller: Caller, args: {
+  group_id: string;
+  match_id: string;
+  expected_version: number;
+  patch: {
+    team1?: string[];
+    team2?: string[];
+    sets?: { team1: number; team2: number }[];
+    played_at?: string;
+    court?: number | null;
+  };
+  idempotency_key: string;
+}) {
+  const [found, players] = await Promise.all([
+    requireGroup(caller, args.group_id),
+    listGroupPlayers(caller.client, args.group_id),
+  ]);
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  const { team1, team2, sets, played_at, court } = args.patch;
+
+  // Checked here for clear messages; update_match checks everything again.
+  const patch: UpdateMatchRequest["patch"] = {};
+  if (team1 || team2) {
+    if (!team1 || !team2) {
+      throw new ToolInputError("Give both teams when changing players, even if one stays the same." + NOTHING_SAVED);
+    }
+    const issue = validateMatchTeams(team1, team2);
+    if (issue) throw new ToolInputError(issue.message + NOTHING_SAVED);
+    const unknown = [...team1, ...team2].filter((id) => !names.has(id));
+    if (unknown.length > 0) {
+      throw new ToolInputError(
+        `These IDs are not players of ${found.name}: ${unknown.join(", ")}. Use list_players to find player IDs, ` +
+        "and ask the user when a name matches several players or none." + NOTHING_SAVED);
+    }
+    Object.assign(patch, { team1, team2 });
+  }
+  if (sets) {
+    patch.sets = sets.map((s) => ({ team1Score: s.team1, team2Score: s.team2 }));
+    const issue = validateMatchSets(patch.sets);
+    if (issue) throw new ToolInputError(issue.message + NOTHING_SAVED);
+  }
+  if (played_at) patch.date = new Date(played_at).toISOString();
+  if (court !== undefined) patch.courtNumber = court;
+  if (Object.keys(patch).length === 0) {
+    throw new ToolInputError("The patch has nothing to change: give at least one of team1 and team2, sets, played_at or court." +
+      NOTHING_SAVED);
+  }
+
+  const result = await updateMatch(caller.client, {
+    groupId: found.id,
+    matchId: args.match_id,
+    expectedVersion: args.expected_version,
+    patch,
+    idempotencyKey: args.idempotency_key,
+  });
+  if (result.status === "rejected") {
+    // The token was verified moments ago, so this is a server fault, not bad input.
+    if (result.code === "AUTH_REQUIRED") throw new Error("update_match saw no user");
+    throw new ToolInputError(updateRejection(result, names) + NOTHING_SAVED);
+  }
+
+  const changed = result.changed.map((field) => FIELD_NAMES[field]);
+  return {
+    status: result.status,
+    message: result.status === "updated"
+      ? `Match corrected: ${listFields(changed)} changed.`
+      : result.status === "unchanged"
+        ? "The match already had these values. Nothing changed."
+        : "This correction was already saved by an earlier call with the same idempotency_key. Nothing more changed.",
+    changed,
+    group: found,
+    match: toMatch(result.match, names),
+    events: result.events.map((e) => ({
+      id: e.id,
+      player: { id: e.playerId, name: names.get(e.playerId) ?? null },
+      type: e.type,
+      label: getEventConfig(e.type as MatchEventType).label,
+    })),
+    version: result.version,
+    url: `${caller.appOrigin}/matches/${result.match.id}`,
+  };
+}
+
 async function listGroups(caller: Caller) {
   return { groups: await listMemberGroups(caller.client) };
 }
@@ -643,7 +790,7 @@ export function registerTools(server: McpServer) {
       team2: z.array(playerId).length(2).describe("The two players of team 2, as IDs from list_players."),
       sets: z.array(z.object({ team1: score, team2: score })).min(1).max(MAX_RECORDED_SETS)
         .describe("Games won by each team in every played set, in order. Example: 6-4, 3-6, 7-5."),
-      played_at: z.iso.datetime({ offset: true }).optional().describe(
+      played_at: playedAt.optional().describe(
         "When the match was played, ISO 8601 with a UTC offset, e.g. 2026-11-14T19:00:00+01:00. " +
         "Omit when it was just played: Padelaso uses the current time."),
       court: z.number().int().min(1).max(99).optional().describe("Court number, if the user mentions one."),
@@ -704,9 +851,42 @@ export function registerTools(server: McpServer) {
     outputSchema: outputs.remove_match_event,
     annotations: REMOVES_EVENT,
   }, run(removeEvent));
+  server.registerTool("update_match", {
+    title: "Correct match",
+    description:
+      "Correct a recorded match's teams, set scores, date or court. Only the fields in patch change; " +
+      "everything else, events included, stays as it is. Before calling: (1) find the match with list_matches " +
+      "and read it with get_match for its version; when several matches fit what the user said, show them and " +
+      "ask. (2) Resolve every new player with list_players; when a name matches several players or none, ask, " +
+      "never guess. (3) Restate the match and the exact change (old and new values) to the user, and call only " +
+      "after they confirm. Players who leave the match must have no events: remove those first. " +
+      "Generate one random UUID as idempotency_key per confirmed correction and reuse it if you retry. " +
+      "Returns what changed, the updated match and a link to it.",
+    inputSchema: z.object({
+      group_id: groupId,
+      match_id: matchId,
+      expected_version: z.number().int().min(0).describe(
+        "The version get_match returned. If the match changed since, nothing is saved and you must read it again."),
+      patch: z.object({
+        team1: z.array(playerId).length(2).optional()
+          .describe("The two players of team 1. Give team1 and team2 together, even if one stays the same."),
+        team2: z.array(playerId).length(2).optional().describe("The two players of team 2."),
+        sets: z.array(z.object({ team1: score, team2: score })).min(1).max(MAX_RECORDED_SETS).optional()
+          .describe("Every played set, in order: replaces the whole score. team1 is the games of team 1."),
+        played_at: playedAt.optional().describe(
+          "When the match was played, ISO 8601 with a UTC offset, e.g. 2026-11-14T19:00:00+01:00."),
+        court: z.number().int().min(1).max(99).nullable().optional().describe("Court number, or null to clear it."),
+      }).describe("Only the fields to change. Leave out everything that stays the same."),
+      idempotency_key: z.uuid().describe(
+        "A random UUID generated once for each confirmed correction. Reuse it only to retry the same call. " +
+        "Never put names or other details in it."),
+    }),
+    outputSchema: outputs.update_match,
+    annotations: CORRECTS_MATCH,
+  }, run(correctMatch));
 }
 
 export const TOOL_NAMES = [
   "list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "create_match",
-  "add_match_events", "remove_match_event",
+  "add_match_events", "remove_match_event", "update_match",
 ] as const;

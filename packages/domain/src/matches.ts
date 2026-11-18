@@ -32,8 +32,9 @@ export function applyScoreDelta(
 }
 
 // ---------- Recording a finished match ----------
-// The create_match database function enforces the same rules, so keep
-// supabase/migrations/*_create_match.sql in step with these values.
+// The create_match and update_match database functions enforce the same rules,
+// so keep supabase/migrations/*_create_match.sql and *_update_match.sql in step
+// with these values.
 
 export const MAX_RECORDED_SETS = 5;
 export const MAX_SET_SCORE = 99;
@@ -56,23 +57,28 @@ const RECORDABLE_EVENT_TYPES: ReadonlySet<string> = new Set(EVENT_CONFIGS.map((e
 const isScore = (value: number) => Number.isInteger(value) && value >= 0 && value <= MAX_SET_SCORE;
 
 /**
- * Checks a finished match before it is recorded: two teams of two distinct
- * players, 1 to 5 played sets, and events only for players in the match with a
- * current (not retired) event type. Returns the first problem, or null.
+ * Two teams of two distinct players. The team rule of validateMatchDraft, also
+ * used alone when a correction changes only the teams (update_match).
  */
-export function validateMatchDraft(draft: MatchDraft): MatchDraftIssue | null {
-  const players = [...draft.team1, ...draft.team2];
-  if (draft.team1.length !== 2 || draft.team2.length !== 2) {
+export function validateMatchTeams(team1: PlayerId[], team2: PlayerId[]): MatchDraftIssue | null {
+  if (team1.length !== 2 || team2.length !== 2) {
     return { code: "INVALID_TEAMS", message: "Each team must have exactly two players." };
   }
-  if (new Set(players).size !== 4) {
+  if (new Set([...team1, ...team2]).size !== 4) {
     return { code: "INVALID_TEAMS", message: "A match needs four different players." };
   }
+  return null;
+}
 
-  if (draft.sets.length < 1 || draft.sets.length > MAX_RECORDED_SETS) {
+/**
+ * 1 to 5 played sets with whole scores. The set rule of validateMatchDraft,
+ * also used alone when a correction changes only the score (update_match).
+ */
+export function validateMatchSets(sets: MatchSet[]): MatchDraftIssue | null {
+  if (sets.length < 1 || sets.length > MAX_RECORDED_SETS) {
     return { code: "INVALID_SETS", message: `A match has between 1 and ${MAX_RECORDED_SETS} sets.` };
   }
-  for (const [index, set] of draft.sets.entries()) {
+  for (const [index, set] of sets.entries()) {
     if (!isScore(set.team1Score) || !isScore(set.team2Score)) {
       return { code: "INVALID_SETS", message: `Set ${index + 1}: scores must be whole numbers from 0 to ${MAX_SET_SCORE}.` };
     }
@@ -80,6 +86,18 @@ export function validateMatchDraft(draft: MatchDraft): MatchDraftIssue | null {
       return { code: "INVALID_SETS", message: `Set ${index + 1} has no score. Remove sets that were not played.` };
     }
   }
+  return null;
+}
+
+/**
+ * Checks a finished match before it is recorded: two teams of two distinct
+ * players, 1 to 5 played sets, and events only for players in the match with a
+ * current (not retired) event type. Returns the first problem, or null.
+ */
+export function validateMatchDraft(draft: MatchDraft): MatchDraftIssue | null {
+  const players = [...draft.team1, ...draft.team2];
+  const issue = validateMatchTeams(draft.team1, draft.team2) ?? validateMatchSets(draft.sets);
+  if (issue) return issue;
 
   const events = draft.events ?? [];
   if (events.length > MAX_RECORDED_EVENTS) {

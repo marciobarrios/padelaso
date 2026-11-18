@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { applyScoreDelta, getSetWins, validateMatchDraft, type MatchDraft } from "../src/matches";
+import {
+  applyScoreDelta,
+  getSetWins,
+  validateMatchDraft,
+  validateMatchSets,
+  validateMatchTeams,
+  type MatchDraft,
+} from "../src/matches";
 
 describe("match scoring", () => {
   it("counts decided sets and ignores tied sets", () => {
@@ -77,5 +84,21 @@ describe("recording a finished match", () => {
     expect(code({ events: [{ playerId: "ana", type: "bola_fuera" }] })).toBe("INVALID_EVENTS");
     expect(code({ events: [{ playerId: "ana", type: "made_up" }] })).toBe("INVALID_EVENTS");
     expect(code({ events: Array(51).fill({ playerId: "ana", type: "ace" }) })).toBe("INVALID_EVENTS");
+  });
+});
+
+describe("correcting a recorded match", () => {
+  it("checks teams on their own, with the same rule as a new match", () => {
+    expect(validateMatchTeams(["ana", "pablo"], ["lucia", "marta"])).toBeNull();
+    expect(validateMatchTeams(["ana"], ["lucia", "marta"])?.code).toBe("INVALID_TEAMS");
+    expect(validateMatchTeams(["ana", "pablo"], ["pablo", "marta"])?.message).toBe("A match needs four different players.");
+  });
+
+  it("checks sets on their own, with the same rule as a new match", () => {
+    expect(validateMatchSets([{ team1Score: 6, team2Score: 4 }])).toBeNull();
+    expect(validateMatchSets([])?.code).toBe("INVALID_SETS");
+    expect(validateMatchSets([{ team1Score: 6, team2Score: 4 }, { team1Score: 0, team2Score: 0 }])?.message)
+      .toMatch(/Set 2 has no score/);
+    expect(validateMatchSets([{ team1Score: 100, team2Score: 4 }])?.code).toBe("INVALID_SETS");
   });
 });

@@ -278,3 +278,63 @@ export async function removeMatchEvent(client: SupabaseClient,
   if (error) throw error;
   return removeMatchEventResultSchema.parse(data);
 }
+
+// ---------- Correcting a match ----------
+
+/**
+ * The update_match request: a partial patch. Fields left out stay as they are;
+ * events are never touched. Teams change together.
+ */
+export interface UpdateMatchRequest {
+  groupId: string;
+  matchId: string;
+  /** The version get_match_detail returned; a stale one is refused. */
+  expectedVersion: number;
+  patch: {
+    team1?: string[];
+    team2?: string[];
+    sets?: { team1Score: number; team2Score: number }[];
+    /** ISO 8601 with a UTC offset. */
+    date?: string;
+    /** null clears the court. */
+    courtNumber?: number | null;
+  };
+  /** Required per-user retry key; see the update_match migration. */
+  idempotencyKey: string;
+}
+
+const MATCH_FIELDS = ['team1', 'team2', 'sets', 'date', 'courtNumber'] as const;
+export type MatchField = (typeof MATCH_FIELDS)[number];
+
+const updatedMatch = matchDetail.extend({
+  status: z.enum(['updated', 'unchanged', 'replayed']),
+  /** The fields this request changed. */
+  changed: z.array(z.enum(MATCH_FIELDS)),
+});
+
+const rejectedUpdate = z.object({
+  status: z.literal('rejected'),
+  code: z.enum([
+    'AUTH_REQUIRED', 'INVALID_REQUEST', 'MATCH_NOT_FOUND', 'INVALID_TEAMS', 'PLAYER_NOT_IN_GROUP',
+    'PLAYER_HAS_EVENTS', 'INVALID_SETS', 'INVALID_DATE', 'STALE_VERSION', 'IDEMPOTENCY_KEY_REUSED', 'BUSY',
+  ]),
+  message: z.string(),
+  playerIds: z.array(z.string()).optional(),
+  /** With STALE_VERSION: the match's current version. */
+  version: z.number().int().nonnegative().optional(),
+});
+
+export const updateMatchResultSchema = z.union([updatedMatch, rejectedUpdate]);
+export type UpdateMatchResult = z.infer<typeof updateMatchResultSchema>;
+
+/**
+ * Corrects a match's teams, sets, date or court atomically as the client's
+ * user, and returns the match as get_match_detail does. Safe to retry with the
+ * same idempotency key: the retry replays instead of being refused as stale.
+ */
+export async function updateMatch(client: SupabaseClient,
+  request: UpdateMatchRequest): Promise<UpdateMatchResult> {
+  const { data, error } = await client.rpc('update_match', { p_request: request });
+  if (error) throw error;
+  return updateMatchResultSchema.parse(data);
+}

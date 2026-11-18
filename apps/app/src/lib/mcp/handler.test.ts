@@ -116,6 +116,18 @@ const removedAs = (status: string) => (request: RemoveRequest) => {
   return { ...before, status, events: before.events.filter((e) => e !== removed), version: 13, removedEvent: removed };
 };
 
+type UpdateRequest = { groupId: string; matchId: string; expectedVersion: number; patch: Record<string, unknown>; idempotencyKey: string };
+/** What update_match answers; tests replace it to simulate other outcomes. */
+let updateMatchAnswer: (request: UpdateRequest) => unknown;
+const updatedAs = (status: string, changed: string[]) => (request: UpdateRequest) => {
+  const before = foundMatch();
+  const { courtNumber, ...rest } = request.patch;
+  return {
+    ...before, status, changed, version: 13,
+    match: { ...before.match, ...rest, ...(courtNumber === undefined ? {} : { courtNumber }) },
+  };
+};
+
 /** Rate limit counters by window, as public.hit_mcp_rate_limit keeps them. */
 let rateWindows: Map<string, number>;
 
@@ -155,6 +167,9 @@ function stubSupabase(overrides: Route = () => undefined) {
     }
     if (url.pathname === "/rest/v1/rpc/remove_match_event") {
       return Response.json(removeEventAnswer(JSON.parse(String(init?.body)).p_request));
+    }
+    if (url.pathname === "/rest/v1/rpc/update_match") {
+      return Response.json(updateMatchAnswer(JSON.parse(String(init?.body)).p_request));
     }
     if (url.pathname === "/rest/v1/rpc/create_match") {
       return Response.json(createMatchAnswer(JSON.parse(String(init?.body)).p_request));
@@ -219,6 +234,7 @@ beforeEach(() => {
   matchDetailAnswer = foundMatch;
   addEventsAnswer = addedAs("added");
   removeEventAnswer = removedAs("removed");
+  updateMatchAnswer = updatedAs("updated", ["sets"]);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("MCP_RESOURCE_URL", `${ORIGIN}/api/mcp`);
@@ -370,12 +386,12 @@ describe("MCP protocol and tools", () => {
     const tools = result.tools as { name: string; annotations: Record<string, boolean>; outputSchema?: object }[];
     expect(tools.map((t) => t.name).sort())
       .toEqual(["add_match_events", "create_match", "get_match", "get_player_stats", "list_groups", "list_matches", "list_players",
-        "remove_match_event"]);
-    const writes = ["create_match", "add_match_events", "remove_match_event"];
+        "remove_match_event", "update_match"]);
+    const writes = ["create_match", "add_match_events", "remove_match_event", "update_match"];
     for (const tool of tools) {
       expect(tool.annotations).toMatchObject({
         readOnlyHint: !writes.includes(tool.name),
-        destructiveHint: tool.name === "remove_match_event",
+        destructiveHint: ["remove_match_event", "update_match"].includes(tool.name),
         openWorldHint: false,
       });
       expect(tool.outputSchema).toBeDefined();
@@ -892,6 +908,150 @@ describe("remove_match_event", () => {
   it("refuses an unexpected database answer instead of reporting success", async () => {
     removeEventAnswer = (request) => ({ ...(removedAs("removed")(request) as object), removedEvent: undefined });
     const result = await callTool("remove_match_event", args);
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+});
+
+describe("update_match", () => {
+  const KEY = "0b7e4f2a-6c1d-4e8b-9a3f-5d2c7b1e9a40";
+  const args = {
+    group_id: GROUP_ID,
+    match_id: MATCH_ID,
+    expected_version: 12,
+    patch: { sets: [{ team1: 6, team2: 4 }, { team1: 6, team2: 2 }] },
+    idempotency_key: KEY,
+  };
+  const rpcCalls = () => restCalls().filter(([input]) => String(input).includes("/rpc/update_match"));
+  const sentRequest = () => JSON.parse(String(rpcCalls()[0][1]?.body)).p_request;
+
+  it("is an idempotent, destructive write that needs a version and a key", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    const tool = result.tools.find((t: { name: string }) => t.name === "update_match");
+    expect(tool.annotations).toEqual({
+      readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false,
+    });
+    expect(tool.inputSchema.required.sort()).toEqual(["expected_version", "group_id", "idempotency_key", "match_id", "patch"]);
+  });
+
+  it("sends only the corrected fields to the update_match function, as the caller", async () => {
+    const token = await sign(claims());
+    const result = await callTool("update_match", args, token);
+
+    expect(result.isError).toBeFalsy();
+    const [[, init]] = rpcCalls();
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${token}`);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      p_request: {
+        groupId: GROUP_ID,
+        matchId: MATCH_ID,
+        expectedVersion: 12,
+        patch: { sets: [{ team1Score: 6, team2Score: 4 }, { team1Score: 6, team2Score: 2 }] },
+        idempotencyKey: KEY,
+      },
+    });
+
+    expect(result.structuredContent).toEqual({
+      status: "updated",
+      message: "Match corrected: sets changed.",
+      changed: ["sets"],
+      group: groupRow,
+      match: {
+        id: MATCH_ID, date: "2026-11-16T19:00:00.000Z", court: 4,
+        team1: { players: [{ id: ANA, name: "Ana" }, { id: PABLO, name: "Pablo" }], setsWon: 2 },
+        team2: { players: [{ id: LUCIA, name: "Lucía" }, { id: GONE, name: null }], setsWon: 0 },
+        sets: [{ team1: 6, team2: 4 }, { team1: 6, team2: 2 }],
+        winner: "team1",
+      },
+      events: [
+        { id: EVENT_IDS[0], player: { id: ANA, name: "Ana" }, type: "ace", label: "Ace" },
+        { id: EVENT_IDS[1], player: { id: GONE, name: null }, type: "old_event", label: "old_event" },
+      ],
+      version: 13,
+      url: `${ORIGIN}/matches/${MATCH_ID}`,
+    });
+    expect(JSON.stringify(result.structuredContent)).not.toContain(USER_ID);
+  });
+
+  it("sends teams, date and a cleared court in the database's vocabulary", async () => {
+    updateMatchAnswer = updatedAs("updated", ["team2", "date", "courtNumber"]);
+    const result = await callTool("update_match", {
+      ...args,
+      patch: { team1: [ANA, PABLO], team2: [LUCIA, MARTA], played_at: "2026-11-15T20:00:00+01:00", court: null },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(sentRequest().patch).toEqual({
+      team1: [ANA, PABLO], team2: [LUCIA, MARTA], date: "2026-11-15T19:00:00.000Z", courtNumber: null,
+    });
+    expect(result.structuredContent.changed).toEqual(["team2", "played_at", "court"]);
+    expect(result.structuredContent.message).toBe("Match corrected: team2, played_at and court changed.");
+    expect(result.structuredContent.match.court).toBeNull();
+  });
+
+  it.each([
+    ["unchanged", [], /already had these values/],
+    ["replayed", ["sets"], /already saved by an earlier call/],
+  ])("reports a %s correction", async (status, changed, message) => {
+    updateMatchAnswer = updatedAs(status, changed);
+    const result = await callTool("update_match", args);
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent.status).toBe(status);
+    expect(result.structuredContent.message).toMatch(message);
+  });
+
+  it.each([
+    ["an empty patch", { patch: {} }],
+    ["one team without the other", { patch: { team1: [ANA, MARTA] } }],
+    ["a player on both teams", { patch: { team1: [ANA, PABLO], team2: [PABLO, MARTA] } }],
+    ["a player outside the group", { patch: { team1: [ANA, PABLO], team2: [LUCIA, GONE] } }],
+    ["a player name instead of an ID", { patch: { team1: ["Ana", PABLO], team2: [LUCIA, MARTA] } }],
+    ["no sets", { patch: { sets: [] } }],
+    ["an unplayed set", { patch: { sets: [{ team1: 6, team2: 4 }, { team1: 0, team2: 0 }] } }],
+    ["a date without a UTC offset", { patch: { played_at: "2026-11-15T20:00:00" } }],
+    ["court 0", { patch: { court: 0 } }],
+    ["an unknown field", { patch: { events: [] } }],
+    ["a missing version", { expected_version: undefined }],
+    ["a missing idempotency key", { idempotency_key: undefined }],
+    ["an idempotency key that is not a UUID", { idempotency_key: "fix-score" }],
+  ])("never saves %s", async (_label, overrides) => {
+    const result = await callTool("update_match", { ...args, ...overrides });
+    expect(result.isError).toBe(true);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it("never saves into a group the caller cannot see", async () => {
+    const result = await callTool("update_match", { ...args, group_id: "66666666-6666-4666-8666-666666666666" });
+    expect(result.content[0].text).toMatch(/Group not found/);
+    expect(rpcCalls()).toHaveLength(0);
+  });
+
+  it.each([
+    ["MATCH_NOT_FOUND", {}, /Match not found in this group. Use list_matches/],
+    ["STALE_VERSION", { version: 15 }, /changed since it was read \(it is now at version 15\).*get_match.*new idempotency_key/],
+    ["PLAYER_HAS_EVENTS", { playerIds: [LUCIA] }, /would leave the match but still have events in it: Lucía/],
+    ["INVALID_DATE", {}, /within the last year/],
+    ["IDEMPOTENCY_KEY_REUSED", {}, /already used for a different request/],
+    ["BUSY", {}, /same idempotency_key/],
+    ["INVALID_SETS", {}, /Set 1 has no score/],
+  ])("explains a %s refusal from the database", async (code, extra, message) => {
+    updateMatchAnswer = () => ({ status: "rejected", code, message: "Set 1 has no score.", ...extra });
+    const result = await callTool("update_match", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(message);
+    expect(result.content[0].text).toMatch(/Nothing was saved/);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  it("treats a missing user in the database as a server error", async () => {
+    updateMatchAnswer = () => ({ status: "rejected", code: "AUTH_REQUIRED", message: "Sign in again." });
+    const result = await callTool("update_match", args);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/temporarily unavailable/);
+  });
+
+  it("refuses an unexpected database answer instead of reporting success", async () => {
+    updateMatchAnswer = (request) => ({ ...(updatedAs("updated", ["sets"])(request) as object), changed: undefined });
+    const result = await callTool("update_match", args);
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
   });
