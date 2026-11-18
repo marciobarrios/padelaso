@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(39);
+SELECT plan(41);
 
 -- ------------------------------------------------------------
 -- Fixtures: a member of one group and an outsider.
@@ -215,6 +215,10 @@ SELECT pg_temp.request('POST', '/rpc/get_match_detail');
 SELECT lives_ok('SELECT mcp_private.check_request()', 'guard allows POST /rpc/get_match_detail for OAuth tokens');
 SELECT pg_temp.request('POST', '/rpc/add_match_events');
 SELECT lives_ok('SELECT mcp_private.check_request()', 'guard allows POST /rpc/add_match_events for OAuth tokens');
+SELECT pg_temp.request('POST', '/rpc/remove_match_event');
+SELECT lives_ok('SELECT mcp_private.check_request()', 'guard allows POST /rpc/remove_match_event for OAuth tokens');
+SELECT pg_temp.request('DELETE', '/match_events');
+SELECT throws_ok('SELECT mcp_private.check_request()', 'PGRST', NULL, 'guard still blocks direct match_events deletes for OAuth tokens');
 SELECT pg_temp.request('GET', '/match_events');
 SELECT throws_ok('SELECT mcp_private.check_request()', 'PGRST', NULL, 'guard still blocks direct match_events reads for OAuth tokens');
 

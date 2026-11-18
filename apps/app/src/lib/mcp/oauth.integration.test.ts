@@ -541,6 +541,64 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     expect(await savedEvents()).toHaveLength(1 + events.length);
   });
 
+  it("removes exactly one event, refusing stale reads and replaying retries (MAR-159)", async () => {
+    const created = await callTool("create_match", {
+      group_id: groupId,
+      team1: [ids.Ana, ids.Pablo],
+      team2: [ids["Lucía"], ids.Marta],
+      sets: [{ team1: 6, team2: 2 }],
+      events: [{ player_id: ids.Ana, type: "ace" }, { player_id: ids.Ana, type: "ace" }, { player_id: ids.Pablo, type: "doble_falta" }],
+      idempotency_key: randomUUID(),
+    });
+    const matchId = created.structuredContent.match.id;
+    const savedIds = async () => (must(await admin.from("match_events").select("id")
+      .eq("match_id", matchId).order("sequence")) as { id: string }[]).map((e) => e.id);
+    const read = await callTool("get_match", { group_id: groupId, match_id: matchId });
+    const [firstAce, secondAce, fault] = read.structuredContent.events.map((e: { id: string }) => e.id);
+    const request = { group_id: groupId, match_id: matchId, event_id: firstAce, expected_version: read.structuredContent.version };
+
+    // Another change after the read makes it stale: nothing is removed.
+    await callTool("add_match_events", {
+      group_id: groupId, match_id: matchId, events: [{ player_id: ids.Marta, type: "cinta" }], idempotency_key: randomUUID(),
+    });
+    const stale = await callTool("remove_match_event", request);
+    expect(stale.content[0].text).toMatch(/changed since you read it.*Nothing was removed/);
+    expect(await savedIds()).toHaveLength(4);
+
+    // A fresh read removes exactly the targeted ace; two identical calls at once remove it once.
+    const fresh = await callTool("get_match", { group_id: groupId, match_id: matchId });
+    const current = { ...request, expected_version: fresh.structuredContent.version };
+    const [one, two] = await Promise.all([callTool("remove_match_event", current), callTool("remove_match_event", current)]);
+    expect(one.isError || two.isError).toBeFalsy();
+    expect([one.structuredContent.status, two.structuredContent.status].sort()).toEqual(["already_removed", "removed"]);
+    const remaining = await savedIds();
+    expect(remaining).not.toContain(firstAce);
+    expect(remaining.slice(0, 2)).toEqual([secondAce, fault]);
+    expect(remaining).toHaveLength(3);
+    expect(one.structuredContent).toMatchObject({
+      removed: { id: firstAce, player: { id: ids.Ana }, type: "ace" },
+      events: remaining.map((id) => ({ id })),
+      url: `${ORIGIN}/matches/${matchId}`,
+    });
+    const after = await callTool("get_match", { group_id: groupId, match_id: matchId });
+    expect(after.structuredContent.version).toBe(fresh.structuredContent.version + 1);
+
+    // A later retry with the same request changes nothing.
+    const retry = await callTool("remove_match_event", current);
+    expect(retry.structuredContent).toMatchObject({ status: "already_removed", removed: { id: firstAce } });
+    expect(await savedIds()).toEqual(remaining);
+    expect((await callTool("get_match", { group_id: groupId, match_id: matchId })).structuredContent.version)
+      .toBe(after.structuredContent.version);
+
+    // Straight to the database function: a non-member and a missing event are refused.
+    const direct = { groupId, matchId, eventId: secondAce, expectedVersion: after.structuredContent.version };
+    const nonMember = await dataClient(stranger.jwt).rpc("remove_match_event", { p_request: direct });
+    expect(nonMember.data).toEqual({ status: "rejected", code: "MATCH_NOT_FOUND", message: "Match not found in this group." });
+    const missing = await dataClient(oauthToken).rpc("remove_match_event", { p_request: { ...direct, eventId: randomUUID() } });
+    expect(missing.data).toMatchObject({ status: "rejected", code: "EVENT_NOT_FOUND" });
+    expect(await savedIds()).toEqual(remaining);
+  });
+
   describe("direct Data API access with the OAuth token (MAR-144)", () => {
     const forbidden = { code: "OAUTH_CLIENT_FORBIDDEN" };
 

@@ -11,8 +11,10 @@ import {
   listGroupMatchesPage,
   listGroupPlayers,
   listMemberGroups,
+  removeMatchEvent,
   type AddMatchEventsResult,
   type CreateMatchResult,
+  type RemoveMatchEventResult,
   type PlayerSummary,
 } from "@padelaso/data/queries";
 import { EVENT_CONFIGS, getEventConfig } from "@padelaso/domain/events";
@@ -61,6 +63,17 @@ const RECORDS_MATCH = {
 const ADDS_EVENTS = {
   readOnlyHint: false,
   destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+/**
+ * Removes one event, so it is destructive. Repeating a call removes nothing
+ * more: the retry reports already_removed.
+ */
+const REMOVES_EVENT = {
+  readOnlyHint: false,
+  destructiveHint: true,
   idempotentHint: true,
   openWorldHint: false,
 } as const;
@@ -179,6 +192,17 @@ const outputs = {
     group,
     match,
     added: z.array(identifiedEvent).describe("The events this request added, in order."),
+    events: z.array(identifiedEvent).describe("Every event of the match now, in the order it was recorded."),
+    version: matchVersion,
+    url: z.string().describe("Link to the match in Padelaso."),
+  }),
+  remove_match_event: z.object({
+    status: z.enum(["removed", "already_removed"]).describe(
+      "removed: removed now. already_removed: an earlier identical request had already removed it, so nothing changed."),
+    message: z.string().describe("What happened, to tell the user."),
+    group,
+    match,
+    removed: identifiedEvent.describe("The event that was removed."),
     events: z.array(identifiedEvent).describe("Every event of the match now, in the order it was recorded."),
     version: matchVersion,
     url: z.string().describe("Link to the match in Padelaso."),
@@ -387,6 +411,61 @@ async function addEvents(caller: Caller, args: {
     // A replay names the events the first call added that still exist.
     added: events.filter((e) => added.has(e.id)),
     events,
+    version: result.version,
+    url: `${caller.appOrigin}/matches/${result.match.id}`,
+  };
+}
+
+type RemovalRejection = Extract<RemoveMatchEventResult, { status: "rejected" }>;
+
+const REMOVAL_REJECTION_HINTS: Partial<Record<RemovalRejection["code"], string>> = {
+  MATCH_NOT_FOUND: "Match not found in this group. Use list_matches to find match IDs.",
+  EVENT_NOT_FOUND: "Event not found in this match. Use get_match to see the match's events and their IDs.",
+  STALE_VERSION: "The match changed since you read it. Call get_match again, check the event with the user " +
+    "against the current events, and retry with the new version only if they still want it removed.",
+  BUSY: "Padelaso is saving another change to this match. Try again in a moment.",
+};
+
+const NOTHING_REMOVED = " Nothing was removed.";
+
+async function removeEvent(caller: Caller, args: {
+  group_id: string;
+  match_id: string;
+  event_id: string;
+  expected_version: number;
+}) {
+  const [found, players] = await Promise.all([
+    requireGroup(caller, args.group_id),
+    listGroupPlayers(caller.client, args.group_id),
+  ]);
+  const result = await removeMatchEvent(caller.client, {
+    groupId: found.id,
+    matchId: args.match_id,
+    eventId: args.event_id,
+    expectedVersion: args.expected_version,
+  });
+  if (result.status === "rejected") {
+    // The token was verified moments ago, so this is a server fault, not bad input.
+    if (result.code === "AUTH_REQUIRED") throw new Error("remove_match_event saw no user");
+    throw new ToolInputError((REMOVAL_REJECTION_HINTS[result.code] ?? result.message) + NOTHING_REMOVED);
+  }
+
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  const toEvent = (e: { id: string; playerId: string; type: string }) => ({
+    id: e.id,
+    player: { id: e.playerId, name: names.get(e.playerId) ?? null },
+    type: e.type,
+    label: getEventConfig(e.type as MatchEventType).label,
+  });
+  return {
+    status: result.status,
+    message: result.status === "removed"
+      ? "Event removed."
+      : "This event had already been removed by an earlier identical request. Nothing changed.",
+    group: found,
+    match: toMatch(result.match, names),
+    removed: toEvent(result.removedEvent),
+    events: result.events.map(toEvent),
     version: result.version,
     url: `${caller.appOrigin}/matches/${result.match.id}`,
   };
@@ -603,9 +682,31 @@ export function registerTools(server: McpServer) {
     outputSchema: outputs.add_match_events,
     annotations: ADDS_EVENTS,
   }, run(addEvents));
+
+  server.registerTool("remove_match_event", {
+    title: "Remove match event",
+    description:
+      "Remove one mistaken highlight (an ace, a double fault, …) from a recorded match. It removes exactly the " +
+      "event you name and nothing else; it cannot be undone except by adding the event again. Before calling: " +
+      "(1) find the match with list_matches and read it with get_match; when several matches fit what the user " +
+      "said, show them and ask. (2) Pick the event by its ID from get_match; when several events fit (e.g. two " +
+      "aces for the same player), they are interchangeable, so pick any one of them, but ask when it's unclear " +
+      "which player or type the user means. (3) Restate the match (date and teams) and the event to remove " +
+      "(player and type) to the user, and call only after they confirm. Pass the version from that get_match " +
+      "read: if the match changed since, nothing is removed and you must read it again. Retrying the same call " +
+      "is safe. Returns the removed event, the updated match and a link to it.",
+    inputSchema: z.object({
+      group_id: groupId,
+      match_id: matchId,
+      event_id: z.uuid().describe("ID of the event to remove, from get_match."),
+      expected_version: z.number().int().min(0).describe("The version returned by the get_match read the user confirmed."),
+    }),
+    outputSchema: outputs.remove_match_event,
+    annotations: REMOVES_EVENT,
+  }, run(removeEvent));
 }
 
 export const TOOL_NAMES = [
   "list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "create_match",
-  "add_match_events",
+  "add_match_events", "remove_match_event",
 ] as const;

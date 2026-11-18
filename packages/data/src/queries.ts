@@ -238,3 +238,43 @@ export async function addMatchEvents(client: SupabaseClient,
   if (error) throw error;
   return addMatchEventsResultSchema.parse(data);
 }
+
+// ---------- Removing one event from a match ----------
+
+/** The remove_match_event request. IDs and the version come from get_match_detail. */
+export interface RemoveMatchEventRequest {
+  groupId: string;
+  matchId: string;
+  eventId: string;
+  /** The version the caller read; a stale one is refused. */
+  expectedVersion: number;
+}
+
+const removedEvent = matchDetail.extend({
+  status: z.enum(['removed', 'already_removed']),
+  /** The event this request removed, or an earlier identical request did. */
+  removedEvent: z.object({ id: uuid, playerId: uuid, type: z.string() }),
+});
+
+const rejectedRemoval = z.object({
+  status: z.literal('rejected'),
+  code: z.enum([
+    'AUTH_REQUIRED', 'INVALID_REQUEST', 'MATCH_NOT_FOUND', 'EVENT_NOT_FOUND', 'STALE_VERSION', 'BUSY',
+  ]),
+  message: z.string(),
+});
+
+export const removeMatchEventResultSchema = z.union([removedEvent, rejectedRemoval]);
+export type RemoveMatchEventResult = z.infer<typeof removeMatchEventResultSchema>;
+
+/**
+ * Removes exactly one event of a match as the client's user, when the match is
+ * still at the expected version, and returns the match as get_match_detail
+ * does. Safe to retry: once removed, the same request reports already_removed.
+ */
+export async function removeMatchEvent(client: SupabaseClient,
+  request: RemoveMatchEventRequest): Promise<RemoveMatchEventResult> {
+  const { data, error } = await client.rpc('remove_match_event', { p_request: request });
+  if (error) throw error;
+  return removeMatchEventResultSchema.parse(data);
+}

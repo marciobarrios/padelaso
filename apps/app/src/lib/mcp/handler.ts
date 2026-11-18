@@ -15,7 +15,10 @@ const INSTRUCTIONS =
   "confirm the teams, set scores and date with the user, then call create_match once. " +
   "To add highlights to a recorded match, find it with list_matches and get_match, confirm the match and " +
   "the events with the user, then call add_match_events once. " +
-  "You only see groups the signed-in user belongs to. No tool changes or deletes existing data.";
+  "To remove one mistaken event, read the match with get_match, restate the match and that event to the user, " +
+  "and only after they confirm call remove_match_event with the event ID and the version from that read. " +
+  "You only see groups the signed-in user belongs to. Only remove_match_event removes data, one event at a time; " +
+  "no tool changes or deletes matches, players or groups.";
 
 /**
  * Stateless: every request builds a fresh server, so there is no session store
