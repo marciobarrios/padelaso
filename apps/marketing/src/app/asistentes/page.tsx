@@ -44,7 +44,7 @@ const rules = [
   "De 1 a 5 sets, con juegos de 0 a 99 por equipo. Un set 0-0 no cuenta: no lo incluyas.",
   "La fecha es la de ahora si no dices otra. No puede ser futura ni de hace más de un año.",
   "La pista (de 1 a 99) y los eventos (aces, dobles faltas, jugadas del partido…) son opcionales. Hasta 50 eventos por partido, siempre de alguno de los cuatro jugadores.",
-  "Si pides el mismo partido otra vez en 15 minutos, el asistente te devuelve el que ya guardó en lugar de crear uno repetido.",
+  "Si el asistente intenta guardar otra vez un partido que ya guardó hace menos de 15 minutos (mismo grupo, mismos equipos y resultado, y una fecha de hasta 12 horas de diferencia), Padelaso le devuelve el que ya existe en lugar de crear uno repetido.",
 ];
 
 export default function AssistantsHelpPage() {
@@ -87,7 +87,7 @@ export default function AssistantsHelpPage() {
           <h2 id="registrar" className={heading}>Cómo registra un partido</h2>
           <ol className="list-decimal space-y-3 pl-6 marker:font-[850]">
             <li>Busca el grupo y los cuatro jugadores. Si un nombre coincide con varios jugadores o con ninguno, te pregunta: nunca adivina.</li>
-            <li>Te repite los equipos, los sets y la fecha, y te pide que lo confirmes antes de guardar. Tu asistente también puede mostrarte su propio aviso de aprobación antes de guardar datos.</li>
+            <li>Padelaso le pide que te repita los equipos, los sets y la fecha, y que te pida confirmación antes de guardar. Tu asistente también puede mostrarte su propio aviso de aprobación antes de guardar datos.</li>
             <li>Te responde con un enlace al partido guardado. Cuenta en las estadísticas y los rankings desde ese momento.</li>
           </ol>
         </section>
@@ -101,11 +101,11 @@ export default function AssistantsHelpPage() {
 
         <section aria-labelledby="corregir" className="space-y-4">
           <h2 id="corregir" className={heading}>Corregir un partido</h2>
-          <p>Si algo salió mal, pídeselo al asistente. Primero te enseña lo que va a cambiar y te pide que lo confirmes. Puede:</p>
+          <p>Si algo salió mal, pídeselo al asistente. Padelaso le pide que te enseñe lo que va a cambiar y que te pida confirmación antes. Puede:</p>
           <ul className="list-disc space-y-2 pl-6">
             <li>Añadir eventos a un partido ya registrado.</li>
             <li>Quitar un evento registrado por error, de uno en uno.</li>
-            <li>Corregir la fecha, la pista, los equipos o el resultado.</li>
+            <li>Corregir la fecha, la pista, los equipos o el resultado. Para cambiar a un jugador que tiene eventos en el partido, primero hay que quitar sus eventos.</li>
           </ul>
           <p>No puede borrar partidos, ni cambiar o borrar jugadores o grupos. Para eso, usa <a href="https://app.padelaso.com" className={link}>la app</a>.</p>
         </section>
