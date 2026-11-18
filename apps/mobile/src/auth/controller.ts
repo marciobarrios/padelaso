@@ -12,6 +12,21 @@ export type AuthState = {
   revision: number;
 };
 type Attempt = { owner: string | null; expires: number };
+
+/** Auth session ID from an access token, without trusting it for authorization. */
+function sessionId(token: string | undefined) {
+  try {
+    const part = token?.split(".")[1];
+    if (!part) return null;
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(
+      atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")),
+    ) as { session_id?: unknown };
+    return typeof claims.session_id === "string" ? claims.session_id : null;
+  } catch {
+    return null;
+  }
+}
 type NativeAuth = {
   openBrowser(
     url: string,
@@ -107,6 +122,20 @@ export class AuthController {
         message:
           "Sesión cerrada en este dispositivo. No se pudo confirmar la revocación remota.",
       });
+  }
+  /**
+   * Linking issues a new session. Revoke the one it replaced so sign-out leaves
+   * no orphaned server session behind. Failure does not undo a completed link.
+   */
+  private async revokeReplaced(previous: Session | null, next: Session) {
+    const before = sessionId(previous?.access_token);
+    const after = sessionId(next.access_token);
+    if (!previous || !before || !after || before === after) return;
+    try {
+      await this.client.auth.admin.signOut(previous.access_token, "local");
+    } catch {
+      // The replaced refresh token is no longer stored on this device.
+    }
   }
   async start(initialUrl: string | null) {
     this.unsubscribe?.();
@@ -252,6 +281,8 @@ export class AuthController {
           await this.clearLocal();
           throw new Error("Link changed account");
         }
+        if (attempt.owner)
+          await this.revokeReplaced(current.data.session, data.session);
         await this.validate();
         if (this.state.status === "ready" && attempt.owner)
           this.update({ message: "Proveedor vinculado a tu cuenta." });
@@ -293,6 +324,9 @@ export class AuthController {
       await this.clearAttempt();
       await this.storage.removeItem(`${this.key}.signed-out`);
       if (provider === "apple") {
+        const previous = link
+          ? (await this.client.auth.getSession()).data.session
+          : null;
         const credential = await this.native.appleCredential();
         const args = {
           provider: "apple" as const,
@@ -308,6 +342,7 @@ export class AuthController {
           await this.clearLocal();
           throw new Error("Account changed");
         }
+        if (link) await this.revokeReplaced(previous, data.session);
         await this.validate();
         if (link && this.state.status === "ready")
           this.update({ message: "Apple vinculado a tu cuenta." });

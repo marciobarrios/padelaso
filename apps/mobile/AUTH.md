@@ -28,22 +28,90 @@ Groups and player associations remain keyed by the existing `auth.users.id`.
 The app does not create replacement player/profile rows or overwrite profile
 metadata during sign-in. Native group/player editing remains MAR-49 scope.
 
-## Approved Apple follow-up
+## Sign in with Apple — MAR-71
 
-On 9 November 2026, the owner deferred Apple activation/completion and live
-acceptance until after PR #86 merges. [MAR-71](https://linear.app/marciobarrios/issue/MAR-71/complete-sign-in-with-apple-provisioning-account-linking-and-physical)
-owns enrolled-team provisioning, Apple credential exchange, private-relay and
-same-owner provider linking, conflict recovery and physical iPhone Apple tests.
-The Apple implementation groundwork remains in this PR; it is not live-verified.
-MAR-47 now covers the Google/session development milestone. Google-only local
-builds with the current Apple entitlement still cannot be provisioned by a free
-Personal Team; MAR-71 includes deciding/documenting an optional development build.
+Apple was deferred from MAR-47 on 9 November 2026 and completed under
+[MAR-71](https://linear.app/marciobarrios/issue/MAR-71/complete-sign-in-with-apple-provisioning-account-linking-and-physical)
+once the owner's paid Apple Developer Program team (`76F87CFF9H`) was active.
 
-Apple is the intended equivalent login option for the native App Store release.
-Apple's guideline 4.8 requires qualifying apps offering Google primary-account
-login to offer an equivalent service with limited data collection, email privacy
-and no advertising tracking without consent, unless an exception applies. This
-release requirement remains tracked in MAR-71 and gates MAR-56 store readiness.
+### Signing
+
+Physical builds need a paid team: a free Personal Team cannot provision the
+Sign in with Apple entitlement. Set `APPLE_TEAM_ID` before native generation;
+Xcode's automatic signing then registers `com.padelaso.mobile.dev` (and its
+`.watch` target) with the capability. There is no Google-only Personal Team
+variant: Apple stays enabled in every build, so App Store builds cannot ship
+without the equivalent login option.
+
+```bash
+# From apps/mobile, with .env.local holding the public development values.
+export APPLE_TEAM_ID=76F87CFF9H EXPO_PUBLIC_APP_ENV=development
+pnpm native:generate --platform ios --clean --no-install
+pnpm watch:verify-project
+(cd ios && pod install)
+cd ios && xcodebuild -workspace PadelasoDev.xcworkspace -scheme PadelasoDev \
+  -configuration Release -destination "id=$PHONE_DEVICE_ID" \
+  -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+```
+
+Release builds embed the JavaScript bundle and need no Metro server. Install
+with `xcrun devicectl device install app --device "$PHONE_DEVICE_ID" <app>`.
+Before testing, confirm the signed app has `com.apple.developer.applesignin`
+and team `76F87CFF9H`, and that the embedded profile lists the device
+(`codesign -d --entitlements -` and `security cms -D -i embedded.mobileprovision`).
+
+### Linking replaces the session
+
+A successful `linkIdentity` (Apple ID token or Google code exchange) returns a
+new Auth session. The client stores the new one, and the controller then
+revokes the session it replaced (only when their `session_id` claims differ),
+using that session's own access token on `/logout?scope=local`. Before this,
+the replaced session stayed valid on the server after sign-out. A failed
+revocation does not undo a completed link: that refresh token is no longer on
+the device.
+
+### Physical iPhone evidence — 18 November 2026
+
+iPhone 18 Pro (physical, paired), Release build of Padelaso Dev signed by team
+`76F87CFF9H`, hosted **Padelaso** project. The owner approved creating and
+deleting a throwaway Apple user in production. Their Apple ID uses the same
+email as the original Google account. Checks used only whitelisted
+identifiers: user/identity IDs, providers, memberships, players and sessions.
+
+| Check | Result |
+| --- | --- |
+| Signing | App and profile signed by `76F87CFF9H` with the Apple entitlement; profile covers the iPhone |
+| Baseline | Original account: Google identity only, 2 admin memberships, 2 players; 17 users; no Apple identities |
+| New Apple user (Hide My Email) | Native credential exchange with nonce succeeded. A new user with only an Apple identity and a private-relay email; no groups or players created |
+| Repeat Apple sign-in | After sign-out, Apple returned the same new user; the first session was revoked |
+| Already-owned Apple identity | Linking it from the original Google account was refused with the recovery message. The original account was unchanged; the Apple identity stayed with the throwaway user |
+| Throwaway cleanup | Throwaway user deleted (it had only an Apple identity, no rows elsewhere); back to 17 users |
+| Link Apple to original account | "Apple vinculado a tu cuenta." Same user ID, Google + Apple (private relay), same 2 memberships and 2 players, account email unchanged |
+| Both providers return | Apple and Google sign-ins each returned the original account with both groups |
+| Process restart | Force-quit/reopen kept the session; after sign-out it stayed signed out |
+| Cancellation | Cancelling the Apple sheet left the sign-in screen with the retry message |
+| Replaced session | Found a session left active after linking; fixed as described above. Rebuilt, unlinked Apple, relinked: the pre-link Google session was revoked and only the new session remained |
+
+Not covered by this run:
+
+- **Share My Email** as a new user. With this Apple ID it would share the
+  Google account's verified email, so Supabase links it to the original
+  account automatically rather than creating a user. A new user that shares
+  its email needs an Apple ID with a different address.
+- Natural token expiry and server-side revocation on the physical device.
+  These passed on the simulator and emulator (see below); the linking fix was
+  covered by automated tests and the live relink.
+- Distribution signing and TestFlight remain MAR-55.
+
+### App Review guideline 4.8
+
+Padelaso offers Google as a primary login, so the iOS app must offer an
+equivalent option unless an exception applies. Sign in with Apple meets the
+4.8 requirements: it requests only email (no name), supports Hide My Email,
+and the app does no advertising tracking. Both options sit on the same
+sign-in screen, and Apple uses Apple's native button. Recheck this, the
+privacy disclosures and account deletion (MAR-48) at the MAR-56 store-readiness
+gate.
 
 ## Storage and lifecycle
 
@@ -181,7 +249,7 @@ Validation on this worktree (9 November 2026):
 | Sign-out restart | Both simulator/emulator apps stayed on sign-in after a full relaunch; no prior groups or match were visible |
 | iOS large text | At the largest accessibility text setting, the account/settings action was reachable by scrolling; checked visually and through accessibility. Restored normal large text afterward. This is layout reachability, not a VoiceOver interaction pass |
 | OAuth interruption | Android app termination at Google's account chooser preserved the pending destination. Automated account selection stalled on Google’s loading page; the user closed the tab, retried with the original account and confirms sign-in succeeded, resumed the saved destination and showed the expected no-access message for a match outside their groups |
-| Physical iPhone provisioning | Paired iPhone and development signing identity found. Xcode rejected provisioning because the available Personal Team does not support Sign in with Apple. User confirms only a free Personal Team is available; no physical auth result is claimed |
+| Physical iPhone provisioning | On 9 November only a free Personal Team was available, which cannot provision Sign in with Apple. Resolved with the paid team on 18 November; see the MAR-71 section |
 | Live provider settings | Google and Apple enabled; verified against public Auth settings after the CLI push |
 | Hosted callback/linking changes | Applied through Supabase CLI: both callbacks, manual linking and native Apple audiences; fresh diff has zero declared differences and preserves all twelve unrelated settings |
 
@@ -198,7 +266,8 @@ A first-ever Google account and a real two-account switch have therefore not bee
 live-tested. Automated controller coverage exercises a different next user and
 late responses; it does not establish live multi-account acceptance. Apple
 exchange, provider linking and physical iPhone Apple acceptance are deferred to
-MAR-71. No physical auth result is claimed.
+MAR-71. This MAR-47 run claimed no physical auth result; MAR-71's physical
+Apple evidence is recorded in its own section above.
 
 Simulator builds that exercise SecureStore must retain code signing. The first
 unsigned build failed with `A required entitlement is not present`; rebuilding
@@ -232,7 +301,8 @@ row. These checks remain required before release; they are not recorded as passe
 - Native accessibility labels/roles and the largest iOS text layout were inspected;
   full VoiceOver/TalkBack interaction and physical acceptance remain unrun.
 - Apple activation/completion, private relay, provider linking and physical Apple
-  acceptance belong to MAR-71 after PR #86 merges.
+  acceptance belong to MAR-71 after PR #86 merges (physical results recorded
+  above on 18 November 2026).
 
 The 31 mobile tests passed again after this validation pass. No implementation
 change was needed for these results. Under the approved scope split, MAR-47's

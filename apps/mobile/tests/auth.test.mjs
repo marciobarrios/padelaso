@@ -257,6 +257,83 @@ test("linking refuses an unexpected account returned by the provider", async () 
   assert.equal(f.controller.getSnapshot().status, "signedOut");
 });
 
+const jwt = (sessionId) =>
+  `header.${Buffer.from(JSON.stringify({ session_id: sessionId })).toString("base64url")}.signature`;
+const withToken = (sessionId, id = "original-google-user") => ({
+  ...session(id),
+  access_token: jwt(sessionId),
+});
+function trackRevocations(f) {
+  const revoked = [];
+  f.auth.admin = {
+    signOut: async (token, scope) => {
+      revoked.push([token, scope]);
+      return { data: null, error: null };
+    },
+  };
+  return revoked;
+}
+
+test("Apple linking revokes only the session it replaced", async () => {
+  const f = fixture(withToken("before"));
+  const revoked = trackRevocations(f);
+  await f.controller.start(null);
+  f.auth.linkIdentity = async () => {
+    f.setSession(withToken("after"));
+    return { data: { session: withToken("after") }, error: null };
+  };
+  await f.controller.signIn("apple", true);
+  assert.deepEqual(revoked, [[jwt("before"), "local"]]);
+  assert.equal(f.controller.getSnapshot().session.access_token, jwt("after"));
+  assert.match(f.controller.getSnapshot().message, /Apple vinculado/);
+});
+
+test("Google linking revokes the replaced session after the callback", async () => {
+  const f = fixture(withToken("before"));
+  const revoked = trackRevocations(f);
+  await f.controller.start(null);
+  f.auth.linkIdentity = async () => ({
+    data: { url: "https://provider.example/link" },
+    error: null,
+  });
+  f.auth.exchangeCodeForSession = async () => {
+    f.setSession(withToken("after"));
+    return { data: { session: withToken("after") }, error: null };
+  };
+  await f.controller.signIn("google", true);
+  assert.deepEqual(revoked, [[jwt("before"), "local"]]);
+  assert.match(f.controller.getSnapshot().message, /vinculado/);
+});
+
+test("linking that keeps the same session revokes nothing", async () => {
+  const f = fixture(withToken("same"));
+  const revoked = trackRevocations(f);
+  await f.controller.start(null);
+  f.auth.linkIdentity = async () => ({
+    data: { session: withToken("same") },
+    error: null,
+  });
+  await f.controller.signIn("apple", true);
+  assert.deepEqual(revoked, []);
+});
+
+test("a failed revocation of the replaced session keeps the completed link", async () => {
+  const f = fixture(withToken("before"));
+  await f.controller.start(null);
+  f.auth.admin = {
+    signOut: async () => {
+      throw new Error("offline");
+    },
+  };
+  f.auth.linkIdentity = async () => {
+    f.setSession(withToken("after"));
+    return { data: { session: withToken("after") }, error: null };
+  };
+  await f.controller.signIn("apple", true);
+  assert.equal(f.controller.getSnapshot().status, "ready");
+  assert.match(f.controller.getSnapshot().message, /Apple vinculado/);
+});
+
 test("duplicate warm callbacks exchange only once", async () => {
   const f = fixture();
   await f.controller.start(null);
