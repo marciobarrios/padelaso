@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   description: "Gamifica tus partidos de pádel con amigos",
 };
 
+// iOS Home Screen web apps blur the top ~16px of the page, under the status
+// bar. The top chrome (MobileShell, ThemeSwitcher) moves below it when this
+// class is set.
+const IOS_WEB_APP_SCRIPT = `if (navigator.standalone) document.documentElement.classList.add("ios-web-app");`;
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -34,6 +39,9 @@ export default function RootLayout({
       <body className="min-h-dvh flex flex-col pb-[env(safe-area-inset-bottom)]">
         <Script id="theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
+        </Script>
+        <Script id="ios-web-app" strategy="beforeInteractive">
+          {IOS_WEB_APP_SCRIPT}
         </Script>
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
