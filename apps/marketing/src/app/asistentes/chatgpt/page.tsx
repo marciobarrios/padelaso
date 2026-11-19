@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyUrl } from "../copy-url";
+import { BackLink, GuideLink } from "../from-app";
 
 const title = "Conectar ChatGPT · Padelaso";
 const description = "Cómo conectar tu cuenta de Padelaso a ChatGPT para consultar partidos y estadísticas, y registrar partidos desde el chat.";
@@ -30,7 +31,7 @@ const examples = [
 export default function ChatGptGuidePage() {
   return (
     <main className="mx-auto max-w-3xl px-5 py-10 text-ink sm:px-8 sm:py-16">
-      <Link href="/" className={`${link} inline-flex min-h-11 items-center`}>← Volver a Padelaso</Link>
+      <BackLink className={`${link} inline-flex min-h-11 items-center`}>← Volver a Padelaso</BackLink>
       <article className="mt-8 space-y-10 text-base leading-relaxed">
         <header className="space-y-4">
           <p className="text-[13px] font-extrabold tracking-[0.08em] uppercase">Asistentes de IA</p>
@@ -84,7 +85,7 @@ export default function ChatGptGuidePage() {
               <li key={example} className="rounded-sm border border-line bg-card px-4 py-3">@Padelaso {example}</li>
             ))}
           </ul>
-          <p className="text-sm text-ink-soft">Si perteneces a varios grupos, dile en cuál quieres consultar o registrar. Cómo registra un partido y qué reglas sigue: <Link href="/asistentes" className={link}>Padelaso en tu asistente de IA</Link>.</p>
+          <p className="text-sm text-ink-soft">Si perteneces a varios grupos, dile en cuál quieres consultar o registrar. Cómo registra un partido y qué reglas sigue: <GuideLink href="/asistentes" className={link}>Padelaso en tu asistente de IA</GuideLink>.</p>
         </section>
 
         <section aria-labelledby="desconectar" className="space-y-4">
