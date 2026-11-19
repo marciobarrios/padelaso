@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:is([data-theme$="-dark"] *));
 
+/* iOS Home Screen web apps start the page below the status bar (top inset 0)
+   and blur its top ~16px. Keep the top chrome below that blur. The class is
+   set before hydration in the root layout. */
+html.ios-web-app {
+  --app-top-inset: calc(env(safe-area-inset-top) + 1.25rem);
+}
+
 /* Only the document scrolls on home. Never add <main> here: it is an
    overflow-y:auto box that doesn't overflow, and Chrome then stops the scroll
    chain at it, so touch scrolling the page does nothing on Android. */
@@ -69,6 +76,8 @@ html.home-pull-to-refresh,
 }
 
 :root {
+  /* Top offset for the app's top chrome (group switcher, theme button). */
+  --app-top-inset: max(0.5rem, env(safe-area-inset-top));
   --radius: 0.625rem;
   /* Fallback palette: default-dark (matches previous app appearance when
      data-theme is not yet applied). */
