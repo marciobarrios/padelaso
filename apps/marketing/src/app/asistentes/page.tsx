@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink, GuideLink } from "./from-app";
 
 const title = "Padelaso en tu asistente de IA · Padelaso";
 const description = "Qué puedes pedirle a ChatGPT y a otros asistentes conectados a Padelaso, cómo registran un partido y qué límites tienen.";
@@ -50,7 +51,7 @@ const rules = [
 export default function AssistantsHelpPage() {
   return (
     <main className="mx-auto max-w-3xl px-5 py-10 text-ink sm:px-8 sm:py-16">
-      <Link href="/" className={`${link} inline-flex min-h-11 items-center`}>← Volver a Padelaso</Link>
+      <BackLink className={`${link} inline-flex min-h-11 items-center`}>← Volver a Padelaso</BackLink>
       <article className="mt-8 space-y-10 text-base leading-relaxed">
         <header className="space-y-4">
           <p className="text-[13px] font-extrabold tracking-[0.08em] uppercase">Asistentes de IA</p>
@@ -65,7 +66,7 @@ export default function AssistantsHelpPage() {
           <ul className="space-y-3">
             {clients.map((client) => (
               <li key={client.name} className="rounded-sm border-2 border-orange bg-card p-5">
-                <Link href={client.href} className={`${link} font-[850] text-lg`}>Conectar {client.name}</Link>
+                <GuideLink href={client.href} className={`${link} font-[850] text-lg`}>Conectar {client.name}</GuideLink>
                 <p className="mt-1 text-ink-soft">{client.summary}</p>
               </li>
             ))}

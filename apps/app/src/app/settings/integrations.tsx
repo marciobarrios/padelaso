@@ -7,8 +7,9 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import type { OAuthGrant } from "@supabase/supabase-js";
 
-const CHATGPT_GUIDE_URL = "https://padelaso.com/asistentes/chatgpt";
-const ASSISTANTS_HELP_URL = "https://padelaso.com/asistentes";
+// `from=app` makes the guides' back link return here (apps/marketing/src/app/asistentes/from-app.tsx).
+const CHATGPT_GUIDE_URL = "https://padelaso.com/asistentes/chatgpt?from=app";
+const ASSISTANTS_HELP_URL = "https://padelaso.com/asistentes?from=app";
 const REVOCATION_NOTE = "Al desconectar, la aplicación no podrá renovar su acceso. El acceso que ya tiene puede durar hasta 1 hora.";
 
 export function Integrations() {

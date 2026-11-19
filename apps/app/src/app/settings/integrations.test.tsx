@@ -18,8 +18,8 @@ function mount() { render(<SWRConfig value={{ provider: () => new Map(), shouldR
 it("shows the empty state", async () => {
   listGrants.mockResolvedValue({ data: [], error: null }); mount();
   expect(await screen.findByText("Sin aplicaciones conectadas")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Cómo conectar ChatGPT" }).getAttribute("href")).toBe("https://padelaso.com/asistentes/chatgpt");
-  expect(screen.getByRole("link", { name: "Qué puedes pedirle a un asistente" }).getAttribute("href")).toBe("https://padelaso.com/asistentes");
+  expect(screen.getByRole("link", { name: "Cómo conectar ChatGPT" }).getAttribute("href")).toBe("https://padelaso.com/asistentes/chatgpt?from=app");
+  expect(screen.getByRole("link", { name: "Qué puedes pedirle a un asistente" }).getAttribute("href")).toBe("https://padelaso.com/asistentes?from=app");
 });
 it("keeps the grant on cancel and removes it only after confirmed success", async () => {
   listGrants.mockResolvedValue({ data: [grant], error: null }); revokeGrant.mockResolvedValue({ error: null }); mount();
