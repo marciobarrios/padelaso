@@ -29,7 +29,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-dvh">
       {/* Group switcher bar */}
-      <div className="relative mx-auto flex w-full max-w-lg items-center justify-center px-14 pb-2 pt-(--app-top-inset)">
+      <div className="relative mx-auto flex w-full max-w-lg items-center justify-center px-14 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] in-[.ios-web-app]:pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <GroupSwitcher />
         <Link href="/settings" aria-label="Ajustes" className="absolute left-2 p-3 rounded-full focus-visible:ring-2 focus-visible:ring-ring"><Settings className="size-5" /></Link>
       </div>

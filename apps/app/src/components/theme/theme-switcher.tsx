@@ -28,7 +28,7 @@ export function ThemeSwitcher() {
 
   return (
     <Drawer>
-      <div className="pointer-events-none fixed inset-x-0 z-50 flex justify-end px-2 top-(--app-top-inset)">
+      <div className="pointer-events-none fixed inset-x-0 z-50 flex justify-end px-2 top-[max(0.5rem,env(safe-area-inset-top))] in-[.ios-web-app]:top-[calc(env(safe-area-inset-top)+1.25rem)]">
         <div className="pointer-events-none mx-auto flex w-full max-w-lg justify-end">
           <DrawerTrigger asChild>
             <button

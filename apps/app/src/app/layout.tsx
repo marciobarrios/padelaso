@@ -13,8 +13,9 @@ export const metadata: Metadata = {
   description: "Gamifica tus partidos de pádel con amigos",
 };
 
-// iOS Home Screen web apps blur the top of the page; globals.css moves the
-// top chrome down when this class is set.
+// iOS Home Screen web apps blur the top ~16px of the page, under the status
+// bar. The top chrome (MobileShell, ThemeSwitcher) moves below it when this
+// class is set.
 const IOS_WEB_APP_SCRIPT = `if (navigator.standalone) document.documentElement.classList.add("ios-web-app");`;
 
 export const viewport: Viewport = {
