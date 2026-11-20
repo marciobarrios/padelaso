@@ -18,6 +18,9 @@ See [WATCH-VALIDATION.md](WATCH-VALIDATION.md) for captured evidence and the
 remaining TestFlight (MAR-55) and resilience/accessibility checks (MAR-56).
 MAR-44's revised local feasibility scope is complete.
 
+Build profiles, app IDs, versions, build numbers and the native runtime
+policy for beta and store builds are in [RELEASE.md](RELEASE.md).
+
 ## Pinned toolchain
 
 - Expo SDK **58.0.23**, React Native **0.88.1**, React **19.3.0**

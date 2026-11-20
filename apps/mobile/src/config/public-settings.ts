@@ -1,4 +1,11 @@
-export type AppEnvironment = "development" | "test";
+export type AppEnvironment = "development" | "test" | "production";
+
+// Link schemes per environment. app.config.ts registers the same values.
+export const appSchemes: Record<AppEnvironment, string> = {
+  development: "padelaso-dev",
+  test: "padelaso-test",
+  production: "padelaso",
+};
 export type PublicSettings =
   | { status: "sample"; environment: AppEnvironment }
   | {
@@ -9,14 +16,17 @@ export type PublicSettings =
     }
   | { status: "invalid" };
 
+function isAppEnvironment(value: string): value is AppEnvironment {
+  return Object.hasOwn(appSchemes, value);
+}
+
 export function parsePublicSettings(input: {
   environment?: string;
   url?: string;
   publishableKey?: string;
 }): PublicSettings {
   const environment = input.environment ?? "development";
-  if (environment !== "development" && environment !== "test")
-    return { status: "invalid" };
+  if (!isAppEnvironment(environment)) return { status: "invalid" };
   const url = input.url?.trim();
   const publishableKey = input.publishableKey?.trim();
   if (!url && !publishableKey) return { status: "sample", environment };
