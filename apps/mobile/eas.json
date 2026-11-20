@@ -44,6 +44,32 @@
       "ios": {
         "buildConfiguration": "Release"
       }
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "test"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   }
 }

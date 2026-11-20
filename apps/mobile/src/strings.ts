@@ -19,6 +19,7 @@ export const es = {
   environment: "Entorno",
   development: "Desarrollo",
   test: "Pruebas",
+  production: "Producción",
   backendReady: "Backend configurado",
   backendSample: "Modo de ejemplo sin conexión",
   backendInvalid: "Revisa la configuración pública del entorno.",
