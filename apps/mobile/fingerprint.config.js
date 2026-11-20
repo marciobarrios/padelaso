@@ -9,6 +9,9 @@ module.exports = {
     "tests/**/*",
     "evidence/**/*",
     "dist/**/*",
+    // Tool caches and logs that change while builds and tests run.
+    ".expo/**/*",
+    ".turbo/**/*",
     "**/*.md",
     ".env*",
     "eslint.config.cjs",
