@@ -25,7 +25,7 @@ test("test backend accepts only an HTTPS origin and publishable key", () => {
 });
 test("unsafe and incomplete settings fail without echoing values", () => {
   for (const input of [
-    { environment: "production" },
+    { environment: "staging" },
     { url: "https://example.supabase.co" },
     {
       url: "https://example.supabase.co",

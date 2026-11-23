@@ -1,6 +1,7 @@
 import { createClient, processLock } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
+import { appSchemes } from "../config/public-settings";
 import { settings } from "../config/settings";
 import { createSessionStorage } from "./storage";
 import { installAuthCrypto } from "./crypto";
@@ -28,9 +29,9 @@ export const sessionStorage = createSessionStorage({
   removeItem: (key) => SecureStore.deleteItemAsync(key, options),
 });
 export const scheme =
-  settings.status !== "invalid" && settings.environment === "test"
-    ? "padelaso-test"
-    : "padelaso-dev";
+  appSchemes[
+    settings.status === "invalid" ? "development" : settings.environment
+  ];
 export const storageKey =
   settings.status === "configured"
     ? `padelaso.${settings.environment}.${new URL(settings.url).host.replaceAll(":", "_")}.auth`

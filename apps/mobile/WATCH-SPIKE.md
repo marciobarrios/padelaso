@@ -82,7 +82,7 @@ by the installed Xcode before building; this Watch target requires watchOS 10+.
 | Development | `com.padelaso.mobile.dev` | `com.padelaso.mobile.dev.watch` |
 | Test / TestFlight | `com.padelaso.mobile.test` | `com.padelaso.mobile.test.watch` |
 
-Both targets share version `0.1.0`, build number (`IOS_BUILD_NUMBER`, default
+Both targets share version `0.1.0`, build number (`APP_BUILD_NUMBER`, default
 `1`) and signing team (`APPLE_TEAM_ID`). Before the first upload, confirm the
 identifiers can be registered to your team. If unavailable, change the phone
 identifier in `app.config.ts`; the Watch suffix follows automatically.
@@ -119,7 +119,7 @@ The verifier checks bundle binding, versions, Watch SDK and embedding rather
 than unstable Xcode UUIDs. It does not verify provisioning or TestFlight.
 
 For real devices, use the following from `apps/mobile` after configuring your
-real team locally. `APPLE_TEAM_ID` and `IOS_BUILD_NUMBER` are build metadata,
+real team locally. `APPLE_TEAM_ID` and `APP_BUILD_NUMBER` are build metadata,
 not tokens. Set them in the shell or ignored `.env.local`.
 
 ```bash
@@ -156,7 +156,7 @@ xcodebuild -workspace ios/PadelasoTest.xcworkspace -scheme PadelasoWatch \
 ```
 
 Rebuild the phone afterward to embed the refreshed Watch bundle/profile.
-For the tested build, set `IOS_BUILD_NUMBER=3` before generation and run:
+For the tested build, set `APP_BUILD_NUMBER=3` (then named `IOS_BUILD_NUMBER`) before generation and run:
 
 ```bash
 xcodebuild -workspace ios/PadelasoTest.xcworkspace -scheme PadelasoTest \
@@ -182,7 +182,7 @@ xcodebuild -workspace ios/PadelasoTest.xcworkspace -scheme PadelasoTest \
 ```
 
 This command registers/provisions with the selected Apple team. Run it only
-after account/device setup. Increase `IOS_BUILD_NUMBER` before each new upload.
+after account/device setup. Increase `APP_BUILD_NUMBER` before each new upload.
 In App Store Connect, complete processing/compliance, add yourself as an
 internal tester, install via TestFlight on the iPhone, then install its Watch
 companion. Record the actual processed build number and installation result.
