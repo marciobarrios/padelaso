@@ -19,7 +19,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["PORTLESS", "PORTLESS_*"]
     },
     "@padelaso/app#build": {
       "dependsOn": ["^build"],

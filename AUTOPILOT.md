@@ -45,8 +45,11 @@ SUPABASE_SERVICE_ROLE_KEY=local-test-service-role-key \
 pnpm build
 ```
 
-- Web dev server: `pnpm dev` (app on `http://localhost:3000`),
-  `pnpm dev:marketing` (`http://localhost:3001`).
+- Web dev server: `pnpm dev` (app on `https://app.padelaso.localhost`),
+  `pnpm dev:marketing` (`https://marketing.padelaso.localhost`), via portless.
+  In a worktree the branch is a subdomain; run `pnpm exec portless list` for the
+  exact URL. If the proxy is not running, ask the user to start it with
+  `pnpm exec portless proxy start --https` (it needs sudo once).
 - iOS: `pnpm mobile:ios` builds the dev client, `pnpm dev:mobile` starts Metro.
   Scheme `padelaso-dev`, bundle ID `com.padelaso.mobile.dev`.
 - Watch: `pnpm --filter @padelaso/mobile watch:test` (Swift).

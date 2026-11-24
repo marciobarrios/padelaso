@@ -52,8 +52,8 @@ use the administrative client. Never expose it with a `NEXT_PUBLIC_` prefix.
 ## Development
 
 ```bash
-pnpm dev                 # Product at http://localhost:3000
-pnpm dev:marketing       # Marketing at http://localhost:3001
+pnpm dev                 # Product at https://app.padelaso.localhost
+pnpm dev:marketing       # Marketing at https://marketing.padelaso.localhost
 pnpm dev:all             # All applications, including Metro
 pnpm dev:mobile          # Metro for an installed native development client
 pnpm mobile:ios          # Compile/install an iOS development client
@@ -65,6 +65,15 @@ pnpm test                # Run domain and component behavior tests
 pnpm test:db             # Run pgTAP against the local Supabase stack
 pnpm check               # Lint, type-check, build, and run every test
 ```
+
+Web dev servers run through [portless](https://portless.sh), which gives each
+app a stable HTTPS `.localhost` name instead of a port. The first run needs
+`sudo` once to bind port 443 and trust its local certificate; if a non-interactive
+run fails with "no TTY is available for sudo", start the proxy yourself with
+`pnpm exec portless proxy start --https`. In a git worktree the branch becomes a
+subdomain, for example `https://fix-ui.app.padelaso.localhost`, so worktrees can
+run side by side. `pnpm exec portless list` shows the running URLs, and
+`PORTLESS=0 pnpm dev` skips the proxy and serves on a plain port.
 
 Database tests require the disposable local stack to be running:
 
