@@ -26,6 +26,7 @@ import { MatchVoting } from "@/components/match/match-voting";
 import { VOTE_CONFIGS } from "@padelaso/domain/events";
 import { dateFormatter } from "@/lib/utils";
 import { getMatchTeamLabel, getMatchTeamSlots } from "@/lib/match-team";
+import { MatchDetailSkeleton } from "@/components/match/match-detail-skeleton";
 
 const EditMatchDialog = dynamic(() =>
   import("@/components/match/edit-match-dialog").then((m) => ({ default: m.EditMatchDialog }))
@@ -45,7 +46,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   const { user } = useAuth();
   const { activeGroup } = useGroup();
 
-  const { match, loaded: matchLoaded } = useMatch(matchId);
+  const { match, loaded: matchLoaded } = useMatch(matchId, activeGroup?.id);
   const { events, loaded: eventsLoaded } = useMatchEvents(matchId);
   const votes = useMatchVotes(matchId);
   const { players, loaded: playersLoaded } = usePlayers(activeGroup?.id);
@@ -140,11 +141,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
   }
 
   if (!match) {
-    if (!matchLoaded) return (
-      <MobileShell>
-        <PageHeader title="Partido" back />
-      </MobileShell>
-    );
+    if (!matchLoaded) return <MatchDetailSkeleton />;
     return (
       <MobileShell>
         <PageHeader title="Partido" back />
@@ -159,13 +156,7 @@ export function MatchDetailContent({ matchId }: { matchId: string }) {
     return <MatchGroupMismatch groupId={match.groupId} />;
   }
 
-  if (!playersLoaded) {
-    return (
-      <MobileShell>
-        <PageHeader title="Partido" back />
-      </MobileShell>
-    );
-  }
+  if (!playersLoaded) return <MatchDetailSkeleton />;
 
   const playerMap = buildPlayerMap(players);
   const team1Slots = getMatchTeamSlots(match.team1, playerMap);
