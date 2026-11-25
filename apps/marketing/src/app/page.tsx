@@ -100,6 +100,9 @@ export default function Home() {
         id="inicio"
       >
         <div className="max-[850px]:text-center">
+          <p className="mb-6 text-[13px] font-semibold tracking-[0.08em] uppercase">
+            La app para tu grupo de pádel
+          </p>
           <h1
             className={`${displayHeading} max-w-[700px] text-[clamp(66px,7.5vw,112px)] max-[560px]:text-[clamp(58px,19vw,82px)]`}
           >
