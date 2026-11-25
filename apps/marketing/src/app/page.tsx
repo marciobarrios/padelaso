@@ -1,4 +1,4 @@
-import { ArrowUpRight, BarChart3, PartyPopper, UsersRound } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { DashboardPreview, StatsPreview } from "./phone-previews";
 import { ThemeSwitcher } from "./theme-switcher";
 
@@ -8,29 +8,21 @@ const shell =
   "mx-auto w-[min(1160px,calc(100%_-_40px))] max-[560px]:w-[min(1160px,calc(100%_-_28px))]";
 const displayHeading = "font-pixel leading-[0.91] tracking-[-0.065em]";
 const sectionHeading = `${displayHeading} text-[clamp(50px,6vw,84px)]`;
-const sectionNumber =
-  "mt-[5px] text-xs font-[850] tracking-[0.12em] uppercase";
 const phone =
   "relative z-10 w-[min(100%,360px)] overflow-hidden rounded-[35px] border-[3px] border-[#101b16] bg-[#101b16] shadow-[14px_16px_0_var(--phone-shadow)] max-[560px]:w-[min(78vw,330px)]";
 
 const features = [
   {
-    icon: UsersRound,
-    eyebrow: "Tu grupo, tus reglas",
     title: "Todos los partidos en un mismo sitio",
     copy: "Crea vuestro grupo, añade jugadores y deja de buscar resultados perdidos en el chat.",
   },
   {
-    icon: PartyPopper,
-    eyebrow: "Mucho más que el marcador",
     title: "Que no se pierda ningún momentazo",
     copy: "Añade puntos y eventos en tiempo real desde el Apple Watch: aces, caídas épicas, remontadas y golpes imposibles.",
   },
   {
-    icon: BarChart3,
-    eyebrow: "Pique sano",
     title: "Estadísticas con memoria",
-    copy: "Rachas, parejas, rivales y logros —algunos bastante graciosos— que aparecen al combinar varios eventos.",
+    copy: "Rachas, parejas, rivales y logros, algunos bastante graciosos, que aparecen al combinar varios eventos.",
   },
 ];
 
@@ -50,7 +42,7 @@ const structuredData = {
 function AppLink({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <a
-      className={`inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-sm border-2 border-button-border bg-button px-[21px] font-[750] text-button-ink shadow-[5px_5px_0_var(--color-orange)] transition-[transform,box-shadow] duration-150 ease-[ease] hover:shadow-[3px_3px_0_var(--color-orange)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus motion-safe:hover:[transform:translate(2px,2px)] motion-reduce:transition-none ${className}`}
+      className={`inline-flex min-h-[52px] items-center justify-center gap-2 rounded-sm border-2 border-button-border bg-button px-5 font-[750] text-button-ink shadow-[5px_5px_0_var(--color-orange)] transition-[transform,box-shadow] duration-150 ease-out hover:shadow-[3px_3px_0_var(--color-orange)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus motion-safe:hover:[transform:translate(2px,2px)] motion-reduce:transition-none ${className}`}
       href={appUrl}
     >
       {children}
@@ -62,7 +54,7 @@ function AppLink({ children, className = "" }: { children: React.ReactNode; clas
 function Brand() {
   return (
     <a
-      className="inline-flex items-center gap-[9px] font-pixel text-2xl font-extrabold tracking-[-0.05em] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus max-[560px]:text-[21px]"
+      className="inline-flex items-center gap-2 font-pixel text-2xl font-semibold tracking-[-0.05em] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus max-[560px]:text-[21px]"
       href="#inicio"
       aria-label="Padelaso, inicio"
     >
@@ -97,13 +89,10 @@ export default function Home() {
       </nav>
 
       <section
-        className={`${shell} grid min-h-[690px] grid-cols-[1.08fr_0.92fr] items-center gap-[70px] overflow-hidden pt-[74px] pb-[62px] max-[850px]:grid-cols-1 max-[850px]:gap-[45px] max-[850px]:pt-[58px] max-[560px]:pt-12`}
+        className={`${shell} grid min-h-[690px] grid-cols-[1.08fr_0.92fr] items-center gap-18 overflow-hidden pt-18 pb-16 max-[850px]:grid-cols-1 max-[850px]:gap-12 max-[850px]:pt-14 max-[560px]:pt-12`}
         id="inicio"
       >
         <div className="max-[850px]:text-center">
-          <p className="mb-[26px] flex items-center gap-2.5 text-[13px] font-extrabold tracking-[0.08em] uppercase max-[850px]:justify-center">
-            La app para tu grupo de pádel
-          </p>
           <h1
             className={`${displayHeading} max-w-[700px] text-[clamp(66px,7.5vw,112px)] max-[560px]:text-[clamp(58px,19vw,82px)]`}
           >
@@ -111,21 +100,21 @@ export default function Home() {
             <br />
             empieza aquí.
           </h1>
-          <p className="my-[29px] mb-[30px] max-w-[590px] text-[clamp(18px,2vw,22px)] leading-normal text-ink-soft max-[850px]:mx-auto max-[560px]:text-lg">
+          <p className="my-8 max-w-[590px] text-[clamp(18px,2vw,22px)] leading-normal text-ink-soft max-[850px]:mx-auto max-[560px]:text-lg">
             Guarda los partidos, sigue las estadísticas y revive los momentazos de tu grupo
             de pádel.
           </p>
-          <div className="flex items-center gap-[27px] max-[850px]:justify-center max-[560px]:flex-col max-[560px]:gap-3">
+          <div className="flex items-center gap-6 max-[850px]:justify-center max-[560px]:flex-col max-[560px]:gap-3">
             <AppLink className="max-[560px]:w-[min(100%,330px)]">Empezar a jugar</AppLink>
             <a
               className="border-b-2 border-ink py-3 font-[750] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus"
               href="#como-funciona"
             >
-              Ver cómo funciona <span aria-hidden="true">↓</span>
+              Ver cómo funciona
             </a>
           </div>
           <p className="mt-5 text-[13px] text-ink-soft">
-            Gratis · Sin hojas de cálculo · Hecho para el móvil
+            Gratis
           </p>
         </div>
 
@@ -134,7 +123,7 @@ export default function Home() {
             className="absolute size-[430px] rounded-full border-2 border-ink bg-acid shadow-[17px_17px_0_var(--color-mint)] max-[560px]:size-[330px]"
             aria-hidden="true"
           />
-          <span className="absolute top-[45px] right-[14px] z-20 border-2 border-acid-ink bg-orange px-3.5 pt-2.5 pb-2 font-pixel font-extrabold text-acid-ink shadow-[5px_5px_0_var(--color-ink)] [transform:rotate(7deg)]">
+          <span className="absolute top-[45px] right-[14px] z-20 border-2 border-acid-ink bg-orange px-3.5 pt-2.5 pb-2 font-pixel font-semibold text-acid-ink shadow-[5px_5px_0_var(--color-ink)] [transform:rotate(7deg)]">
             ¡Puntazo!
           </span>
           <div
@@ -144,20 +133,20 @@ export default function Home() {
           >
             <DashboardPreview />
           </div>
-          <span className="absolute bottom-10 left-2 z-20 border-2 border-ink bg-acid px-3.5 pt-2.5 pb-2 font-pixel font-extrabold text-acid-ink shadow-[5px_5px_0_var(--color-ink)] [transform:rotate(-5deg)]">
+          <span className="absolute bottom-10 left-2 z-20 border-2 border-ink bg-acid px-3.5 pt-2.5 pb-2 font-pixel font-semibold text-acid-ink shadow-[5px_5px_0_var(--color-ink)] [transform:rotate(-5deg)]">
             🔥 4 seguidos
           </span>
         </div>
       </section>
 
       <div
-        className="overflow-hidden border-y-2 border-acid-ink bg-orange py-[13px] pt-[15px] font-pixel text-lg font-extrabold tracking-[0.06em] whitespace-nowrap text-acid-ink"
+        className="overflow-hidden border-y-2 border-acid-ink bg-orange py-[13px] pt-[15px] font-pixel text-lg font-semibold tracking-[0.06em] whitespace-nowrap text-acid-ink"
         aria-hidden="true"
       >
         <div className="flex w-max will-change-transform motion-safe:animate-[ticker_35s_linear_infinite]">
           {[0, 1].map((group) => (
             <div
-              className="flex min-w-screen flex-none items-center justify-around gap-[18px]"
+              className="flex min-w-screen flex-none items-center justify-around gap-4"
               key={group}
             >
               {Array.from({ length: 2 }, () => [
@@ -183,45 +172,26 @@ export default function Home() {
       </div>
 
       <section
-        className={`${shell} pt-[110px] pb-[120px] max-[560px]:py-[82px]`}
+        className={`${shell} py-28 max-[560px]:py-20`}
         id="como-funciona"
       >
-        <div className="mb-[60px] grid grid-cols-[1fr_2fr] items-start max-[850px]:grid-cols-1 max-[850px]:gap-6">
-          <p className={sectionNumber}>01 / EL JUEGO SIGUE</p>
-          <h2 className={sectionHeading}>
-            Todo lo que pasa
-            <br />
-            fuera de la pista.
-          </h2>
-        </div>
+        <h2 className={`${sectionHeading} mb-16`}>
+          Todo lo que pasa
+          <br />
+          fuera de la pista.
+        </h2>
         <div className="grid grid-cols-3 border-2 border-ink max-[850px]:grid-cols-1">
-          {features.map(({ icon: Icon, eyebrow, title, copy }, index) => {
+          {features.map(({ title, copy }, index) => {
             const isHighlighted = index === 1;
 
             return (
               <article
-                className={`relative min-h-[380px] border-r-2 border-ink p-7 last:border-r-0 max-[850px]:min-h-[300px] max-[850px]:border-r-0 max-[850px]:border-b-2 max-[850px]:last:border-b-0 ${
+                className={`border-r-2 border-ink p-8 last:border-r-0 max-[850px]:border-r-0 max-[850px]:border-b-2 max-[850px]:last:border-b-0 ${
                   isHighlighted ? "bg-acid text-acid-ink" : "bg-card"
                 }`}
                 key={title}
               >
-                <div className="absolute top-5 right-[22px] font-pixel text-sm">
-                  0{index + 1}
-                </div>
-                <Icon
-                  className="mt-[42px] mb-[50px] max-[850px]:mb-8"
-                  aria-hidden="true"
-                  size={30}
-                  strokeWidth={2.2}
-                />
-                <p
-                  className={`mb-3 text-xs font-[850] tracking-[0.09em] uppercase ${
-                    isHighlighted ? "text-acid-ink/75" : "text-ink-soft"
-                  }`}
-                >
-                  {eyebrow}
-                </p>
-                <h3 className="mb-[15px] font-pixel text-[27px] leading-[1.05] tracking-[-0.04em]">
+                <h3 className="mb-4 font-pixel text-[27px] leading-[1.05] tracking-[-0.04em]">
                   {title}
                 </h3>
                 <span
@@ -239,11 +209,10 @@ export default function Home() {
 
       <section className="overflow-hidden bg-showcase text-showcase-ink">
         <div
-          className={`${shell} grid min-h-[740px] grid-cols-[1.05fr_0.95fr] items-center gap-[85px] py-[90px] max-[850px]:grid-cols-1 max-[850px]:gap-[55px] max-[560px]:py-20`}
+          className={`${shell} grid min-h-[740px] grid-cols-[1.05fr_0.95fr] items-center gap-20 py-28 max-[850px]:grid-cols-1 max-[850px]:gap-14 max-[560px]:py-20`}
         >
           <div className="max-[850px]:text-center">
-            <p className={`${sectionNumber} text-acid`}>02 / LOS DATOS HABLAN</p>
-            <h2 className={`${sectionHeading} my-[30px] mt-[25px]`}>
+            <h2 className={`${sectionHeading} mb-8`}>
               La memoria del grupo,
               <br />
               <em className="font-normal text-acid not-italic">partido a partido.</em>
@@ -252,17 +221,10 @@ export default function Home() {
               Padelaso convierte cada resultado en historias que dan para semanas: la pareja
               invencible, la remontada del año o esa racha que nadie quiere mencionar.
             </p>
-            <ul className="mt-7 grid list-none gap-[13px] p-0 font-bold max-[850px]:mx-auto max-[850px]:w-fit max-[850px]:text-left">
-              <li>
-                <span className="mr-2.5 text-acid">✓</span> Clasificación ajustada por
-                experiencia
-              </li>
-              <li>
-                <span className="mr-2.5 text-acid">✓</span> Historial de parejas y rivales
-              </li>
-              <li>
-                <span className="mr-2.5 text-acid">✓</span> Logros y momentazos del grupo
-              </li>
+            <ul className="mt-8 grid list-none gap-3 p-0 font-bold max-[850px]:mx-auto max-[850px]:w-fit max-[850px]:text-left">
+              <li>Clasificación ajustada por experiencia</li>
+              <li>Historial de parejas y rivales</li>
+              <li>Logros y momentazos del grupo</li>
             </ul>
           </div>
           <div
@@ -276,18 +238,17 @@ export default function Home() {
       </section>
 
       <section
-        className={`${shell} grid grid-cols-[1.3fr_0.7fr] items-end gap-20 py-[120px] max-[850px]:grid-cols-1 max-[850px]:gap-[35px] max-[560px]:py-[82px]`}
+        className={`${shell} grid grid-cols-[1.3fr_0.7fr] items-end gap-20 py-28 max-[850px]:grid-cols-1 max-[850px]:gap-8 max-[560px]:py-20`}
       >
         <div>
-          <p className={sectionNumber}>03 / A JUGAR</p>
-          <h2 className={`${sectionHeading} mt-[25px]`}>
+          <h2 className={sectionHeading}>
             Tu próximo partido
             <br />
             merece un postpartido.
           </h2>
         </div>
         <div>
-          <p className="mb-7 text-lg leading-[1.55] text-ink-soft">
+          <p className="mb-8 text-lg leading-[1.55] text-ink-soft">
             Crea el grupo, apunta el resultado y deja que Padelaso recuerde el resto.
           </p>
           <AppLink>Entrar en Padelaso</AppLink>
@@ -295,7 +256,7 @@ export default function Home() {
       </section>
 
       <footer
-        className={`${shell} grid min-h-[100px] grid-cols-3 items-center border-t border-line py-[26px] text-[13px] text-ink-soft max-[560px]:grid-cols-1 max-[560px]:gap-3.5 max-[560px]:text-center`}
+        className={`${shell} grid min-h-[100px] grid-cols-3 items-center border-t border-line py-6 text-[13px] text-ink-soft max-[560px]:grid-cols-1 max-[560px]:gap-4 max-[560px]:text-center`}
       >
         <Brand />
         <p className="text-center max-[560px]:m-0">Hecho para grupos que se toman el pádel lo justo.{" "}<a href="/privacidad" className="underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus">Privacidad</a></p>
