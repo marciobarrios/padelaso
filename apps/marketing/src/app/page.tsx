@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, BarChart3, PartyPopper, UsersRound } from "lucide-react";
 import { DashboardPreview, StatsPreview } from "./phone-previews";
 import { ThemeSwitcher } from "./theme-switcher";
 
@@ -13,14 +13,20 @@ const phone =
 
 const features = [
   {
+    icon: UsersRound,
+    eyebrow: "Tu grupo, tus reglas",
     title: "Todos los partidos en un mismo sitio",
     copy: "Crea vuestro grupo, añade jugadores y deja de buscar resultados perdidos en el chat.",
   },
   {
+    icon: PartyPopper,
+    eyebrow: "Mucho más que el marcador",
     title: "Que no se pierda ningún momentazo",
     copy: "Añade puntos y eventos en tiempo real desde el Apple Watch: aces, caídas épicas, remontadas y golpes imposibles.",
   },
   {
+    icon: BarChart3,
+    eyebrow: "Pique sano",
     title: "Estadísticas con memoria",
     copy: "Rachas, parejas, rivales y logros, algunos bastante graciosos, que aparecen al combinar varios eventos.",
   },
@@ -181,16 +187,29 @@ export default function Home() {
           fuera de la pista.
         </h2>
         <div className="grid grid-cols-3 border-2 border-ink max-[850px]:grid-cols-1">
-          {features.map(({ title, copy }, index) => {
+          {features.map(({ icon: Icon, eyebrow, title, copy }, index) => {
             const isHighlighted = index === 1;
 
             return (
               <article
-                className={`border-r-2 border-ink p-8 last:border-r-0 max-[850px]:border-r-0 max-[850px]:border-b-2 max-[850px]:last:border-b-0 ${
+                className={`min-h-[380px] border-r-2 border-ink p-8 last:border-r-0 max-[850px]:min-h-[300px] max-[850px]:border-r-0 max-[850px]:border-b-2 max-[850px]:last:border-b-0 ${
                   isHighlighted ? "bg-acid text-acid-ink" : "bg-card"
                 }`}
                 key={title}
               >
+                <Icon
+                  className="mt-10 mb-12 max-[850px]:mb-8"
+                  aria-hidden="true"
+                  size={30}
+                  strokeWidth={2.2}
+                />
+                <p
+                  className={`mb-3 text-xs font-semibold tracking-[0.09em] uppercase ${
+                    isHighlighted ? "text-acid-ink/75" : "text-ink-soft"
+                  }`}
+                >
+                  {eyebrow}
+                </p>
                 <h3 className="mb-4 font-pixel text-[27px] leading-[1.05] tracking-[-0.04em]">
                   {title}
                 </h3>
