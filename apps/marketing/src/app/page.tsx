@@ -8,6 +8,7 @@ const shell =
   "mx-auto w-[min(1160px,calc(100%_-_40px))] max-[560px]:w-[min(1160px,calc(100%_-_28px))]";
 const displayHeading = "font-pixel leading-[0.91] tracking-[-0.065em]";
 const sectionHeading = `${displayHeading} text-[clamp(50px,6vw,84px)]`;
+const sectionLabel = "text-xs font-semibold tracking-[0.12em] uppercase";
 const phone =
   "relative z-10 w-[min(100%,360px)] overflow-hidden rounded-[35px] border-[3px] border-[#101b16] bg-[#101b16] shadow-[14px_16px_0_var(--phone-shadow)] max-[560px]:w-[min(78vw,330px)]";
 
@@ -120,7 +121,7 @@ export default function Home() {
             </a>
           </div>
           <p className="mt-5 text-[13px] text-ink-soft">
-            Gratis
+            Gratis · Sin hojas de cálculo · Hecho para el móvil
           </p>
         </div>
 
@@ -181,7 +182,8 @@ export default function Home() {
         className={`${shell} py-28 max-[560px]:py-20`}
         id="como-funciona"
       >
-        <h2 className={`${sectionHeading} mb-16`}>
+        <p className={sectionLabel}>EL JUEGO SIGUE</p>
+        <h2 className={`${sectionHeading} mt-6 mb-16`}>
           Todo lo que pasa
           <br />
           fuera de la pista.
@@ -231,7 +233,8 @@ export default function Home() {
           className={`${shell} grid min-h-[740px] grid-cols-[1.05fr_0.95fr] items-center gap-20 py-28 max-[850px]:grid-cols-1 max-[850px]:gap-14 max-[560px]:py-20`}
         >
           <div className="max-[850px]:text-center">
-            <h2 className={`${sectionHeading} mb-8`}>
+            <p className={`${sectionLabel} text-acid`}>LOS DATOS HABLAN</p>
+            <h2 className={`${sectionHeading} mt-6 mb-8`}>
               La memoria del grupo,
               <br />
               <em className="font-normal text-acid not-italic">partido a partido.</em>
@@ -260,7 +263,8 @@ export default function Home() {
         className={`${shell} grid grid-cols-[1.3fr_0.7fr] items-end gap-20 py-28 max-[850px]:grid-cols-1 max-[850px]:gap-8 max-[560px]:py-20`}
       >
         <div>
-          <h2 className={sectionHeading}>
+          <p className={sectionLabel}>A JUGAR</p>
+          <h2 className={`${sectionHeading} mt-6`}>
             Tu próximo partido
             <br />
             merece un postpartido.
