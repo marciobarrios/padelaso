@@ -2,7 +2,7 @@
 
 import { listMatches } from "@padelaso/data/queries";
 
-import useSWR, { mutate } from "swr";
+import useSWR, { mutate, unstable_serialize, useSWRConfig } from "swr";
 import { getBrowserClient } from "./supabase";
 import {
   Player,
@@ -175,18 +175,32 @@ export function useMatches(
   };
 }
 
-export function useMatch(id: MatchId): {
+/**
+ * Pass `groupId` to render straight away from the group's cached match list
+ * (the same row the list showed) while the single-match fetch revalidates.
+ */
+export function useMatch(id: MatchId, groupId?: GroupId): {
   match: Match | undefined;
   loaded: boolean;
 } {
-  const { data, isLoading } = useSWR(keys.match(id), async () => {
-    const { data } = await getSupabase()
-      .from("matches")
-      .select("*")
-      .eq("id", id)
-      .single();
-    return data ? mapMatch(data) : undefined;
-  });
+  const { cache } = useSWRConfig();
+  const listed = groupId
+    ? (cache.get(unstable_serialize(keys.matches(groupId)))?.data as
+        | Match[]
+        | undefined)
+    : undefined;
+  const { data, isLoading } = useSWR(
+    keys.match(id),
+    async () => {
+      const { data } = await getSupabase()
+        .from("matches")
+        .select("*")
+        .eq("id", id)
+        .single();
+      return data ? mapMatch(data) : undefined;
+    },
+    { fallbackData: listed?.find((m) => m.id === id) },
+  );
 
   return { match: data, loaded: !isLoading };
 }

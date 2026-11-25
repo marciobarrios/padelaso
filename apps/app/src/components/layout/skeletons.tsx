@@ -15,8 +15,13 @@ export function PageHeaderShell({ title }: { title: string }) {
 
 function GroupSwitcherSkeleton() {
   return (
-    <div className="flex items-center justify-center py-2 px-4">
-      <Skeleton className="h-8 w-32 rounded-full" />
+    // Same box as MobileShell's group switcher bar, including the safe-area
+    // offsets, so the real bar replaces it in place.
+    <div className="relative mx-auto flex w-full max-w-lg items-center justify-center px-14 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] in-[.ios-web-app]:pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+      <Skeleton className="h-8 w-40 rounded-full" />
+      <div className="absolute left-2 p-3">
+        <Skeleton className="size-5 rounded-full" />
+      </div>
     </div>
   );
 }
