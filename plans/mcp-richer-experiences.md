@@ -64,9 +64,11 @@ stats.**
   so it ships as its own PR. Direct table access stays closed. The RPC
   should return only what the stats need: event type, player and match for
   events, and the match, vote type (`mvp` or play of the match) and voted
-  player for votes, never who voted. Narrow `getMvpRankings`'s input type to
-  those fields so the RPC can't be asked for more, and test it with both vote
-  types.
+  player for votes, never who voted. Narrow the input types of
+  `getEventLeaderboards`, `getEventRecords` and `getMvpRankings` to those
+  fields (they take full `MatchEvent` / `MatchVote` rows today, with `id`,
+  `createdAt` and the voter), so the RPC never has to return more, and test
+  `getMvpRankings` with both vote types.
 
 Proposed tools, all read-only:
 
@@ -219,12 +221,13 @@ must be checked from time to time because they are undocumented.
 - **The prompt contains no Padelaso identifiers or personal data**: no
   group or player IDs, names or scores. The assistant receives the URL as
   soon as the user clicks, before anything is submitted, and IDs are stable
-  and could be used to correlate records. Use a fixed prompt (e.g.
-  "Usa Padelaso para analizar mi grupo de pádel") and let the connected tools
-  resolve the group in the chat. `list_groups` returns every group the user
-  belongs to without knowing which one the stats page shows, so the prompt
-  (and the server instructions) tell the assistant to ask which group to
-  analyse when there is more than one.
+  and could be used to correlate records. Use one fixed prompt and let the
+  connected tools resolve the group in the chat. `list_groups` returns every
+  group the user belongs to without knowing which one the stats page shows,
+  so the prompt itself says to ask, e.g. "Usa Padelaso para analizar mi
+  grupo de pádel. Si tengo más de un grupo, pregúntame cuál." This keeps the
+  entry point a product-UI change; the MCP server and its instructions stay
+  as they are.
 - Each button links straight to its own guide
   (`padelaso.com/asistentes/chatgpt`, `/asistentes/claude`), not the
   generic list.
