@@ -22,6 +22,25 @@ export interface PlayerStats {
 export const RANKING_CONFIDENCE_MATCHES = 5;
 export const MAX_MATCHES_FOR_RANKING = 10;
 
+// ---------- Time ranges ----------
+
+/** The stats page's periods: all time, or the last 90 or 30 days. */
+export const TIME_RANGES = ["all", "90d", "30d"] as const;
+export type TimeRange = (typeof TIME_RANGES)[number];
+
+const DAY_MS = 86_400_000;
+const TIME_RANGE_DAYS: Record<Exclude<TimeRange, "all">, number> = { "90d": 90, "30d": 30 };
+
+/** The earliest time a range includes, in milliseconds; null for all time. */
+export function getTimeRangeCutoff(range: TimeRange, now = Date.now()): number | null {
+  return range === "all" ? null : now - TIME_RANGE_DAYS[range] * DAY_MS;
+}
+
+/** Matches played at or after the cutoff; all of them without one. */
+export function filterMatchesFrom<M extends Pick<Match, "date">>(matches: M[], cutoffMs: number | null): M[] {
+  return cutoffMs == null ? matches : matches.filter((m) => new Date(m.date).getTime() >= cutoffMs);
+}
+
 export function getMinimumMatchesForRanking(groupMatches: number): number {
   return Math.min(
     MAX_MATCHES_FOR_RANKING,
@@ -60,6 +79,21 @@ export function getRankedPlayerStats(
         b.rankingScore - a.rankingScore ||
         b.matches - a.matches,
     );
+}
+
+/**
+ * A group's ranking over the given matches: every listed player with at least
+ * one match, with the threshold the group's match count sets.
+ */
+export function getGroupRanking(
+  playerIds: PlayerId[],
+  matches: Match[],
+): { minimumMatches: number; ranked: RankedPlayerStats[] } {
+  const minimumMatches = getMinimumMatchesForRanking(matches.length);
+  const stats = playerIds
+    .map((id) => calculatePlayerStats(id, matches))
+    .filter((s) => s.matches > 0);
+  return { minimumMatches, ranked: getRankedPlayerStats(stats, minimumMatches) };
 }
 
 function didPlayerWin(match: Match, playerId: PlayerId): boolean | null {
@@ -318,6 +352,54 @@ export function getPairStats(matches: Match[]): PairStats[] {
       };
     })
     .sort((a, b) => b.matches - a.matches || b.winRate - a.winRate);
+}
+
+export type PairOrder = "matches" | "winRate";
+
+/**
+ * Pairs by matches played (then win rate), or by win rate (then matches) among
+ * pairs with at least minMatches, so a 1–0 pair doesn't top the list.
+ */
+export function sortPairStats(
+  pairs: PairStats[],
+  by: PairOrder,
+  minMatches = MIN_MATCHES_FOR_RATE,
+): PairStats[] {
+  if (by === "matches") {
+    return [...pairs].sort((a, b) => b.matches - a.matches || b.winRate - a.winRate);
+  }
+  return pairs
+    .filter((p) => p.matches >= minMatches)
+    .sort((a, b) => b.winRate - a.winRate || b.matches - a.matches);
+}
+
+// ---------- Player versus player ----------
+
+export interface PlayerVersusStats {
+  /** Decided matches the two played on opposite teams. */
+  matches: number;
+  player1Wins: number;
+  player2Wins: number;
+}
+
+/** Two players against each other, whoever their partners were. */
+export function getPlayerVersusStats(
+  player1Id: PlayerId,
+  player2Id: PlayerId,
+  matches: Match[],
+): PlayerVersusStats {
+  let player1Wins = 0;
+  let player2Wins = 0;
+  for (const match of matches) {
+    const opposite =
+      (match.team1.includes(player1Id) && match.team2.includes(player2Id)) ||
+      (match.team2.includes(player1Id) && match.team1.includes(player2Id));
+    if (!opposite) continue;
+    const won = didPlayerWin(match, player1Id);
+    if (won === true) player1Wins++;
+    else if (won === false) player2Wins++;
+  }
+  return { matches: player1Wins + player2Wins, player1Wins, player2Wins };
 }
 
 // ---------- Head-to-head stats ----------
