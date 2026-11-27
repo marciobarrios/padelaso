@@ -42,6 +42,7 @@ export function matchCardMain(win: Window & typeof globalThis) {
   const root = doc.getElementById("card")!;
   let timeZone: string | undefined;
   let last: MatchCard | undefined;
+  let hostVariables: string[] = [];
   let nextId = 1;
   const pending = new Map<number, (result: unknown) => void>();
 
@@ -67,8 +68,15 @@ export function matchCardMain(win: Window & typeof globalThis) {
       doc.documentElement.dataset.theme = context.theme;
       doc.documentElement.style.colorScheme = context.theme;
     }
-    for (const [name, value] of Object.entries(context.styles?.variables ?? {})) {
-      if (name.startsWith("--") && typeof value === "string") doc.documentElement.style.setProperty(name, value);
+    if (context.styles) {
+      // A new styles object replaces the previous one.
+      for (const name of hostVariables) doc.documentElement.style.removeProperty(name);
+      hostVariables = [];
+      for (const [name, value] of Object.entries(context.styles.variables ?? {})) {
+        if (!name.startsWith("--") || typeof value !== "string") continue;
+        doc.documentElement.style.setProperty(name, value);
+        hostVariables.push(name);
+      }
     }
     if (context.timeZone) timeZone = context.timeZone;
     if (last) render(last);
@@ -147,7 +155,6 @@ export function matchCardMain(win: Window & typeof globalThis) {
     reported = height;
     send({ method: "ui/notifications/size-changed", params: { height } });
   }
-  if (typeof win.ResizeObserver === "function") new win.ResizeObserver(reportSize).observe(doc.documentElement);
 
   win.addEventListener("message", (event: MessageEvent) => {
     if (event.source !== win.parent) return;
@@ -175,6 +182,7 @@ export function matchCardMain(win: Window & typeof globalThis) {
   }).then((result) => {
     applyContext((result as { hostContext?: HostContext } | undefined)?.hostContext);
     send({ method: "ui/notifications/initialized", params: {} });
+    if (typeof win.ResizeObserver === "function") new win.ResizeObserver(reportSize).observe(doc.documentElement);
   });
 }
 

@@ -72,6 +72,13 @@ describe("match card", () => {
 
     deliver({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params: { theme: "light" } });
     expect(root.dataset.theme).toBe("light");
+    expect(root.style.getPropertyValue("--color-background-primary")).toBe("#000");
+
+    // New styles replace the old ones instead of piling up.
+    deliver({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed",
+      params: { styles: { variables: { "--color-text-primary": "#111" } } } });
+    expect(root.style.getPropertyValue("--color-background-primary")).toBe("");
+    expect(root.style.getPropertyValue("--color-text-primary")).toBe("#111");
   });
 
   it("renders the scoreboard from the tool result, in Spanish", () => {
