@@ -33,10 +33,19 @@ import {
 } from "@padelaso/domain/matches";
 import {
   calculatePlayerStats,
-  getMinimumMatchesForRanking,
+  filterMatchesFrom,
+  getGroupRanking,
+  getHeadToHeadStats,
+  getPairStats,
   getPartnerStats,
-  getRankedPlayerStats,
+  getPlayerVersusStats,
   getRecentForm,
+  getTimeRangeCutoff,
+  MIN_MATCHES_FOR_RATE,
+  sortPairStats,
+  TIME_RANGES,
+  type PairOrder,
+  type TimeRange,
 } from "@padelaso/domain/stats";
 import type { Match, MatchEventType } from "@padelaso/domain/types";
 import { createUserSupabaseClient } from "@/lib/supabase-user";
@@ -97,6 +106,9 @@ const CORRECTS_MATCH = {
 } as const;
 
 const MAX_PARTNERS = 5;
+const MAX_RANKING = 10;
+const MAX_PAIRS = 5;
+const MAX_RIVALRIES = 5;
 
 /** An expected failure the model can act on; its message is shown as-is. */
 class ToolInputError extends Error {}
@@ -151,6 +163,28 @@ const matchVersion = z.number().describe(
 const playedAt = z.iso.datetime({ offset: true });
 /** update_match's field names, as the tool's input calls them. */
 const correctable = z.enum(["team1", "team2", "sets", "played_at", "court"]);
+const timeRange = z.enum(TIME_RANGES).default("all").describe(
+  "Period: all (every match), 90d or 30d (matches played in the last 90 or 30 days), as on Padelaso's stats page.");
+const record = {
+  matches: z.number(),
+  wins: z.number(),
+  losses: z.number(),
+  winRate: z.number().describe("wins / matches, from 0 to 1."),
+};
+const pairRecord = {
+  matches: z.number().describe("Decided matches the pair played together; ties are left out."),
+  wins: z.number(),
+  losses: z.number(),
+  winRate: z.number().describe("wins / matches, from 0 to 1."),
+  currentStreak: z.number().describe("Positive for consecutive wins, negative for consecutive losses."),
+};
+const rivalry = z.object({
+  pair1: z.array(teamMember),
+  pair2: z.array(teamMember),
+  matches: z.number().describe("Decided matches between these exact pairs."),
+  pair1Wins: z.number(),
+  pair2Wins: z.number(),
+});
 const newEvents = z.array(z.object({
   player_id: playerId.describe("One of the four match players."),
   type: z.enum(EVENT_CONFIGS.map((e) => e.type)),
@@ -188,6 +222,62 @@ const outputs = {
       wins: z.number(),
       winRate: z.number(),
     })).describe(`Most frequent partners, up to ${MAX_PARTNERS}.`),
+  }),
+  get_group_stats: z.object({
+    group,
+    range: z.enum(TIME_RANGES),
+    matches: z.number().describe("Matches played in the range."),
+    ranking: z.object({
+      minimumMatches: z.number().describe("Matches a player needs to rank normally; provisional players rank last."),
+      rankedPlayers: z.number().describe("Players with at least one match in the range."),
+      players: z.array(z.object({
+        position: z.number(),
+        id: z.string(),
+        name: z.string(),
+        ...record,
+        undecided: z.number().describe("Ties and unfinished matches, counted in matches but not in wins or losses."),
+        provisional: z.boolean(),
+      })).describe(`The top ${MAX_RANKING}, as Padelaso's stats page ranks them.`),
+    }),
+    pairs: z.object({
+      by: z.enum(["matches", "winRate"]),
+      minimumMatches: z.number().nullable().describe("Matches a pair needs to be listed when ordered by winRate; null otherwise."),
+      total: z.number().describe("Pairs that meet the order's conditions."),
+      top: z.array(z.object({ players: z.array(teamMember), ...pairRecord })).describe(`Up to ${MAX_PAIRS}.`),
+    }),
+    rivalries: z.object({
+      total: z.number().describe("Distinct pair-against-pair matchups with a decided match."),
+      top: z.array(rivalry).describe(`The ${MAX_RIVALRIES} most played.`),
+    }),
+  }),
+  compare_players: z.object({
+    group,
+    range: z.enum(TIME_RANGES),
+    players: z.array(player.extend({
+      ...record,
+      undecided: z.number().describe("Ties and unfinished matches, counted in matches but not in wins or losses."),
+    })).describe("Each player's own record in the range, in the order asked."),
+    together: z.object(pairRecord).describe("Their record as partners."),
+    against: z.object({
+      matches: z.number().describe("Decided matches on opposite teams, whoever their partners were."),
+      player1Wins: z.number().describe("Won by the first player's team."),
+      player2Wins: z.number().describe("Won by the second player's team."),
+    }),
+  }),
+  get_pair_stats: z.object({
+    group,
+    range: z.enum(TIME_RANGES),
+    players: z.array(player),
+    ...pairRecord,
+    rivalries: z.object({
+      total: z.number().describe("Distinct opposing pairs this pair has a decided match against."),
+      top: z.array(z.object({
+        opponents: z.array(teamMember),
+        matches: z.number(),
+        wins: z.number().describe("Won by this pair."),
+        losses: z.number(),
+      })).describe(`The ${MAX_RIVALRIES} most played.`),
+    }),
   }),
   create_match: z.object({
     status: z.enum(["created", "replayed", "duplicate"]).describe(
@@ -662,12 +752,8 @@ async function getPlayerStats(caller: Caller, args: { group_id: string; player_i
   const names = new Map(players.map((p) => [p.id, p.name]));
   const stats = calculatePlayerStats(subject.id, matches);
 
-  // Same all-time ranking as the stats page: active players with matches.
-  const minimumMatches = getMinimumMatchesForRanking(matches.length);
-  const ranked = getRankedPlayerStats(
-    players.map((p) => calculatePlayerStats(p.id, matches)).filter((s) => s.matches > 0),
-    minimumMatches,
-  );
+  // Same all-time ranking as the stats page.
+  const { minimumMatches, ranked } = getGroupRanking(players.map((p) => p.id), matches);
   const index = ranked.findIndex((s) => s.playerId === subject.id);
 
   return {
@@ -694,6 +780,116 @@ async function getPlayerStats(caller: Caller, args: { group_id: string; player_i
       wins: p.wins,
       winRate: round(p.winRate),
     })),
+  };
+}
+
+/** Players and the matches of a range, as the stats page reads them. */
+async function readStats(caller: Caller, groupId: string, range: TimeRange) {
+  const [found, players, matches] = await Promise.all([
+    requireGroup(caller, groupId),
+    listGroupPlayers(caller.client, groupId),
+    listAllGroupMatches(caller.client, groupId),
+  ]);
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  const members = (ids: string[]) => ids.map((id) => ({ id, name: names.get(id) ?? null }));
+  return { found, players, members, matches: filterMatchesFrom(matches, getTimeRangeCutoff(range)) };
+}
+
+function requireTwoPlayers(players: PlayerSummary[], ids: string[]) {
+  if (ids[0] === ids[1]) throw new ToolInputError("Give two different players.");
+  return [requirePlayer(players, ids[0]), requirePlayer(players, ids[1])] as const;
+}
+
+const toRecord = (s: { matches: number; wins: number; losses: number; winRate: number }) => ({
+  matches: s.matches, wins: s.wins, losses: s.losses, winRate: round(s.winRate),
+});
+
+const pairKey = (a: string, b: string) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+
+function findPair(matches: Match[], a: string, b: string) {
+  const key = pairKey(a, b);
+  const found = getPairStats(matches).find((p) => pairKey(p.player1Id, p.player2Id) === key);
+  const { matches: played = 0, wins = 0, losses = 0, winRate = 0, currentStreak = 0 } = found ?? {};
+  return { matches: played, wins, losses, winRate: round(winRate), currentStreak };
+}
+
+async function getGroupStats(caller: Caller, args: { group_id: string; range: TimeRange; pairs_by: PairOrder }) {
+  const { found, players, members, matches } = await readStats(caller, args.group_id, args.range);
+  const { minimumMatches, ranked } = getGroupRanking(players.map((p) => p.id), matches);
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  const pairs = sortPairStats(getPairStats(matches), args.pairs_by);
+  const rivalries = getHeadToHeadStats(matches);
+  return {
+    group: found,
+    range: args.range,
+    matches: matches.length,
+    ranking: {
+      minimumMatches,
+      rankedPlayers: ranked.length,
+      players: ranked.slice(0, MAX_RANKING).map((s, i) => ({
+        position: i + 1,
+        id: s.playerId,
+        name: names.get(s.playerId)!,
+        ...toRecord(s),
+        undecided: s.matches - s.wins - s.losses,
+        provisional: s.provisional,
+      })),
+    },
+    pairs: {
+      by: args.pairs_by,
+      minimumMatches: args.pairs_by === "winRate" ? MIN_MATCHES_FOR_RATE : null,
+      total: pairs.length,
+      top: pairs.slice(0, MAX_PAIRS).map((p) => ({
+        players: members([p.player1Id, p.player2Id]),
+        ...toRecord(p),
+        currentStreak: p.currentStreak,
+      })),
+    },
+    rivalries: {
+      total: rivalries.length,
+      top: rivalries.slice(0, MAX_RIVALRIES).map((h) => ({
+        pair1: members(h.pair1), pair2: members(h.pair2),
+        matches: h.matches, pair1Wins: h.pair1Wins, pair2Wins: h.pair2Wins,
+      })),
+    },
+  };
+}
+
+async function comparePlayers(caller: Caller, args: { group_id: string; player_ids: string[]; range: TimeRange }) {
+  const { found, players, matches } = await readStats(caller, args.group_id, args.range);
+  const [first, second] = requireTwoPlayers(players, args.player_ids);
+  return {
+    group: found,
+    range: args.range,
+    players: [first, second].map((p) => {
+      const stats = calculatePlayerStats(p.id, matches);
+      return { ...toPlayer(p, caller.userId), ...toRecord(stats), undecided: stats.matches - stats.wins - stats.losses };
+    }),
+    together: findPair(matches, first.id, second.id),
+    against: getPlayerVersusStats(first.id, second.id, matches),
+  };
+}
+
+async function getPairStatsTool(caller: Caller, args: { group_id: string; player_ids: string[]; range: TimeRange }) {
+  const { found, players, members, matches } = await readStats(caller, args.group_id, args.range);
+  const [first, second] = requireTwoPlayers(players, args.player_ids);
+  const key = pairKey(first.id, second.id);
+  const rivalries = getHeadToHeadStats(matches).flatMap((h) => {
+    const isPair1 = pairKey(...h.pair1) === key;
+    if (!isPair1 && pairKey(...h.pair2) !== key) return [];
+    return [{
+      opponents: members(isPair1 ? h.pair2 : h.pair1),
+      matches: h.matches,
+      wins: isPair1 ? h.pair1Wins : h.pair2Wins,
+      losses: isPair1 ? h.pair2Wins : h.pair1Wins,
+    }];
+  });
+  return {
+    group: found,
+    range: args.range,
+    players: [toPlayer(first, caller.userId), toPlayer(second, caller.userId)],
+    ...findPair(matches, first.id, second.id),
+    rivalries: { total: rivalries.length, top: rivalries.slice(0, MAX_RIVALRIES) },
   };
 }
 
@@ -775,6 +971,49 @@ export function registerTools(server: McpServer) {
     outputSchema: outputs.get_player_stats,
     annotations: READ_ONLY,
   }, run(getPlayerStats));
+
+  server.registerTool("get_group_stats", {
+    title: "Get group stats",
+    description: `A group's ranking (top ${MAX_RANKING}), top pairs and most played pair-against-pair rivalries, ` +
+      "for all time or the last 90 or 30 days, computed with Padelaso's own rules as on its stats page. " +
+      "Use it for \"who's top?\" or \"which pair wins most?\" (pairs_by winRate); use compare_players for two players " +
+      "and get_pair_stats for one pair.",
+    inputSchema: z.object({
+      group_id: groupId,
+      range: timeRange,
+      pairs_by: z.enum(["matches", "winRate"]).default("matches").describe(
+        `matches: pairs who play together most. winRate: pairs who win most, among pairs with at least ` +
+        `${MIN_MATCHES_FOR_RATE} matches together.`),
+    }),
+    outputSchema: outputs.get_group_stats,
+    annotations: READ_ONLY,
+  }, run(getGroupStats));
+
+  server.registerTool("compare_players", {
+    title: "Compare players",
+    description: "Two players of a group side by side: each one's record, their record as partners, and how they do " +
+      "against each other whoever their partners were. For all time or the last 90 or 30 days.",
+    inputSchema: z.object({
+      group_id: groupId,
+      player_ids: z.array(playerId).length(2).describe("The two players, as IDs from list_players."),
+      range: timeRange,
+    }),
+    outputSchema: outputs.compare_players,
+    annotations: READ_ONLY,
+  }, run(comparePlayers));
+
+  server.registerTool("get_pair_stats", {
+    title: "Get pair stats",
+    description: "One pair of a group playing together: record, current streak and the opposing pairs they play most. " +
+      "For all time or the last 90 or 30 days.",
+    inputSchema: z.object({
+      group_id: groupId,
+      player_ids: z.array(playerId).length(2).describe("The pair's two players, as IDs from list_players."),
+      range: timeRange,
+    }),
+    outputSchema: outputs.get_pair_stats,
+    annotations: READ_ONLY,
+  }, run(getPairStatsTool));
 
   server.registerTool("create_match", {
     title: "Record match",
@@ -887,6 +1126,7 @@ export function registerTools(server: McpServer) {
 }
 
 export const TOOL_NAMES = [
-  "list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "create_match",
+  "list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "get_group_stats",
+  "compare_players", "get_pair_stats", "create_match",
   "add_match_events", "remove_match_event", "update_match",
 ] as const;

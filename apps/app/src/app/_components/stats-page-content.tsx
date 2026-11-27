@@ -12,25 +12,23 @@ import {
 } from "@/lib/db-hooks";
 import { useGroup } from "@/components/group/group-provider";
 import {
-  calculatePlayerStats,
-  getMinimumMatchesForRanking,
-  getRankedPlayerStats,
+  filterMatchesFrom,
+  getGroupRanking,
+  getTimeRangeCutoff,
   getEventLeaderboards,
   getEventRecords,
   getPairStats,
   getHeadToHeadStats,
   getMvpRankings,
   computeFunAwards,
+  type TimeRange,
 } from "@padelaso/domain/stats";
 import { FUN_AWARD_CONFIGS } from "@padelaso/domain/events";
 import { buildPlayerMap } from "@/lib/utils";
 import type { PlayerId } from "@padelaso/domain/types";
 
 import { PlayerFilter } from "@/app/stats/_components/player-filter";
-import {
-  TimeRangeFilter,
-  type TimeRange,
-} from "@/app/stats/_components/time-range-filter";
+import { TimeRangeFilter } from "@/app/stats/_components/time-range-filter";
 import { GeneralTab } from "@/app/stats/_components/general-tab";
 import { ParejasTab } from "@/app/stats/_components/parejas-tab";
 import { EventosTab } from "@/app/stats/_components/eventos-tab";
@@ -50,12 +48,7 @@ export function StatsPageContent() {
 
   const onTimeRangeChange = (value: TimeRange) => {
     setTimeRange(value);
-    if (value === "all") {
-      setCutoffMs(null);
-    } else {
-      const days = value === "30d" ? 30 : 90;
-      setCutoffMs(Date.now() - days * 86_400_000);
-    }
+    setCutoffMs(getTimeRangeCutoff(value));
   };
 
   const selectedPlayer =
@@ -65,10 +58,7 @@ export function StatsPageContent() {
 
   const playerMap = buildPlayerMap(players);
 
-  const timeFilteredMatches =
-    cutoffMs == null
-      ? matches
-      : matches.filter((m) => new Date(m.date).getTime() >= cutoffMs);
+  const timeFilteredMatches = filterMatchesFrom(matches, cutoffMs);
 
   const timeFilteredEvents =
     cutoffMs == null
@@ -82,26 +72,14 @@ export function StatsPageContent() {
     ? timeFilteredEvents.filter((e) => e.playerId === selectedPlayer)
     : timeFilteredEvents;
 
-  const playerStats = players
-    .map((p) => ({
-      player: p,
-      stats: calculatePlayerStats(p.id, timeFilteredMatches),
-    }))
-    .filter((s) => s.stats.matches > 0);
-
-  const minimumMatchesForRanking = getMinimumMatchesForRanking(
-    timeFilteredMatches.length,
-  );
-  const rankedStats = getRankedPlayerStats(
-    playerStats.map(({ stats }) => stats),
-    minimumMatchesForRanking,
-  );
-  const statsByPlayer = new Map(
-    playerStats.map(({ player, stats }) => [player.id, { player, stats }]),
-  );
+  const { minimumMatches: minimumMatchesForRanking, ranked: rankedStats } =
+    getGroupRanking(
+      players.map((p) => p.id),
+      timeFilteredMatches,
+    );
   const allStats = rankedStats.flatMap((stats) => {
-    const entry = statsByPlayer.get(stats.playerId);
-    return entry ? [{ player: entry.player, stats }] : [];
+    const player = playerMap.get(stats.playerId);
+    return player ? [{ player, stats }] : [];
   });
 
   const leaderboards = getEventLeaderboards(filteredEvents, timeFilteredMatches);
