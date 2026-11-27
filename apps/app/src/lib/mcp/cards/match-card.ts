@@ -21,7 +21,7 @@ export const MATCH_CARD_TOOL_META = { ui: { resourceUri: MATCH_CARD_URI }, "ui/r
  * Runs inside the card's iframe. It is serialized with `toString()`, so it must
  * not reference anything outside its own body (no imports, no module scope).
  */
-export function matchCardMain(win: Window) {
+export function matchCardMain(win: Window & typeof globalThis) {
   type Player = { id: string; name: string | null };
   type Team = { players: Player[]; setsWon: number };
   type MatchCard = {
