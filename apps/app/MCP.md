@@ -443,8 +443,9 @@ Decision (owner, 27 November 2026): trust both callbacks, together, with the Cur
   it (Cursor's own agents included) can connect. This is the same model as ChatGPT: Padelaso trusts
   the callback destination, not the client name. Each user still signs in, approves consent and
   reaches only their own groups.
-- The loopback callback sends the code to the consenting user's own machine, never to a third
-  party, and public clients must use PKCE. It is trusted only next to the Cursor callback, so a
+- The loopback callback sends the code to whatever process listens on port 8787 of the consenting
+  user's own machine, never to a remote third party. Public clients must use PKCE, so redeeming a
+  code also needs the verifier held by the client that started the flow. It is trusted only next to the Cursor callback, so a
   localhost-only registrant (any local tool) still needs a manual client.
 
 Supabase retains authorization-code/PKCE validation, refresh rotation/replay rejection, consent
@@ -534,6 +535,14 @@ Never expose credentials, bearer/refresh tokens, authorization codes, or user em
 5. Re-check an existing manually approved connection and record the actual plan/workspace,
    outcome, deployment SHA and residual lifetime. No secrets in the issue, PR or captures.
 
+## Connecting Grok Bot
+
+With the Cursor policy deployed (MAR-156): in Grok Bot, add a custom connector → **Remote HTTPS**,
+URL `https://app.padelaso.com/api/mcp`, Client ID and Client Secret **empty**, no HTTP headers.
+Grok Bot registers itself, then the user signs in and approves consent (it may be named Cursor).
+If consent refuses it, see Troubleshooting; the manual client below is the fallback until it is
+retired.
+
 ## Connecting other clients (manual public clients)
 
 Any Padelaso user can connect (MAR-149), so **no user is ever given a client secret**: a secret
@@ -554,7 +563,7 @@ DCR callback policy (see above).
 
 | Client | Redirect URI | Connector form | Status |
 | --- | --- | --- | --- |
-| Grok Bot | `https://www.cursor.com/agents/mcp/oauth/callback` (Grok Bot uses Cursor's connector backend, so consent may name it Cursor) | Custom connector → **Remote HTTPS**, URL `https://app.padelaso.com/api/mcp`, Client ID, Client Secret **empty**, no HTTP headers | Works, 16 November 2026 (one account; not yet checked whether the callback is the same for every user). Being replaced by DCR (MAR-156): with the Cursor policy deployed, users enter only the URL and leave Client ID and Secret empty. The manual client stays in `MCP_ALLOWED_CLIENT_IDS` until a URL-only connection is verified in production, then it is removed and deleted. |
+| Grok Bot | `https://www.cursor.com/agents/mcp/oauth/callback` (Grok Bot uses Cursor's connector backend, so consent may name it Cursor) | Custom connector → **Remote HTTPS**, URL `https://app.padelaso.com/api/mcp`, Client ID, Client Secret **empty**, no HTTP headers | Works, 16 November 2026 (one account; not yet checked whether the callback is the same for every user). Superseded by [URL-only setup](#connecting-grok-bot) (MAR-156). The manual client stays in `MCP_ALLOWED_CLIENT_IDS` until a URL-only connection is verified in production, then it is removed and deleted. |
 | Claude | To check | To check | Outstanding: check DCR support first, then a public client |
 
 Desktop MCP settings that offer only a URL and a bearer token, with no client ID field (for
