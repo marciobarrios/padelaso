@@ -580,6 +580,10 @@ describe("group, pair and rivalry stats", () => {
     const result = await stats("get_group_stats", { group_id: GROUP_ID });
     expect(result.ranking.rankedPlayers).toBe(12);
     expect(result.ranking.players).toHaveLength(10);
+    // Four matches each, under the threshold of six: the stats page lists them all unranked.
+    expect(result.ranking.minimumMatches).toBe(6);
+    expect(result.ranking.players.every((p: { position: number | null; provisional: boolean }) =>
+      p.provisional && p.position === null)).toBe(true);
     expect(result.pairs.total).toBe(12);
     expect(result.pairs.top).toHaveLength(5);
     expect(result.rivalries.total).toBe(12);

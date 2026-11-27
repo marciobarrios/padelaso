@@ -359,18 +359,14 @@ export type PairOrder = "matches" | "winRate";
 
 /**
  * Pairs by matches played (then win rate), or by win rate (then matches) among
- * pairs with at least minMatches, so a 1–0 pair doesn't top the list.
+ * pairs with at least MIN_MATCHES_FOR_RATE, so a 1–0 pair doesn't top the list.
  */
-export function sortPairStats(
-  pairs: PairStats[],
-  by: PairOrder,
-  minMatches = MIN_MATCHES_FOR_RATE,
-): PairStats[] {
+export function sortPairStats(pairs: PairStats[], by: PairOrder): PairStats[] {
   if (by === "matches") {
     return [...pairs].sort((a, b) => b.matches - a.matches || b.winRate - a.winRate);
   }
   return pairs
-    .filter((p) => p.matches >= minMatches)
+    .filter((p) => p.matches >= MIN_MATCHES_FOR_RATE)
     .sort((a, b) => b.winRate - a.winRate || b.matches - a.matches);
 }
 
@@ -454,6 +450,33 @@ export function getHeadToHeadStats(matches: Match[]): HeadToHeadStats[] {
   return [...h2hMap.values()]
     .map((h) => ({ ...h, matches: h.pair1Wins + h.pair2Wins }))
     .sort((a, b) => b.matches - a.matches);
+}
+
+export interface PairRivalry {
+  opponents: [PlayerId, PlayerId];
+  matches: number;
+  /** Won by the pair asked about. */
+  wins: number;
+  losses: number;
+}
+
+/** One pair's pair-against-pair rivalries, from its side, most played first. */
+export function getPairRivalries(
+  player1Id: PlayerId,
+  player2Id: PlayerId,
+  matches: Match[],
+): PairRivalry[] {
+  const key = canonicalPairKey(player1Id, player2Id);
+  return getHeadToHeadStats(matches).flatMap((h) => {
+    const isPair1 = canonicalPairKey(...h.pair1) === key;
+    if (!isPair1 && canonicalPairKey(...h.pair2) !== key) return [];
+    return [{
+      opponents: isPair1 ? h.pair2 : h.pair1,
+      matches: h.matches,
+      wins: isPair1 ? h.pair1Wins : h.pair2Wins,
+      losses: isPair1 ? h.pair2Wins : h.pair1Wins,
+    }];
+  });
 }
 
 // ---------- Recent form ----------

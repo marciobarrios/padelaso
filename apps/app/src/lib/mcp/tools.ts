@@ -37,6 +37,7 @@ import {
   filterMatchesFrom,
   getGroupRanking,
   getHeadToHeadStats,
+  getPairRivalries,
   getPairStats,
   getPartnerStats,
   getPlayerVersusStats,
@@ -232,7 +233,7 @@ const outputs = {
       minimumMatches: z.number().describe("Matches a player needs to rank normally; provisional players rank last."),
       rankedPlayers: z.number().describe("Players with at least one match in the range."),
       players: z.array(z.object({
-        position: z.number(),
+        position: z.number().nullable().describe("1-based rank; null for provisional players, who the stats page lists unranked."),
         id: z.string(),
         name: z.string(),
         ...record,
@@ -825,7 +826,7 @@ async function getGroupStats(caller: Caller, args: { group_id: string; range: Ti
       minimumMatches,
       rankedPlayers: ranked.length,
       players: ranked.slice(0, MAX_RANKING).map((s, i) => ({
-        position: i + 1,
+        position: s.provisional ? null : i + 1,
         id: s.playerId,
         name: names.get(s.playerId)!,
         ...toRecord(s),
@@ -871,17 +872,8 @@ async function comparePlayers(caller: Caller, args: { group_id: string; player_i
 async function getPairStatsTool(caller: Caller, args: { group_id: string; player_ids: string[]; range: TimeRange }) {
   const { found, players, members, matches } = await readStats(caller, args.group_id, args.range);
   const [first, second] = requireTwoPlayers(players, args.player_ids);
-  const key = pairKey(first.id, second.id);
-  const rivalries = getHeadToHeadStats(matches).flatMap((h) => {
-    const isPair1 = pairKey(...h.pair1) === key;
-    if (!isPair1 && pairKey(...h.pair2) !== key) return [];
-    return [{
-      opponents: members(isPair1 ? h.pair2 : h.pair1),
-      matches: h.matches,
-      wins: isPair1 ? h.pair1Wins : h.pair2Wins,
-      losses: isPair1 ? h.pair2Wins : h.pair1Wins,
-    }];
-  });
+  const rivalries = getPairRivalries(first.id, second.id, matches)
+    .map((r) => ({ ...r, opponents: members(r.opponents) }));
   return {
     group: found,
     range: args.range,

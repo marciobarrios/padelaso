@@ -5,6 +5,7 @@ import {
   filterMatchesFrom,
   getGroupRanking,
   getMinimumMatchesForRanking,
+  getPairRivalries,
   getPlayerVersusStats,
   getRankedPlayerStats,
   getTimeRangeCutoff,
@@ -193,5 +194,25 @@ describe("pair ordering", () => {
     const input = [...pairs];
     sortPairStats(input, "winRate");
     expect(input).toEqual(pairs);
+  });
+});
+
+describe("pair rivalries", () => {
+  it("lists a pair's rivals from its side, in either player order", () => {
+    const won = [{ team1Score: 6, team2Score: 1 }];
+    const matches = [
+      match("m1", "2026-01-01", ["a", "b"], ["c", "d"], won),
+      match("m2", "2026-01-02", ["d", "c"], ["b", "a"], won),
+      match("m3", "2026-01-03", ["c", "d"], ["a", "b"], won),
+      match("m4", "2026-01-04", ["b", "a"], ["e", "f"], won),
+      match("other", "2026-01-05", ["a", "c"], ["b", "d"], won),
+    ];
+    const rivals = [
+      { opponents: ["c", "d"], matches: 3, wins: 1, losses: 2 },
+      { opponents: ["e", "f"], matches: 1, wins: 1, losses: 0 },
+    ];
+    expect(getPairRivalries("b", "a", matches)).toEqual(rivals);
+    expect(getPairRivalries("a", "b", matches)).toEqual(rivals);
+    expect(getPairRivalries("a", "e", matches)).toEqual([]);
   });
 });
