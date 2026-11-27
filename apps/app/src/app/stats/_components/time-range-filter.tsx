@@ -1,8 +1,7 @@
 "use client";
 
+import type { TimeRange } from "@padelaso/domain/stats";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-export type TimeRange = "all" | "90d" | "30d";
 
 interface TimeRangeFilterProps {
   value: TimeRange;

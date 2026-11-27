@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculatePlayerStats,
+  filterMatchesFrom,
+  getGroupRanking,
   getMinimumMatchesForRanking,
+  getPairRivalries,
+  getPlayerVersusStats,
   getRankedPlayerStats,
+  getTimeRangeCutoff,
+  MIN_MATCHES_FOR_RATE,
+  sortPairStats,
+  type PairStats,
   type PlayerStats,
 } from "../src/stats";
 import type { Match, MatchSet } from "../src/types";
@@ -102,5 +110,109 @@ describe("ranking eligibility", () => {
       { playerId: "eligible", provisional: false },
       { playerId: "provisional", provisional: true },
     ]);
+  });
+});
+
+describe("time ranges", () => {
+  const now = Date.parse("2026-11-27T12:00:00Z");
+
+  it("has no cutoff for all time and counts back whole days otherwise", () => {
+    expect(getTimeRangeCutoff("all", now)).toBeNull();
+    expect(getTimeRangeCutoff("30d", now)).toBe(now - 30 * 86_400_000);
+    expect(getTimeRangeCutoff("90d", now)).toBe(now - 90 * 86_400_000);
+  });
+
+  it("keeps matches played at or after the cutoff", () => {
+    const cutoff = getTimeRangeCutoff("30d", now);
+    const matches = [
+      match("old", "2026-10-27T11:59:59Z", ["a", "b"], ["c", "d"], [{ team1Score: 6, team2Score: 0 }]),
+      match("edge", "2026-10-28T12:00:00Z", ["a", "b"], ["c", "d"], [{ team1Score: 6, team2Score: 0 }]),
+      match("new", new Date(now).toISOString(), ["a", "b"], ["c", "d"], [{ team1Score: 6, team2Score: 0 }]),
+    ];
+    expect(filterMatchesFrom(matches, cutoff).map((m) => m.id)).toEqual(["edge", "new"]);
+    expect(filterMatchesFrom(matches, null)).toBe(matches);
+  });
+});
+
+describe("group ranking", () => {
+  it("ranks only players with matches, with a threshold from the group's match count", () => {
+    const matches = [
+      match("m1", "2026-01-01", ["a", "b"], ["c", "d"], [{ team1Score: 6, team2Score: 1 }]),
+      match("m2", "2026-01-02", ["a", "c"], ["b", "d"], [{ team1Score: 6, team2Score: 1 }]),
+      match("m3", "2026-01-03", ["a", "d"], ["b", "e"], [{ team1Score: 6, team2Score: 1 }]),
+    ];
+    const { minimumMatches, ranked } = getGroupRanking(["a", "b", "c", "d", "e", "idle"], matches);
+    expect(minimumMatches).toBe(2);
+    expect(ranked.map((s) => s.playerId)).not.toContain("idle");
+    expect(ranked[0].playerId).toBe("a");
+    expect(ranked.at(-1)).toMatchObject({ playerId: "e", provisional: true });
+    expect(ranked).toEqual(getRankedPlayerStats(
+      ["a", "b", "c", "d", "e"].map((id) => calculatePlayerStats(id, matches)), 2));
+  });
+});
+
+describe("player versus player", () => {
+  const sets = (team1Score: number, team2Score: number) => [{ team1Score, team2Score }];
+
+  it("counts every decided match on opposite teams, whoever the partners were", () => {
+    const matches = [
+      match("ana-wins", "2026-01-01", ["ana", "x"], ["pedro", "y"], sets(6, 2)),
+      match("pedro-wins-as-team1", "2026-01-02", ["pedro", "z"], ["w", "ana"], sets(6, 3)),
+      match("ana-wins-as-team2", "2026-01-03", ["pedro", "x"], ["ana", "z"], sets(1, 6)),
+      match("tie", "2026-01-04", ["ana", "x"], ["pedro", "y"], [
+        { team1Score: 6, team2Score: 2 }, { team1Score: 2, team2Score: 6 },
+      ]),
+      match("partners", "2026-01-05", ["ana", "pedro"], ["x", "y"], sets(6, 0)),
+      match("without-pedro", "2026-01-06", ["ana", "x"], ["y", "z"], sets(6, 0)),
+    ];
+    expect(getPlayerVersusStats("ana", "pedro", matches)).toEqual({ matches: 3, player1Wins: 2, player2Wins: 1 });
+    expect(getPlayerVersusStats("pedro", "ana", matches)).toEqual({ matches: 3, player1Wins: 1, player2Wins: 2 });
+  });
+
+  it("is empty when the players never faced each other", () => {
+    expect(getPlayerVersusStats("ana", "pedro", [])).toEqual({ matches: 0, player1Wins: 0, player2Wins: 0 });
+  });
+});
+
+describe("pair ordering", () => {
+  const pair = (id: string, matches: number, wins: number): PairStats => ({
+    player1Id: id, player2Id: `${id}-partner`, matches, wins, losses: matches - wins,
+    winRate: matches > 0 ? wins / matches : 0, currentStreak: 0,
+  });
+  const pairs = [pair("busy", 10, 5), pair("lucky", 1, 1), pair("good", 4, 3), pair("great", 3, 3), pair("solid", 8, 6)];
+
+  it("orders by matches played, then win rate", () => {
+    expect(sortPairStats(pairs, "matches").map((p) => p.player1Id)).toEqual(["busy", "solid", "good", "great", "lucky"]);
+  });
+
+  it(`orders by win rate among pairs with at least ${MIN_MATCHES_FOR_RATE} matches, then by matches`, () => {
+    const byRate = sortPairStats([...pairs, pair("also-solid", 4, 3)], "winRate");
+    expect(byRate.map((p) => p.player1Id)).toEqual(["great", "solid", "good", "also-solid", "busy"]);
+  });
+
+  it("does not reorder its input", () => {
+    const input = [...pairs];
+    sortPairStats(input, "winRate");
+    expect(input).toEqual(pairs);
+  });
+});
+
+describe("pair rivalries", () => {
+  it("lists a pair's rivals from its side, in either player order", () => {
+    const won = [{ team1Score: 6, team2Score: 1 }];
+    const matches = [
+      match("m1", "2026-01-01", ["a", "b"], ["c", "d"], won),
+      match("m2", "2026-01-02", ["d", "c"], ["b", "a"], won),
+      match("m3", "2026-01-03", ["c", "d"], ["a", "b"], won),
+      match("m4", "2026-01-04", ["b", "a"], ["e", "f"], won),
+      match("other", "2026-01-05", ["a", "c"], ["b", "d"], won),
+    ];
+    const rivals = [
+      { opponents: ["c", "d"], matches: 3, wins: 1, losses: 2 },
+      { opponents: ["e", "f"], matches: 1, wins: 1, losses: 0 },
+    ];
+    expect(getPairRivalries("b", "a", matches)).toEqual(rivals);
+    expect(getPairRivalries("a", "b", matches)).toEqual(rivals);
+    expect(getPairRivalries("a", "e", matches)).toEqual([]);
   });
 });

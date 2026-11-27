@@ -385,8 +385,8 @@ describe("MCP protocol and tools", () => {
     const { result } = await payload(await rpc(listTools, token));
     const tools = result.tools as { name: string; annotations: Record<string, boolean>; outputSchema?: object }[];
     expect(tools.map((t) => t.name).sort())
-      .toEqual(["add_match_events", "create_match", "get_match", "get_player_stats", "list_groups", "list_matches", "list_players",
-        "remove_match_event", "update_match"]);
+      .toEqual(["add_match_events", "compare_players", "create_match", "get_group_stats", "get_match", "get_pair_stats",
+        "get_player_stats", "list_groups", "list_matches", "list_players", "remove_match_event", "update_match"]);
     const writes = ["create_match", "add_match_events", "remove_match_event", "update_match"];
     for (const tool of tools) {
       expect(tool.annotations).toMatchObject({
@@ -486,6 +486,167 @@ describe("MCP protocol and tools", () => {
     const result = await callTool("list_groups");
     expect(result.isError).toBe(true);
     expect(result.content[0].text).not.toContain("secret_table");
+  });
+});
+
+describe("group, pair and rivalry stats", () => {
+  // m1 (27 Oct) is older than 30 days; m2 and m3 are not.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-27T12:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const ana = { id: ANA, name: "Ana" };
+  const pablo = { id: PABLO, name: "Pablo" };
+  const lucia = { id: LUCIA, name: "Lucía" };
+  const marta = { id: MARTA, name: "Marta" };
+  const gone = { id: GONE, name: null };
+  const other = "66666666-6666-4666-8666-666666666666";
+
+  /** A successful call: the SDK has checked structuredContent against the output schema. */
+  async function stats(name: string, args: Record<string, unknown>) {
+    const result = await callTool(name, args);
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(result.content[0].text)).toEqual(result.structuredContent);
+    return result.structuredContent;
+  }
+
+  it("are read-only tools with output schemas", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    for (const name of ["get_group_stats", "compare_players", "get_pair_stats"]) {
+      const tool = result.tools.find((t: { name: string }) => t.name === name);
+      expect(tool.annotations).toEqual({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
+      expect(tool.outputSchema.properties.range).toBeDefined();
+    }
+  });
+
+  it.each([
+    ["get_group_stats", {}],
+    ["compare_players", { player_ids: [ANA, PABLO] }],
+    ["get_pair_stats", { player_ids: [ANA, PABLO] }],
+  ])("%s is named in the tool-call log", async (name, args) => {
+    await stats(name, { group_id: GROUP_ID, ...args });
+    expect(JSON.parse(vi.mocked(console.info).mock.calls[0][0])).toMatchObject({ tool: name, outcome: "ok" });
+  });
+
+  it("ranks the group like the stats page, with pairs and rivalries", async () => {
+    const result = await stats("get_group_stats", { group_id: GROUP_ID });
+    expect(result.range).toBe("all");
+    expect(result.matches).toBe(3);
+    // The deleted player is left out of the ranking, as on the stats page.
+    expect(result.ranking).toEqual({
+      minimumMatches: 2,
+      rankedPlayers: 4,
+      players: [
+        { position: 1, id: PABLO, name: "Pablo", matches: 3, wins: 3, losses: 0, winRate: 1, undecided: 0, provisional: false },
+        { position: 2, id: ANA, name: "Ana", matches: 3, wins: 2, losses: 1, winRate: 0.667, undecided: 0, provisional: false },
+        { position: 3, id: MARTA, name: "Marta", matches: 2, wins: 0, losses: 2, winRate: 0, undecided: 0, provisional: false },
+        { position: 4, id: LUCIA, name: "Lucía", matches: 3, wins: 0, losses: 3, winRate: 0, undecided: 0, provisional: false },
+      ],
+    });
+    expect(result.pairs).toEqual({
+      by: "matches",
+      minimumMatches: null,
+      total: 4,
+      top: [
+        { players: [ana, pablo], matches: 2, wins: 2, losses: 0, winRate: 1, currentStreak: 2 },
+        { players: [lucia, marta], matches: 2, wins: 0, losses: 2, winRate: 0, currentStreak: -2 },
+        { players: [pablo, gone], matches: 1, wins: 1, losses: 0, winRate: 1, currentStreak: 1 },
+        { players: [ana, lucia], matches: 1, wins: 0, losses: 1, winRate: 0, currentStreak: -1 },
+      ],
+    });
+    expect(result.rivalries).toEqual({
+      total: 2,
+      top: [
+        { pair1: [ana, pablo], pair2: [lucia, marta], matches: 2, pair1Wins: 2, pair2Wins: 0 },
+        { pair1: [ana, lucia], pair2: [pablo, gone], matches: 1, pair1Wins: 0, pair2Wins: 1 },
+      ],
+    });
+  });
+
+  it("orders pairs by win rate only among pairs with enough matches", async () => {
+    const result = await stats("get_group_stats", { group_id: GROUP_ID, pairs_by: "winRate" });
+    expect(result.pairs).toEqual({ by: "winRate", minimumMatches: 3, total: 0, top: [] });
+  });
+
+  it("limits every list to the range", async () => {
+    const result = await stats("get_group_stats", { group_id: GROUP_ID, range: "30d" });
+    expect(result).toMatchObject({ range: "30d", matches: 2 });
+    expect(result.ranking.players.find((p: { id: string }) => p.id === MARTA)).toMatchObject({ matches: 1 });
+    expect(result.rivalries.top[0]).toMatchObject({ matches: 1 });
+  });
+
+  it("caps the ranking at ten, pairs and rivalries at five", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => `55555555-5555-4555-8555-5555555555${String(i).padStart(2, "0")}`);
+    const roster = many.map((id, i) => ({ id, name: `P${i}`, emoji: "🎾", user_id: null }));
+    const games = many.map((id, i) => match(`g${i}`, "2026-11-20T19:00:00Z",
+      [id, many[(i + 1) % 12]], [many[(i + 2) % 12], many[(i + 3) % 12]], [[6, i % 6]]));
+    stubSupabase((url) => url.pathname === "/rest/v1/players" ? Response.json(roster)
+      : url.pathname === "/rest/v1/matches"
+        ? Response.json(games, { headers: { "Content-Range": `0-${games.length - 1}/${games.length}` } })
+        : undefined);
+    const result = await stats("get_group_stats", { group_id: GROUP_ID });
+    expect(result.ranking.rankedPlayers).toBe(12);
+    expect(result.ranking.players).toHaveLength(10);
+    // Four matches each, under the threshold of six: the stats page lists them all unranked.
+    expect(result.ranking.minimumMatches).toBe(6);
+    expect(result.ranking.players.every((p: { position: number | null; provisional: boolean }) =>
+      p.provisional && p.position === null)).toBe(true);
+    expect(result.pairs.total).toBe(12);
+    expect(result.pairs.top).toHaveLength(5);
+    expect(result.rivalries.total).toBe(12);
+    expect(result.rivalries.top).toHaveLength(5);
+  });
+
+  it("compares two players, as partners and against each other", async () => {
+    const result = await stats("compare_players", { group_id: GROUP_ID, player_ids: [ANA, PABLO] });
+    expect(result.players).toEqual([
+      { id: ANA, name: "Ana", emoji: "🦊", isYou: true, matches: 3, wins: 2, losses: 1, winRate: 0.667, undecided: 0 },
+      { id: PABLO, name: "Pablo", emoji: "🐻", isYou: false, matches: 3, wins: 3, losses: 0, winRate: 1, undecided: 0 },
+    ]);
+    expect(result.together).toEqual({ matches: 2, wins: 2, losses: 0, winRate: 1, currentStreak: 2 });
+    // Only m2 had them on opposite teams, and Pablo's side won it.
+    expect(result.against).toEqual({ matches: 1, player1Wins: 0, player2Wins: 1 });
+  });
+
+  it("returns empty records for players who never met", async () => {
+    const result = await stats("compare_players", { group_id: GROUP_ID, player_ids: [LUCIA, MARTA], range: "30d" });
+    expect(result.against).toEqual({ matches: 0, player1Wins: 0, player2Wins: 0 });
+    expect(result.together).toEqual({ matches: 1, wins: 0, losses: 1, winRate: 0, currentStreak: -1 });
+  });
+
+  it("describes one pair and its rivals, in either player order", async () => {
+    const result = await stats("get_pair_stats", { group_id: GROUP_ID, player_ids: [MARTA, LUCIA] });
+    expect(result).toMatchObject({
+      players: [{ id: MARTA, name: "Marta" }, { id: LUCIA, name: "Lucía" }],
+      matches: 2, wins: 0, losses: 2, winRate: 0, currentStreak: -2,
+      rivalries: { total: 1, top: [{ opponents: [ana, pablo], matches: 2, wins: 0, losses: 2 }] },
+    });
+    const never = await stats("get_pair_stats", { group_id: GROUP_ID, player_ids: [PABLO, MARTA] });
+    expect(never).toMatchObject({ matches: 0, wins: 0, losses: 0, winRate: 0, currentStreak: 0, rivalries: { total: 0, top: [] } });
+  });
+
+  it.each([
+    ["get_group_stats", {}],
+    ["compare_players", { player_ids: [ANA, PABLO] }],
+    ["get_pair_stats", { player_ids: [ANA, PABLO] }],
+  ])("%s treats a group the caller isn't in as missing", async (name, args) => {
+    const result = await callTool(name, { group_id: other, ...args });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/Group not found/);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  it.each(["compare_players", "get_pair_stats"])("%s needs two different players of the group", async (name) => {
+    const same = await callTool(name, { group_id: GROUP_ID, player_ids: [ANA, ANA] });
+    expect(same.isError).toBe(true);
+    expect(same.content[0].text).toMatch(/two different players/);
+    const outside = await callTool(name, { group_id: GROUP_ID, player_ids: [ANA, GONE] });
+    expect(outside.isError).toBe(true);
+    expect(outside.content[0].text).toMatch(/Player not found/);
+    const bad = await callTool(name, { group_id: GROUP_ID, player_ids: [ANA], range: "7d" });
+    expect(bad.isError).toBe(true);
   });
 });
 

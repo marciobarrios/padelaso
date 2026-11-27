@@ -1,4 +1,4 @@
-# Padelaso MCP server (MAR-98, MAR-99, MAR-158, MAR-159, MAR-160)
+# Padelaso MCP server (MAR-98, MAR-99, MAR-158, MAR-159, MAR-160, MAR-205)
 
 Padelaso exposes a remote [Model Context Protocol](https://modelcontextprotocol.io) server so
 assistants such as ChatGPT and Claude can read a user's groups, players, match history and
@@ -183,6 +183,9 @@ only: no invite codes, account IDs, creators or internal fields.
 | `list_matches` | `group_id`, optional `player_id`, `limit` 1–50 (default 10), `offset` 0–10000 | `group`, `matches: [{ id, date, court, team1, team2, sets, winner }]`, `nextOffset` |
 | `get_match` | `group_id`, `match_id` | `group`, `match` (as in `list_matches`), `events: [{ id, player, type, label }]`, `version`, `url` |
 | `get_player_stats` | `group_id`, `player_id` | `group`, `player`, `matches`, `wins`, `losses`, `undecided`, `winRate`, `currentStreak`, `bestStreak`, `recentForm`, `ranking`, `partners` |
+| `get_group_stats` | `group_id`, optional `range` (`all` default, `90d`, `30d`), `pairs_by` (`matches` default, `winRate`) | `group`, `range`, `matches`, `ranking` (top 10), `pairs` (top 5), `rivalries` (top 5 pair-against-pair) |
+| `compare_players` | `group_id`, `player_ids` (two), optional `range` | `group`, `range`, `players` (each one's record), `together` (as partners), `against` (on opposite teams) |
+| `get_pair_stats` | `group_id`, `player_ids` (two), optional `range` | `group`, `range`, `players`, the pair's record and `currentStreak`, `rivalries` (top 5 opposing pairs) |
 | `create_match` | `group_id`, `team1` and `team2` (two player IDs each), `sets` (1–5 of `{ team1, team2 }` games), optional `played_at`, `court`, `events`, `idempotency_key` | `status`, `message`, `group`, `match` (as in `list_matches`), `events`, `url` |
 | `add_match_events` | `group_id`, `match_id`, `events` (1–50 of `{ player_id, type }`), `idempotency_key` (UUID) | `status`, `message`, `group`, `match` (as in `list_matches`), `added` and `events` (as in `get_match`), `version`, `url` |
 | `remove_match_event` | `group_id`, `match_id`, `event_id`, `expected_version` (from `get_match`) | `status`, `message`, `group`, `match` (as in `list_matches`), `removed` and `events` (as in `get_match`), `version`, `url` |
@@ -195,6 +198,15 @@ only: no invite codes, account IDs, creators or internal fields.
 - Stats reuse `@padelaso/domain/stats` (`calculatePlayerStats`, `getRecentForm`,
   `getPartnerStats`, `getRankedPlayerStats`) over the group's full history, so they match the
   app's player page and all-time stats ranking.
+- Group, pair and rivalry stats (MAR-205) use the stats page's own pieces from
+  `@padelaso/domain/stats`: the `range` is the page's period filter (`getTimeRangeCutoff`,
+  `filterMatchesFrom`), the ranking is `getGroupRanking`, pairs are `getPairStats` ordered by
+  `sortPairStats` (`winRate` lists only pairs with `MIN_MATCHES_FOR_RATE` matches together),
+  rivalries are `getHeadToHeadStats`, and `compare_players`'s `against` is
+  `getPlayerVersusStats`: every decided match the two played on opposite teams, whoever their
+  partners were. Pair and rivalry counts leave ties out, as the page does. Lists are capped and
+  rates rounded to three decimals. Event and MVP stats are not included: OAuth tokens can't read
+  those tables (MAR-206).
 - `get_match` (MAR-157) lets a model target one exact match and event for a correction. Events
   keep their recorded order, and unknown (retired) types and deleted players still show, so they
   can be corrected. `version` is the match's revision (`native_private.match_state.revision`):

@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import type { AuthInfo } from "@modelcontextprotocol/server";
 
 export const toolAudit = new AsyncLocalStorage<{ outcome: "ok" | "denied" | "error" }>();
-const names = new Set(["list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "create_match", "add_match_events", "remove_match_event", "update_match"]);
+const names = new Set(["list_groups", "list_players", "list_matches", "get_match", "get_player_stats", "get_group_stats", "compare_players", "get_pair_stats", "create_match", "add_match_events", "remove_match_event", "update_match"]);
 
 /** Outside SDK wire/input/output validation; auth has already verified the caller. */
 export async function auditMcpRequest(request: Request, auth: AuthInfo | undefined,
