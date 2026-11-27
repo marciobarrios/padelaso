@@ -1,0 +1,2254 @@
+{
+  "tools": [
+    {
+      "name": "list_groups",
+      "title": "List groups",
+      "description": "List the Padelaso groups you belong to. Call this first: every other tool needs a group ID.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "emoji": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "emoji"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "groups"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_players",
+      "title": "List players",
+      "description": "List a group's players, or find them by name to get their IDs. isYou marks the signed-in user's player. When a name matches several players or none, show the candidates and ask the user; never guess.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "name": {
+            "description": "Part of a player's name. Case and accents are ignored.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "group_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "emoji": {
+                  "type": "string"
+                },
+                "isYou": {
+                  "type": "boolean",
+                  "description": "True for the player linked to the signed-in user."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "emoji",
+                "isYou"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "group",
+          "players"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_matches",
+      "title": "List matches",
+      "description": "List a group's match history, newest first, with teams, set scores and winner. Optionally only one player's matches. Use get_match for one match's events.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "player_id": {
+            "description": "Only matches this player played.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "limit": {
+            "default": 10,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "offset": {
+            "default": 0,
+            "description": "nextOffset from the previous page.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "group_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string",
+                  "description": "ISO 8601 date and time the match was played."
+                },
+                "court": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "team1": {
+                  "type": "object",
+                  "properties": {
+                    "players": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Null when the player was deleted.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "setsWon": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "players",
+                    "setsWon"
+                  ],
+                  "additionalProperties": false
+                },
+                "team2": {
+                  "type": "object",
+                  "properties": {
+                    "players": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Null when the player was deleted.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "setsWon": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "players",
+                    "setsWon"
+                  ],
+                  "additionalProperties": false
+                },
+                "sets": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "team1": {
+                        "type": "number"
+                      },
+                      "team2": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "team1",
+                      "team2"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "winner": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "team1",
+                        "team2"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Null for ties and unfinished matches."
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "court",
+                "team1",
+                "team2",
+                "sets",
+                "winner"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextOffset": {
+            "description": "Pass as offset to get older matches; null when there are none.",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "group",
+          "matches",
+          "nextOffset"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_match",
+      "title": "Get match",
+      "description": "One match of a group with every recorded event and its ID, plus a version. Find the match with list_matches first; when several matches fit what the user said, show them and ask. Use the event IDs and version to target an exact event or match in a correction.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "match_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Match ID from list_matches."
+          }
+        },
+        "required": [
+          "group_id",
+          "match_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "match": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "description": "ISO 8601 date and time the match was played."
+              },
+              "court": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "team1": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "team2": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "team1": {
+                      "type": "number"
+                    },
+                    "team2": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "team1",
+                    "team2"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "winner": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "team1",
+                      "team2"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Null for ties and unfinished matches."
+              }
+            },
+            "required": [
+              "id",
+              "date",
+              "court",
+              "team1",
+              "team2",
+              "sets",
+              "winner"
+            ],
+            "additionalProperties": false
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Null when the player was deleted.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "type": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Display name of the event in Padelaso."
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Event ID, to name this exact event in a later correction."
+                }
+              },
+              "required": [
+                "player",
+                "type",
+                "label",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Every recorded event, in the order it was recorded."
+          },
+          "version": {
+            "type": "number",
+            "description": "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused."
+          },
+          "url": {
+            "type": "string",
+            "description": "Link to the match in Padelaso."
+          }
+        },
+        "required": [
+          "group",
+          "match",
+          "events",
+          "version",
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_player_stats",
+      "title": "Get player stats",
+      "description": "A player's all-time stats in a group: record, win rate, streaks, recent form, group ranking and most frequent partners. Uses Padelaso's own scoring rules.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "player_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Player ID from list_players."
+          }
+        },
+        "required": [
+          "group_id",
+          "player_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "player": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              },
+              "isYou": {
+                "type": "boolean",
+                "description": "True for the player linked to the signed-in user."
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji",
+              "isYou"
+            ],
+            "additionalProperties": false
+          },
+          "matches": {
+            "type": "number"
+          },
+          "wins": {
+            "type": "number"
+          },
+          "losses": {
+            "type": "number"
+          },
+          "undecided": {
+            "type": "number",
+            "description": "Ties and unfinished matches, counted in matches but not in wins or losses."
+          },
+          "winRate": {
+            "type": "number",
+            "description": "wins / matches, from 0 to 1."
+          },
+          "currentStreak": {
+            "type": "number",
+            "description": "Positive for consecutive wins, negative for consecutive losses."
+          },
+          "bestStreak": {
+            "type": "number"
+          },
+          "recentForm": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "W",
+                "L"
+              ]
+            },
+            "description": "Last decided results among the five most recent matches, oldest first."
+          },
+          "ranking": {
+            "type": "object",
+            "properties": {
+              "position": {
+                "description": "1-based group ranking position; null without matches.",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rankedPlayers": {
+                "type": "number"
+              },
+              "provisional": {
+                "type": "boolean",
+                "description": "True until the player reaches minimumMatches; provisional players rank last."
+              },
+              "minimumMatches": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "position",
+              "rankedPlayers",
+              "provisional",
+              "minimumMatches"
+            ],
+            "additionalProperties": false
+          },
+          "partners": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "matches": {
+                  "type": "number"
+                },
+                "wins": {
+                  "type": "number"
+                },
+                "winRate": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "matches",
+                "wins",
+                "winRate"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Most frequent partners, up to 5."
+          }
+        },
+        "required": [
+          "group",
+          "player",
+          "matches",
+          "wins",
+          "losses",
+          "undecided",
+          "winRate",
+          "currentStreak",
+          "bestStreak",
+          "recentForm",
+          "ranking",
+          "partners"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_match",
+      "title": "Record match",
+      "description": "Record a finished match in a group: both teams, the games of every set and optional highlights. Before calling: (1) resolve every player with list_players and pass their IDs; when a name matches several players or none, show the candidates and ask the user, never guess. (2) Restate the group, both teams, every set score and the date to the user, and call only after they confirm. Generate one random UUID as idempotency_key per confirmed match and reuse it if you retry. Returns what was saved and a link to the match.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "team1": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Player ID from list_players."
+            },
+            "description": "The two players of team 1, as IDs from list_players."
+          },
+          "team2": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Player ID from list_players."
+            },
+            "description": "The two players of team 2, as IDs from list_players."
+          },
+          "sets": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "team1": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 99
+                },
+                "team2": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 99
+                }
+              },
+              "required": [
+                "team1",
+                "team2"
+              ]
+            },
+            "description": "Games won by each team in every played set, in order. Example: 6-4, 3-6, 7-5."
+          },
+          "played_at": {
+            "description": "When the match was played, ISO 8601 with a UTC offset, e.g. 2026-11-14T19:00:00+01:00. Omit when it was just played: Padelaso uses the current time.",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "court": {
+            "description": "Court number, if the user mentions one.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "events": {
+            "description": "Optional highlights the user mentions, one entry per occurrence. Types: remate_red (Remate a la red), ace (Ace), doble_falta (Doble falta), remate (Remate imparable), dejada_imposible (Dejada imposible), tomahawk (Misil al cristal), salvada_top (Salvada top), por_4_metros (Por 4 metros), por_3_metros (Por 3 metros), grito_guerra (Grito de guerra), cinta (Bendita red), pelotazo (Pelotazo al rival), por_debajo_piernas (Entre las piernas), tocaste_techo (Al techo), por_la_puerta (Por la puerta).",
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "One of the four match players."
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "remate_red",
+                    "ace",
+                    "doble_falta",
+                    "remate",
+                    "dejada_imposible",
+                    "tomahawk",
+                    "salvada_top",
+                    "por_4_metros",
+                    "por_3_metros",
+                    "grito_guerra",
+                    "cinta",
+                    "pelotazo",
+                    "por_debajo_piernas",
+                    "tocaste_techo",
+                    "por_la_puerta"
+                  ]
+                }
+              },
+              "required": [
+                "player_id",
+                "type"
+              ]
+            }
+          },
+          "idempotency_key": {
+            "description": "A random UUID generated once for each confirmed match. Reuse it only to retry the same call. Never put names, scores or other details in it.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "group_id",
+          "team1",
+          "team2",
+          "sets"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "replayed",
+              "duplicate"
+            ],
+            "description": "created: saved now. replayed: this idempotency_key had already saved this match. duplicate: an identical match was recorded minutes ago, so no new one was created."
+          },
+          "message": {
+            "type": "string",
+            "description": "What happened, to tell the user."
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "match": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "description": "ISO 8601 date and time the match was played."
+              },
+              "court": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "team1": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "team2": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "team1": {
+                      "type": "number"
+                    },
+                    "team2": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "team1",
+                    "team2"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "winner": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "team1",
+                      "team2"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Null for ties and unfinished matches."
+              }
+            },
+            "required": [
+              "id",
+              "date",
+              "court",
+              "team1",
+              "team2",
+              "sets",
+              "winner"
+            ],
+            "additionalProperties": false
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Null when the player was deleted.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "type": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Display name of the event in Padelaso."
+                }
+              },
+              "required": [
+                "player",
+                "type",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "url": {
+            "type": "string",
+            "description": "Link to the match in Padelaso."
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "group",
+          "match",
+          "events",
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_match_events",
+      "title": "Add match events",
+      "description": "Add highlights (aces, double faults, …) to a match that is already recorded. It only adds: it never changes or removes existing events. Before calling: (1) find the match with list_matches and read it with get_match; when several matches fit what the user said, show them and ask. (2) Resolve every player to one of the match's four players; when a name matches several or none, ask, never guess. (3) Restate the match (date and teams) and every event to add to the user, and call only after they confirm. Generate one random UUID as idempotency_key per confirmed request and reuse it if you retry. Returns the events added, the updated match and a link to it.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "match_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Match ID from list_matches."
+          },
+          "events": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "One of the four match players."
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "remate_red",
+                    "ace",
+                    "doble_falta",
+                    "remate",
+                    "dejada_imposible",
+                    "tomahawk",
+                    "salvada_top",
+                    "por_4_metros",
+                    "por_3_metros",
+                    "grito_guerra",
+                    "cinta",
+                    "pelotazo",
+                    "por_debajo_piernas",
+                    "tocaste_techo",
+                    "por_la_puerta"
+                  ]
+                }
+              },
+              "required": [
+                "player_id",
+                "type"
+              ]
+            },
+            "description": "The events to add, one entry per occurrence: \"two aces\" is two entries. A match holds at most 50 events. Types: remate_red (Remate a la red), ace (Ace), doble_falta (Doble falta), remate (Remate imparable), dejada_imposible (Dejada imposible), tomahawk (Misil al cristal), salvada_top (Salvada top), por_4_metros (Por 4 metros), por_3_metros (Por 3 metros), grito_guerra (Grito de guerra), cinta (Bendita red), pelotazo (Pelotazo al rival), por_debajo_piernas (Entre las piernas), tocaste_techo (Al techo), por_la_puerta (Por la puerta)."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "A random UUID generated once for each confirmed request. Reuse it only to retry the same call. Never put names or other details in it."
+          }
+        },
+        "required": [
+          "group_id",
+          "match_id",
+          "events",
+          "idempotency_key"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "added",
+              "replayed"
+            ],
+            "description": "added: saved now. replayed: this idempotency_key had already added these events, so nothing new was added."
+          },
+          "message": {
+            "type": "string",
+            "description": "What happened, to tell the user."
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "match": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "description": "ISO 8601 date and time the match was played."
+              },
+              "court": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "team1": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "team2": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "team1": {
+                      "type": "number"
+                    },
+                    "team2": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "team1",
+                    "team2"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "winner": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "team1",
+                      "team2"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Null for ties and unfinished matches."
+              }
+            },
+            "required": [
+              "id",
+              "date",
+              "court",
+              "team1",
+              "team2",
+              "sets",
+              "winner"
+            ],
+            "additionalProperties": false
+          },
+          "added": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Null when the player was deleted.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "type": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Display name of the event in Padelaso."
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Event ID, to name this exact event in a later correction."
+                }
+              },
+              "required": [
+                "player",
+                "type",
+                "label",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The events this request added, in order."
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Null when the player was deleted.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "type": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Display name of the event in Padelaso."
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Event ID, to name this exact event in a later correction."
+                }
+              },
+              "required": [
+                "player",
+                "type",
+                "label",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Every event of the match now, in the order it was recorded."
+          },
+          "version": {
+            "type": "number",
+            "description": "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused."
+          },
+          "url": {
+            "type": "string",
+            "description": "Link to the match in Padelaso."
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "group",
+          "match",
+          "added",
+          "events",
+          "version",
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "remove_match_event",
+      "title": "Remove match event",
+      "description": "Remove one mistaken highlight (an ace, a double fault, …) from a recorded match. It removes exactly the event you name and nothing else; it cannot be undone except by adding the event again. Before calling: (1) find the match with list_matches and read it with get_match; when several matches fit what the user said, show them and ask. (2) Pick the event by its ID from get_match; ask when it's unclear which player or type the user means. (3) Restate the match (date and teams) and the event to remove (player and type; when that player has several events of that type, also which one in get_match order, e.g. \"the second of Ana's two aces\") to the user, and call only after they confirm. Pass the version from that get_match read: if the match changed since, nothing is removed and you must read it again. Retrying the same call is safe. Returns the removed event, the updated match and a link to it.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "match_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Match ID from list_matches."
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "ID of the event to remove, from get_match."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "The version returned by the get_match read the user confirmed."
+          }
+        },
+        "required": [
+          "group_id",
+          "match_id",
+          "event_id",
+          "expected_version"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "removed",
+              "already_removed"
+            ],
+            "description": "removed: removed now. already_removed: an earlier identical request had already removed it, so nothing changed."
+          },
+          "message": {
+            "type": "string",
+            "description": "What happened, to tell the user."
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "match": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "description": "ISO 8601 date and time the match was played."
+              },
+              "court": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "team1": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "team2": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "team1": {
+                      "type": "number"
+                    },
+                    "team2": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "team1",
+                    "team2"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "winner": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "team1",
+                      "team2"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Null for ties and unfinished matches."
+              }
+            },
+            "required": [
+              "id",
+              "date",
+              "court",
+              "team1",
+              "team2",
+              "sets",
+              "winner"
+            ],
+            "additionalProperties": false
+          },
+          "removed": {
+            "type": "object",
+            "properties": {
+              "player": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Null when the player was deleted.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              "type": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display name of the event in Padelaso."
+              },
+              "id": {
+                "type": "string",
+                "description": "Event ID, to name this exact event in a later correction."
+              }
+            },
+            "required": [
+              "player",
+              "type",
+              "label",
+              "id"
+            ],
+            "additionalProperties": false,
+            "description": "The event that was removed."
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Null when the player was deleted.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "type": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Display name of the event in Padelaso."
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Event ID, to name this exact event in a later correction."
+                }
+              },
+              "required": [
+                "player",
+                "type",
+                "label",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Every event of the match now, in the order it was recorded."
+          },
+          "version": {
+            "type": "number",
+            "description": "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused."
+          },
+          "url": {
+            "type": "string",
+            "description": "Link to the match in Padelaso."
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "group",
+          "match",
+          "removed",
+          "events",
+          "version",
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_match",
+      "title": "Correct match",
+      "description": "Correct a recorded match's teams, set scores, date or court. Only the fields in patch change; everything else, events included, stays as it is. Before calling: (1) find the match with list_matches and read it with get_match for its version; when several matches fit what the user said, show them and ask. (2) Resolve every new player with list_players; when a name matches several players or none, ask, never guess. (3) Restate the match and the exact change (old and new values) to the user, and call only after they confirm. Players who leave the match must have no events: remove those first. Generate one random UUID as idempotency_key per confirmed correction and reuse it if you retry. Returns what changed, the updated match and a link to it.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "match_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Match ID from list_matches."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "The version get_match returned. If the match changed since, nothing is saved and you must read it again."
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "team1": {
+                "description": "The two players of team 1. Give team1 and team2 together, even if one stays the same.",
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Player ID from list_players."
+                }
+              },
+              "team2": {
+                "description": "The two players of team 2.",
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Player ID from list_players."
+                }
+              },
+              "sets": {
+                "description": "Every played set, in order: replaces the whole score. team1 is the games of team 1.",
+                "minItems": 1,
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "team1": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    },
+                    "team2": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 99
+                    }
+                  },
+                  "required": [
+                    "team1",
+                    "team2"
+                  ]
+                }
+              },
+              "played_at": {
+                "description": "When the match was played, ISO 8601 with a UTC offset, e.g. 2026-11-14T19:00:00+01:00.",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "court": {
+                "description": "Court number, or null to clear it.",
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 99
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "description": "Only the fields to change. Leave out everything that stays the same."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "A random UUID generated once for each confirmed correction. Reuse it only to retry the same call. Never put names or other details in it."
+          }
+        },
+        "required": [
+          "group_id",
+          "match_id",
+          "expected_version",
+          "patch",
+          "idempotency_key"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "updated",
+              "unchanged",
+              "replayed"
+            ],
+            "description": "updated: saved now. unchanged: the match already had these values, so nothing changed. replayed: this idempotency_key had already made this correction, so nothing more changed."
+          },
+          "message": {
+            "type": "string",
+            "description": "What happened, to tell the user."
+          },
+          "changed": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "team1",
+                "team2",
+                "sets",
+                "played_at",
+                "court"
+              ]
+            },
+            "description": "The fields this request changed."
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "match": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "description": "ISO 8601 date and time the match was played."
+              },
+              "court": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "team1": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "team2": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Null when the player was deleted.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "setsWon": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "players",
+                  "setsWon"
+                ],
+                "additionalProperties": false
+              },
+              "sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "team1": {
+                      "type": "number"
+                    },
+                    "team2": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "team1",
+                    "team2"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "winner": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "team1",
+                      "team2"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Null for ties and unfinished matches."
+              }
+            },
+            "required": [
+              "id",
+              "date",
+              "court",
+              "team1",
+              "team2",
+              "sets",
+              "winner"
+            ],
+            "additionalProperties": false
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Null when the player was deleted.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "type": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Display name of the event in Padelaso."
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Event ID, to name this exact event in a later correction."
+                }
+              },
+              "required": [
+                "player",
+                "type",
+                "label",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Every event of the match, unchanged by this tool."
+          },
+          "version": {
+            "type": "number",
+            "description": "Changes whenever the match or its events change. Pass it to edit tools so a stale read is refused."
+          },
+          "url": {
+            "type": "string",
+            "description": "Link to the match in Padelaso."
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "changed",
+          "group",
+          "match",
+          "events",
+          "version",
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

@@ -1394,3 +1394,19 @@ describe("MCP tool audit", () => {
     expect(JSON.stringify(captureException.mock.calls)).not.toContain("private-database-payload");
   });
 });
+
+describe("generic MCP clients", () => {
+  // Recorded before MCP Apps cards existed. Clients that ignore `_meta` must see exactly this.
+  const withoutMeta = (value: object) => JSON.parse(JSON.stringify(value, (key, v) => key === "_meta" ? undefined : v));
+
+  it("see the same tool definitions", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    await expect(JSON.stringify(withoutMeta(result), null, 2)).toMatchFileSnapshot("__snapshots__/generic-tools-list.json");
+  });
+
+  it("get the same get_match result, structured and as text", async () => {
+    const result = await callTool("get_match", { group_id: GROUP_ID, match_id: MATCH_ID });
+    expect(result._meta).toBeUndefined();
+    await expect(JSON.stringify(result, null, 2)).toMatchFileSnapshot("__snapshots__/generic-get-match.json");
+  });
+});
