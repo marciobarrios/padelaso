@@ -556,6 +556,10 @@ Never expose credentials, bearer/refresh tokens, authorization codes, or user em
 
 ## Connecting Grok Bot
 
+The public, user-facing guide is [padelaso.com/asistentes/grok](https://padelaso.com/asistentes/grok)
+(`apps/marketing/src/app/asistentes/grok/page.tsx`, MAR-136). Keep it in sync with this section.
+Connected URL-only by the owner on 27 November 2026.
+
 With the Cursor policy deployed (MAR-156): in Grok Bot, add a custom connector → **Remote HTTPS**,
 URL `https://app.padelaso.com/api/mcp`, Client ID and Client Secret **empty**, no HTTP headers.
 Grok Bot registers itself, then the user signs in and approves consent (it may be named Cursor).
@@ -564,9 +568,16 @@ retired.
 
 ## Connecting Claude
 
-With the Claude policy deployed (MAR-200): in Claude, **Settings → Connectors → Add custom
-connector**, URL `https://app.padelaso.com/api/mcp`, and leave the advanced OAuth Client ID and
-Client Secret **empty**. Claude registers itself, then the user signs in and approves consent.
+The public, user-facing guide is [padelaso.com/asistentes/claude](https://padelaso.com/asistentes/claude)
+(`apps/marketing/src/app/asistentes/claude/page.tsx`, MAR-136). Keep it in sync with this section.
+Connected URL-only by the owner on 27 November 2026.
+
+With the Claude policy deployed (MAR-200): in Claude, **Customize → Connectors → + Add → Add custom
+connector**, URL `https://app.padelaso.com/api/mcp`, **Continue** twice, then under **OAuth client**
+choose **Register automatically** (DCR). The default "Use Claude's published identity" isn't DCR
+and Padelaso doesn't admit it. No request headers. Claude registers itself, then the user signs in
+and approves consent. Team/Enterprise owners add it in **Organization settings → Connectors → Add →
+Custom → Web** with the same choices; members then **Connect** it from Customize → Connectors.
 A connect may register more than one client; unused ones can be deleted.
 
 ## Connecting other clients (manual public clients)

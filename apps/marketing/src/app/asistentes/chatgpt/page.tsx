@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { CopyUrl } from "../copy-url";
-import { BackLink, GuideLink } from "../from-app";
+import { BackLink } from "../from-app";
+import { ExamplesSection, heading, link, mcpUrl, PermissionSection } from "../guide-parts";
 
 const title = "Conectar ChatGPT · Padelaso";
 const description = "Cómo conectar tu cuenta de Padelaso a ChatGPT para consultar partidos y estadísticas, y registrar partidos desde el chat.";
-const mcpUrl = "https://app.padelaso.com/api/mcp";
 
 export const metadata: Metadata = {
   title,
@@ -14,19 +13,6 @@ export const metadata: Metadata = {
   openGraph: { title, description, url: "https://padelaso.com/asistentes/chatgpt" },
   twitter: { title, description },
 };
-
-const link = "underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-focus";
-const heading = "font-pixel text-2xl leading-tight tracking-tight";
-
-const examples = [
-  "Enséñame los últimos partidos de mi grupo.",
-  "¿Cuáles son mis estadísticas este año? ¿Con quién gano más?",
-  "¿Quién va primero en el ranking del grupo?",
-  "Registra un partido: Ana y yo ganamos a Luis y Marta 6-4, 3-6, 7-5.",
-  "Añade dos aces de Ana al partido de ayer.",
-  "Quita la doble falta de Luis del último partido, fue un error.",
-  "Corrige el partido de ayer: el segundo set fue 6-3, no 6-4.",
-];
 
 export default function ChatGptGuidePage() {
   return (
@@ -66,27 +52,9 @@ export default function ChatGptGuidePage() {
           <p>Solo tienes que conectarlo una vez. Después podrás usarlo en tus chats de ChatGPT con la misma cuenta.</p>
         </section>
 
-        <section aria-labelledby="permiso" className="space-y-4">
-          <h2 id="permiso" className={heading}>Qué permiso das</h2>
-          <p>Padelaso pide un único permiso: <strong>leer y registrar partidos</strong>. Con él, ChatGPT puede:</p>
-          <ul className="list-disc space-y-2 pl-6">
-            <li>Ver los grupos a los que perteneces.</li>
-            <li>Consultar los jugadores, el historial de partidos y las estadísticas de esos grupos.</li>
-            <li>Registrar partidos nuevos en esos grupos, añadir eventos a partidos ya registrados y corregir su fecha, pista, equipos o resultado. ChatGPT te pide confirmar los detalles antes de guardarlos.</li>
-            <li>Quitar un evento registrado por error, de uno en uno. ChatGPT te pide confirmar cuál antes de quitarlo.</li>
-          </ul>
-          <p>Las herramientas actuales no permiten borrar partidos, ni cambiar o borrar jugadores o grupos. El acceso está limitado a los grupos de los que eres miembro. Más detalles en <Link href="/privacidad" className={link}>Privacidad</Link>.</p>
-        </section>
+        <PermissionSection client="ChatGPT" />
 
-        <section aria-labelledby="ejemplos" className="space-y-4">
-          <h2 id="ejemplos" className={heading}>Prueba a pedirle</h2>
-          <ul className="space-y-2">
-            {examples.map((example) => (
-              <li key={example} className="rounded-sm border border-line bg-card px-4 py-3">@Padelaso {example}</li>
-            ))}
-          </ul>
-          <p className="text-sm text-ink-soft">Si perteneces a varios grupos, dile en cuál quieres consultar o registrar. Cómo registra un partido y qué reglas sigue: <GuideLink href="/asistentes" className={link}>Padelaso en tu asistente de IA</GuideLink>.</p>
-        </section>
+        <ExamplesSection prefix="@Padelaso " />
 
         <section aria-labelledby="desconectar" className="space-y-4">
           <h2 id="desconectar" className={heading}>Cómo desconectarlo</h2>
