@@ -25,7 +25,7 @@ policy for beta and store builds are in [RELEASE.md](RELEASE.md).
 
 - Expo SDK **58.0.23**, React Native **0.88.1**, React **19.3.0**
 - Expo Router **58.0.30**, TypeScript **6.0.3**
-- Node **22.13+** (use the latest Node 22 LTS patch), pnpm **11.20.0**
+- Node **26.13.1**, pnpm **12.23.0** (pinned in the root `mise.toml`)
 - Optional EAS CLI **27.4.1**, invoked with `pnpm dlx eas-cli@27.4.1`
 
 Expo selects mobile React/native versions independently of the web apps.
