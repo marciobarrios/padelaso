@@ -33,6 +33,7 @@ import {
 } from "@padelaso/domain/matches";
 import {
   calculatePlayerStats,
+  canonicalPairKey as pairKey,
   filterMatchesFrom,
   getGroupRanking,
   getHeadToHeadStats,
@@ -792,7 +793,7 @@ async function readStats(caller: Caller, groupId: string, range: TimeRange) {
   ]);
   const names = new Map(players.map((p) => [p.id, p.name]));
   const members = (ids: string[]) => ids.map((id) => ({ id, name: names.get(id) ?? null }));
-  return { found, players, members, matches: filterMatchesFrom(matches, getTimeRangeCutoff(range)) };
+  return { found, players, names, members, matches: filterMatchesFrom(matches, getTimeRangeCutoff(range)) };
 }
 
 function requireTwoPlayers(players: PlayerSummary[], ids: string[]) {
@@ -804,8 +805,6 @@ const toRecord = (s: { matches: number; wins: number; losses: number; winRate: n
   matches: s.matches, wins: s.wins, losses: s.losses, winRate: round(s.winRate),
 });
 
-const pairKey = (a: string, b: string) => (a < b ? `${a}:${b}` : `${b}:${a}`);
-
 function findPair(matches: Match[], a: string, b: string) {
   const key = pairKey(a, b);
   const found = getPairStats(matches).find((p) => pairKey(p.player1Id, p.player2Id) === key);
@@ -814,9 +813,8 @@ function findPair(matches: Match[], a: string, b: string) {
 }
 
 async function getGroupStats(caller: Caller, args: { group_id: string; range: TimeRange; pairs_by: PairOrder }) {
-  const { found, players, members, matches } = await readStats(caller, args.group_id, args.range);
+  const { found, players, names, members, matches } = await readStats(caller, args.group_id, args.range);
   const { minimumMatches, ranked } = getGroupRanking(players.map((p) => p.id), matches);
-  const names = new Map(players.map((p) => [p.id, p.name]));
   const pairs = sortPairStats(getPairStats(matches), args.pairs_by);
   const rivalries = getHeadToHeadStats(matches);
   return {

@@ -291,7 +291,8 @@ export interface PairStats {
   currentStreak: number;
 }
 
-function canonicalPairKey(a: PlayerId, b: PlayerId): string {
+/** The same key for a pair whatever the order of its players. */
+export function canonicalPairKey(a: PlayerId, b: PlayerId): string {
   return a < b ? `${a}:${b}` : `${b}:${a}`;
 }
 
