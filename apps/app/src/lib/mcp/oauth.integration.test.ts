@@ -233,6 +233,19 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     expect(await canUseMcpClient(client.client_id)).toBe(true);
   });
 
+  it("admits a confidential DCR client registered with Claude's callback", async () => {
+    const response = await fetch(registrationEndpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: "Claude", token_endpoint_auth_method: "client_secret_post",
+        grant_types: ["authorization_code", "refresh_token"], redirect_uris: ["https://claude.ai/api/mcp/auth_callback"] }),
+    });
+    expect(response.status).toBe(201);
+    const client = await response.json();
+    createdClients.push(client.client_id);
+    expect(client.client_secret).toBeTruthy();
+    expect(await canUseMcpClient(client.client_id)).toBe(true);
+  });
+
   it("refuses DCR clients with untrusted callbacks even when Supabase registers them", async () => {
     const response = await fetch(registrationEndpoint, {
       method: "POST", headers: { "Content-Type": "application/json" },
