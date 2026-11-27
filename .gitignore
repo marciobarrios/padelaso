@@ -66,3 +66,6 @@ apps/mobile/expo-env.d.ts
 *.p12
 apps/mobile/.build/
 apps/mobile/targets/watch/Assets.xcassets/
+
+# Local mise tool versions
+mise.local.toml
