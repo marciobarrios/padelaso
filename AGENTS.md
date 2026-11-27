@@ -4,6 +4,12 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Toolchain
+
+- Node and pnpm versions are pinned in [mise.toml](mise.toml), and CI reads them from there. Run commands through mise (`mise install`, then `mise exec -- pnpm …`, or an activated shell). A new worktree may first need `mise trust`.
+- When you bump either version, change `mise.toml` and the root `packageManager` together, and update the toolchain lines in README.md and apps/mobile/README.md.
+- Machine-specific tool pins belong in the git-ignored `mise.local.toml`, not `mise.toml`.
+
 ## Linear issues and pull requests
 
 - For every PR that completes a Linear issue, include a closing keyword and the issue identifier in the PR description, on its own line: `Fixes MAR-43` (replace with the actual issue ID). Use one line per completed issue, and preserve these lines when editing the description.

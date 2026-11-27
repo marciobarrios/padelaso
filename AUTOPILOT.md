@@ -7,7 +7,7 @@ Everything in `AGENTS.md` still applies (Next.js docs, Linear and PR rules).
 
 - Base branch: `main`. Merge method: `gh pr merge <n> --squash --delete-branch`.
 - Linear team: MAR. Confirm the issue belongs to Padelaso before starting.
-- Monorepo (pnpm 11 + Turbo): `apps/app` (Next.js web app), `apps/marketing`
+- Monorepo (Node 26 + pnpm 12 via `mise.toml`, Turbo): `apps/app` (Next.js web app), `apps/marketing`
   (Next.js, port 3001), `apps/mobile` (Expo dev client + watchOS target),
   `packages/domain`, `packages/data`, `supabase/` (migrations, pgTAP tests).
 - Read `PRODUCT.md` before any UI work: mobile-first, playful, retro.
