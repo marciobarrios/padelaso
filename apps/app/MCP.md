@@ -570,12 +570,14 @@ retired.
 
 The public, user-facing guide is [padelaso.com/asistentes/claude](https://padelaso.com/asistentes/claude)
 (`apps/marketing/src/app/asistentes/claude/page.tsx`, MAR-136). Keep it in sync with this section.
-Connected URL-only by the owner on 27 November 2026. Claude's help center now names the menu
-**Customize → Connectors** for individual plans; Team/Enterprise owners add it to the organization first.
+Connected URL-only by the owner on 27 November 2026.
 
 With the Claude policy deployed (MAR-200): in Claude, **Customize → Connectors → + Add → Add custom
-connector**, URL `https://app.padelaso.com/api/mcp`, and leave the advanced OAuth Client ID and
-Client Secret **empty**. Claude registers itself, then the user signs in and approves consent.
+connector**, URL `https://app.padelaso.com/api/mcp`, **Continue** twice, then under **OAuth client**
+choose **Register automatically** (DCR). The default "Use Claude's published identity" isn't DCR
+and Padelaso doesn't admit it. No request headers. Claude registers itself, then the user signs in
+and approves consent. Team/Enterprise owners add it in **Organization settings → Connectors → Add →
+Custom → Web** with the same choices; members then **Connect** it from Customize → Connectors.
 A connect may register more than one client; unused ones can be deleted.
 
 ## Connecting other clients (manual public clients)

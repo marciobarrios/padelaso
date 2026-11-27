@@ -55,7 +55,7 @@ export function Integrations() {
       </div>
       {(!user || isLoading) && <p role="status">Cargando conexiones…</p>}
       {error && <div role="alert" className="space-y-2"><p>No se pudieron cargar las conexiones.</p><Button variant="outline" onClick={() => void mutate()}>Reintentar</Button></div>}
-      {grants?.length === 0 && <div className="rounded-xl border border-border p-5 text-center space-y-2"><p className="font-bold">Sin aplicaciones conectadas</p><p className="text-sm text-muted-foreground">Cuando conectes una aplicación de IA, aparecerá aquí.</p><p className="text-sm"><a href={CONNECT_GUIDES_URL} className="underline underline-offset-4">Cómo conectar ChatGPT, Claude o Grok Bot</a></p></div>}
+      {grants?.length === 0 && <div className="rounded-xl border border-border p-5 text-center space-y-2"><p className="font-bold">Sin aplicaciones conectadas</p><p className="text-sm text-muted-foreground">Cuando conectes una aplicación de IA, aparecerá aquí.</p><p className="text-sm"><a href={CONNECT_GUIDES_URL} className="underline underline-offset-4">Cómo conectar un asistente</a></p></div>}
       {grants && grants.length > 0 && <ul className="space-y-3">{grants.map((grant) => <li key={grant.client.id} className="rounded-xl border border-border p-4 space-y-3">
         <p className="font-bold break-words">{grant.client.name || "Aplicación"}</p>
         <Button variant="destructive" className="min-h-11" onClick={() => {

@@ -42,14 +42,16 @@ export default function ClaudeGuidePage() {
           <ol className="list-decimal space-y-5 pl-6 marker:font-[850]">
             <li>Abre <strong>Customize → Connectors</strong> en Claude, pulsa <strong>+ Add</strong> y elige <strong>Add custom connector</strong>.</li>
             <li className="space-y-3">
-              <p>Escribe <strong>Padelaso</strong> como nombre y pega esta URL como dirección del servidor:</p>
+              <p>Escribe <strong>Padelaso</strong> como nombre, pega esta URL y pulsa <strong>Continue</strong>:</p>
               <CopyUrl url={mcpUrl} />
             </li>
-            <li>Deja vacíos el ID y el secreto de cliente de las opciones avanzadas: Claude se registra solo. Pulsa <strong>Add</strong>.</li>
-            <li>Pulsa <strong>Connect</strong>. Se abrirá Padelaso: inicia sesión con tu cuenta, revisa el permiso y pulsa <strong>Permitir acceso</strong>.</li>
-            <li>En un chat nuevo, pídele algo de Padelaso. Si no lo usa, abre el menú <strong>+</strong> del chat y comprueba que Padelaso está activado en <strong>Connectors</strong>.</li>
+            <li>Claude detecta que Padelaso usa inicio de sesión. Pulsa <strong>Continue</strong> otra vez.</li>
+            <li>En <strong>OAuth client</strong>, elige <strong>Register automatically</strong>: Claude se registra solo, sin ID ni secreto de cliente. La opción recomendada por Claude (<strong>Use Claude&apos;s published identity</strong>) no funciona con Padelaso. No añadas nada en <strong>Request headers</strong> y pulsa <strong>Add</strong>.</li>
+            <li>Pulsa <strong>Connect</strong> si Claude no lo abre solo. Se abrirá Padelaso: inicia sesión con tu cuenta, revisa el permiso y pulsa <strong>Permitir acceso</strong>.</li>
+            <li>En un chat nuevo, pídele algo de Padelaso. Si no lo usa, abre el menú <strong>+</strong> del chat, entra en <strong>Connectors</strong> y comprueba que Padelaso está activado.</li>
           </ol>
           <p>Solo tienes que conectarlo una vez. Después podrás usarlo en tus chats de Claude con la misma cuenta. Antes de guardar o cambiar datos, Claude te pide permiso para usar la herramienta: puedes permitirlo una vez o siempre.</p>
+          <p><strong>En Claude Team o Enterprise</strong>, un administrador lo añade primero en <strong>Organization settings → Connectors → Add → Custom → Web</strong>, con los mismos pasos desde el 2. Después, cada miembro abre <strong>Customize → Connectors</strong>, busca Padelaso y pulsa <strong>Connect</strong>.</p>
         </section>
 
         <PermissionSection client="Claude" />
@@ -65,9 +67,9 @@ export default function ClaudeGuidePage() {
           <h2 id="problemas" className={heading}>Si algo falla</h2>
           <ul className="list-disc space-y-2 pl-6">
             <li><strong>No ves Add custom connector:</strong> en Team o Enterprise, pide a tu administrador que añada Padelaso a la organización; después podrás conectarlo tú.</li>
-            <li><strong>Claude te pide un ID o secreto de cliente:</strong> no los necesitas. Quita el conector y vuelve a añadirlo solo con la URL.</li>
+            <li><strong>Padelaso dice que la aplicación todavía no puede conectarse, o Claude te pide un ID o secreto de cliente:</strong> no los necesitas. Quita el conector y vuelve a añadirlo eligiendo <strong>Register automatically</strong>.</li>
             <li><strong>Claude dice que no puede registrar o corregir partidos:</strong> puede tener guardada una lista antigua de herramientas. Empieza un chat nuevo; si sigue igual, quita el conector y vuelve a añadirlo.</li>
-            <li><strong>Padelaso no responde en el chat:</strong> comprueba en el menú <strong>+</strong> que el conector está activado, o desconéctalo y vuelve a conectarlo.</li>
+            <li><strong>Padelaso no responde en el chat:</strong> comprueba en el menú <strong>+</strong> → <strong>Connectors</strong> que está activado, o desconéctalo y vuelve a conectarlo.</li>
           </ul>
         </section>
       </article>
