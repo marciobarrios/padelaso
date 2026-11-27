@@ -13,6 +13,8 @@ vi.mock("@/lib/supabase-admin", () => ({
 }));
 const ID = "11111111-1111-4111-8111-111111111111";
 const CALLBACK = "https://chatgpt.com/connector/oauth/test-callback";
+const CURSOR = "https://www.cursor.com/agents/mcp/oauth/callback";
+const CURSOR_LOOPBACK = "http://localhost:8787/callback";
 const client = (overrides = {}) => ({
   client_id: ID, registration_type: "dynamic", redirect_uris: [CALLBACK], ...overrides,
 });
@@ -55,6 +57,31 @@ describe("MCP client admission", () => {
     "https://chatgpt.com/connector/oauth/abc\n", "https://chatgpt.com/connector/oauth/%2f", "https://chatgpt.com/other", "not-a-url",
   ])("refuses an untrusted callback: %s", async (uri) => {
     getClient.mockResolvedValue({ data: client({ redirect_uris: [CALLBACK, uri] }), error: null });
+    expect(await canUseMcpClient(ID)).toBe(false);
+  });
+  it.each([[CURSOR], [CURSOR, CURSOR_LOOPBACK], [CURSOR_LOOPBACK, CURSOR], [CURSOR, CALLBACK]].map((uris) => ({ uris })))("admits a registered dynamic Cursor client (Grok Bot): $uris", async ({ uris }) => {
+    getClient.mockResolvedValue({ data: client({ redirect_uris: uris }), error: null });
+    expect(await canUseMcpClient(ID)).toBe(true);
+  });
+  it("refuses the Cursor loopback callback without the Cursor callback", async () => {
+    getClient.mockResolvedValue({ data: client({ redirect_uris: [CURSOR_LOOPBACK] }), error: null });
+    expect(await canUseMcpClient(ID)).toBe(false);
+  });
+  it.each([
+    "https://cursor.com/agents/mcp/oauth/callback", "http://www.cursor.com/agents/mcp/oauth/callback",
+    "https://www.cursor.com:444/agents/mcp/oauth/callback", "https://www.cursor.com/agents/mcp/oauth/callback/extra",
+    "https://www.cursor.com/agents/mcp/oauth/callback?next=https://evil.test", "https://www.cursor.com/agents/mcp/oauth/callback#x",
+    "https://www.cursor.com/agents/mcp/oauth/callback/", "https://www.cursor.com/agents/mcp/oauth/%63allback",
+    "https://www.cursor.com.evil.test/agents/mcp/oauth/callback", "https://WWW.CURSOR.COM/agents/mcp/oauth/callback",
+    " https://www.cursor.com/agents/mcp/oauth/callback",
+    "http://localhost:8788/callback", "http://127.0.0.1:8787/callback", "https://localhost:8787/callback",
+    "http://localhost:8787/callback/x", "http://localhost:8787/callback?x=1", "http://localhost/callback",
+  ])("refuses a Cursor lookalike next to the Cursor callback: %s", async (uri) => {
+    getClient.mockResolvedValue({ data: client({ redirect_uris: [CURSOR, CURSOR_LOOPBACK, uri] }), error: null });
+    expect(await canUseMcpClient(ID)).toBe(false);
+  });
+  it("refuses a Cursor client that also registers an untrusted callback", async () => {
+    getClient.mockResolvedValue({ data: client({ redirect_uris: [CURSOR, "https://evil.test/callback"] }), error: null });
     expect(await canUseMcpClient(ID)).toBe(false);
   });
   it.each([{ registration_type: "manual" }, { client_id: "other" }, { redirect_uris: [] }])("refuses clients outside the registration policy: %j", async (overrides) => {

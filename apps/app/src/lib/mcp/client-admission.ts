@@ -9,6 +9,17 @@ function isChatGptCallback(uri: string): boolean {
   return uri.trim() === uri && /^https:\/\/chatgpt\.com\/(?:connector_platform_oauth_redirect|connector\/oauth\/[A-Za-z0-9_-]+)$/.test(uri);
 }
 
+// Grok Bot (MAR-156) registers through Cursor's connector backend with both
+// callbacks. The loopback is trusted only next to the Cursor callback.
+const CURSOR_CALLBACK = "https://www.cursor.com/agents/mcp/oauth/callback";
+const CURSOR_LOOPBACK = "http://localhost:8787/callback";
+
+/** Every URI must pass: a trusted callback next to an attacker's is unsafe. */
+function hasTrustedCallbacks(uris: string[]): boolean {
+  return uris.length > 0 && uris.every((uri) => isChatGptCallback(uri) || uri === CURSOR_CALLBACK ||
+    (uri === CURSOR_LOOPBACK && uris.includes(CURSOR_CALLBACK)));
+}
+
 /** Server-only admission shared by consent and the verified bearer boundary. */
 export async function canUseMcpClient(clientId: string): Promise<boolean> {
   if (isAllowedMcpClient(clientId)) return true;
@@ -19,9 +30,8 @@ export async function canUseMcpClient(clientId: string): Promise<boolean> {
     const { data: client, error } = await createAdminSupabaseClient().auth.admin.oauth.getClient(clientId);
     if (error?.status === 404) return false;
     if (error) throw error;
-    // Every URI must pass: a trusted callback next to an attacker's is unsafe.
     return !!client && client.client_id === clientId && client.registration_type === "dynamic" &&
-      client.redirect_uris.length > 0 && client.redirect_uris.every(isChatGptCallback);
+      hasTrustedCallbacks(client.redirect_uris);
   } catch {
     // Auth middleware handles this error before tool telemetry. Report a fixed
     // failure without raw admin errors, metadata or inherited request context.
