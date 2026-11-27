@@ -28,8 +28,7 @@ on Vercel while Turborepo coordinates local and CI tasks.
 
 ### Prerequisites
 
-- Node.js 22.13 or newer (Node 22 LTS recommended)
-- pnpm 11.20.0 (pinned in the root `package.json`)
+- Node.js 26.13.1 and pnpm 12.23.0, pinned in `mise.toml` (run `mise install`)
 - A Supabase project for the authenticated application
 - Docker or Podman for the local Supabase test stack
 
