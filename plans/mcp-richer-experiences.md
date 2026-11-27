@@ -63,7 +63,10 @@ stats.**
   non-member gets nothing. That is a migration in a never-auto-merge area,
   so it ships as its own PR. Direct table access stays closed. The RPC
   should return only what the stats need: event type, player and match for
-  events, and the voted player and match for votes (never who voted).
+  events, and the match, vote type (`mvp` or play of the match) and voted
+  player for votes, never who voted. Narrow `getMvpRankings`'s input type to
+  those fields so the RPC can't be asked for more, and test it with both vote
+  types.
 
 Proposed tools, all read-only:
 
@@ -95,7 +98,10 @@ trying both in ChatGPT and Claude.
 schema, a handler and tests in `handler.test.ts`. The risk is drift from the web stats page,
 whose time ranges (`all`, `30d`, `90d`) and filtering live inline in
 `stats-page-content.tsx`. Move that filter into `@padelaso/domain` and use it
-from both, so a tool's `range` argument means the same as the page's.
+from both, so a tool's `range` argument means the same as the page's. The
+page applies the range to matches and events but **not** to MVP votes
+(`getMvpRankings(votes)` is always all-time); the tool labels its MVP result
+as all-time to match, unless both surfaces change together.
 
 **UX trade-offs.**
 - Plus: the questions people actually ask an assistant about a group, and
@@ -147,9 +153,11 @@ already use.
     rely on clients ignoring unknown `_meta`, which the spec allows; confirm
     in a client without MCP Apps.
   - **Resources behind auth.** `resources/list` and `resources/read` go
-    through the same `withMcpAuth`, rate limit and audit as tools. The card
-    HTML is static and holds no user data, but it must not be served from a
-    public route that bypasses them.
+    through the same `withMcpAuth` and rate limit as tools, so they need no
+    new protection. The audit log (`audit.ts`) records only `tools/call`;
+    that is fine for static card HTML with no user data, so resource reads
+    stay unaudited unless that changes. The HTML must not also be served
+    from a public route that bypasses auth.
   - **Generic clients unchanged.** With the cards on, tool input and output
     schemas, `structuredContent` and the text copy are byte-for-byte the
     same as today; `handler.test.ts` should assert this for a client that
@@ -206,14 +214,20 @@ must be checked from time to time because they are undocumented.
   all clients, so a Claude or Cursor grant says nothing about ChatGPT, and
   even a matching grant can't tell which account or chat the link opens.
   So the entry point always offers the assistant-specific connection guide
-  (`padelaso.com/asistentes#conectar`) next to the prompt link. A grant can
+  next to the prompt link. A grant can
   at most change which of the two is emphasised.
 - **The prompt contains no Padelaso identifiers or personal data**: no
   group or player IDs, names or scores. The assistant receives the URL as
   soon as the user clicks, before anything is submitted, and IDs are stable
   and could be used to correlate records. Use a fixed prompt (e.g.
   "Usa Padelaso para analizar mi grupo de pádel") and let the connected tools
-  resolve the group in the chat (`list_groups`).
+  resolve the group in the chat. `list_groups` returns every group the user
+  belongs to without knowing which one the stats page shows, so the prompt
+  (and the server instructions) tell the assistant to ask which group to
+  analyse when there is more than one.
+- Each button links straight to its own guide
+  (`padelaso.com/asistentes/chatgpt`, `/asistentes/claude`), not the
+  generic list.
 - Mobile app: the same links may open the ChatGPT or Claude apps through
   universal links; unverified, check on device.
 
@@ -263,7 +277,9 @@ OpenAI opens it as self-serve OIDC and users ask for it.
    after 1).
 4. **Sign in with ChatGPT: revisit when self-serve** (item 4; no build).
 
-MAR-102 closes when 1–3 ship and 4 is parked with its reason.
+MAR-102 closes when item 1 ships, items 2 and 3 have each shipped or been
+explicitly deferred or dropped with the reason (for 2, the spike's
+findings), and item 4 is parked with its reason.
 
 ## Sources
 
