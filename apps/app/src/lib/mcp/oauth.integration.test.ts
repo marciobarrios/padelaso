@@ -221,6 +221,18 @@ describe("MCP over Supabase OAuth on the real stack", () => {
     }
   });
 
+  it("admits a DCR client registered with Grok Bot's Cursor callbacks", async () => {
+    const response = await fetch(registrationEndpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: "Cursor", token_endpoint_auth_method: "none",
+        redirect_uris: ["https://www.cursor.com/agents/mcp/oauth/callback", "http://localhost:8787/callback"] }),
+    });
+    expect(response.status).toBe(201);
+    const client = await response.json();
+    createdClients.push(client.client_id);
+    expect(await canUseMcpClient(client.client_id)).toBe(true);
+  });
+
   it("refuses DCR clients with untrusted callbacks even when Supabase registers them", async () => {
     const response = await fetch(registrationEndpoint, {
       method: "POST", headers: { "Content-Type": "application/json" },
