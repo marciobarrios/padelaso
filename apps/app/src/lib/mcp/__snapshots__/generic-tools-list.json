@@ -816,6 +816,748 @@
       }
     },
     {
+      "name": "get_group_stats",
+      "title": "Get group stats",
+      "description": "A group's ranking (top 10), top pairs and most played pair-against-pair rivalries, for all time or the last 90 or 30 days, computed with Padelaso's own rules as on its stats page. Use it for \"who's top?\" or \"which pair wins most?\" (pairs_by winRate); use compare_players for two players and get_pair_stats for one pair.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "range": {
+            "default": "all",
+            "description": "Period: all (every match), 90d or 30d (matches played in the last 90 or 30 days), as on Padelaso's stats page.",
+            "type": "string",
+            "enum": [
+              "all",
+              "90d",
+              "30d"
+            ]
+          },
+          "pairs_by": {
+            "default": "matches",
+            "description": "matches: pairs who play together most. winRate: pairs who win most, among pairs with at least 3 matches together.",
+            "type": "string",
+            "enum": [
+              "matches",
+              "winRate"
+            ]
+          }
+        },
+        "required": [
+          "group_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "all",
+              "90d",
+              "30d"
+            ]
+          },
+          "matches": {
+            "type": "number",
+            "description": "Matches played in the range."
+          },
+          "ranking": {
+            "type": "object",
+            "properties": {
+              "minimumMatches": {
+                "type": "number",
+                "description": "Matches a player needs to rank normally; provisional players rank last."
+              },
+              "rankedPlayers": {
+                "type": "number",
+                "description": "Players with at least one match in the range."
+              },
+              "players": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "position": {
+                      "description": "1-based rank; null for provisional players, who the stats page lists unranked.",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "matches": {
+                      "type": "number"
+                    },
+                    "wins": {
+                      "type": "number"
+                    },
+                    "losses": {
+                      "type": "number"
+                    },
+                    "winRate": {
+                      "type": "number",
+                      "description": "wins / matches, from 0 to 1."
+                    },
+                    "undecided": {
+                      "type": "number",
+                      "description": "Ties and unfinished matches, counted in matches but not in wins or losses."
+                    },
+                    "provisional": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "position",
+                    "id",
+                    "name",
+                    "matches",
+                    "wins",
+                    "losses",
+                    "winRate",
+                    "undecided",
+                    "provisional"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "The top 10, as Padelaso's stats page ranks them."
+              }
+            },
+            "required": [
+              "minimumMatches",
+              "rankedPlayers",
+              "players"
+            ],
+            "additionalProperties": false
+          },
+          "pairs": {
+            "type": "object",
+            "properties": {
+              "by": {
+                "type": "string",
+                "enum": [
+                  "matches",
+                  "winRate"
+                ]
+              },
+              "minimumMatches": {
+                "description": "Matches a pair needs to be listed when ordered by winRate; null otherwise.",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "total": {
+                "type": "number",
+                "description": "Pairs that meet the order's conditions."
+              },
+              "top": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "players": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Null when the player was deleted.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "matches": {
+                      "type": "number",
+                      "description": "Decided matches the pair played together; ties are left out."
+                    },
+                    "wins": {
+                      "type": "number"
+                    },
+                    "losses": {
+                      "type": "number"
+                    },
+                    "winRate": {
+                      "type": "number",
+                      "description": "wins / matches, from 0 to 1."
+                    },
+                    "currentStreak": {
+                      "type": "number",
+                      "description": "Positive for consecutive wins, negative for consecutive losses."
+                    }
+                  },
+                  "required": [
+                    "players",
+                    "matches",
+                    "wins",
+                    "losses",
+                    "winRate",
+                    "currentStreak"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Up to 5."
+              }
+            },
+            "required": [
+              "by",
+              "minimumMatches",
+              "total",
+              "top"
+            ],
+            "additionalProperties": false
+          },
+          "rivalries": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "number",
+                "description": "Distinct pair-against-pair matchups with a decided match."
+              },
+              "top": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "pair1": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Null when the player was deleted.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pair2": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Null when the player was deleted.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "matches": {
+                      "type": "number",
+                      "description": "Decided matches between these exact pairs."
+                    },
+                    "pair1Wins": {
+                      "type": "number"
+                    },
+                    "pair2Wins": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "pair1",
+                    "pair2",
+                    "matches",
+                    "pair1Wins",
+                    "pair2Wins"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "The 5 most played."
+              }
+            },
+            "required": [
+              "total",
+              "top"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "group",
+          "range",
+          "matches",
+          "ranking",
+          "pairs",
+          "rivalries"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "compare_players",
+      "title": "Compare players",
+      "description": "Two players of a group side by side: each one's record, their record as partners, and how they do against each other whoever their partners were. For all time or the last 90 or 30 days.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "player_ids": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Player ID from list_players."
+            },
+            "description": "The two players, as IDs from list_players."
+          },
+          "range": {
+            "default": "all",
+            "description": "Period: all (every match), 90d or 30d (matches played in the last 90 or 30 days), as on Padelaso's stats page.",
+            "type": "string",
+            "enum": [
+              "all",
+              "90d",
+              "30d"
+            ]
+          }
+        },
+        "required": [
+          "group_id",
+          "player_ids"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "all",
+              "90d",
+              "30d"
+            ]
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "emoji": {
+                  "type": "string"
+                },
+                "isYou": {
+                  "type": "boolean",
+                  "description": "True for the player linked to the signed-in user."
+                },
+                "matches": {
+                  "type": "number"
+                },
+                "wins": {
+                  "type": "number"
+                },
+                "losses": {
+                  "type": "number"
+                },
+                "winRate": {
+                  "type": "number",
+                  "description": "wins / matches, from 0 to 1."
+                },
+                "undecided": {
+                  "type": "number",
+                  "description": "Ties and unfinished matches, counted in matches but not in wins or losses."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "emoji",
+                "isYou",
+                "matches",
+                "wins",
+                "losses",
+                "winRate",
+                "undecided"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Each player's own record in the range, in the order asked."
+          },
+          "together": {
+            "type": "object",
+            "properties": {
+              "matches": {
+                "type": "number",
+                "description": "Decided matches the pair played together; ties are left out."
+              },
+              "wins": {
+                "type": "number"
+              },
+              "losses": {
+                "type": "number"
+              },
+              "winRate": {
+                "type": "number",
+                "description": "wins / matches, from 0 to 1."
+              },
+              "currentStreak": {
+                "type": "number",
+                "description": "Positive for consecutive wins, negative for consecutive losses."
+              }
+            },
+            "required": [
+              "matches",
+              "wins",
+              "losses",
+              "winRate",
+              "currentStreak"
+            ],
+            "additionalProperties": false,
+            "description": "Their record as partners."
+          },
+          "against": {
+            "type": "object",
+            "properties": {
+              "matches": {
+                "type": "number",
+                "description": "Decided matches on opposite teams, whoever their partners were."
+              },
+              "player1Wins": {
+                "type": "number",
+                "description": "Won by the first player's team."
+              },
+              "player2Wins": {
+                "type": "number",
+                "description": "Won by the second player's team."
+              }
+            },
+            "required": [
+              "matches",
+              "player1Wins",
+              "player2Wins"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "group",
+          "range",
+          "players",
+          "together",
+          "against"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pair_stats",
+      "title": "Get pair stats",
+      "description": "One pair of a group playing together: record, current streak and the opposing pairs they play most. For all time or the last 90 or 30 days.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Group ID from list_groups."
+          },
+          "player_ids": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Player ID from list_players."
+            },
+            "description": "The pair's two players, as IDs from list_players."
+          },
+          "range": {
+            "default": "all",
+            "description": "Period: all (every match), 90d or 30d (matches played in the last 90 or 30 days), as on Padelaso's stats page.",
+            "type": "string",
+            "enum": [
+              "all",
+              "90d",
+              "30d"
+            ]
+          }
+        },
+        "required": [
+          "group_id",
+          "player_ids"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "emoji": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "emoji"
+            ],
+            "additionalProperties": false
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "all",
+              "90d",
+              "30d"
+            ]
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "emoji": {
+                  "type": "string"
+                },
+                "isYou": {
+                  "type": "boolean",
+                  "description": "True for the player linked to the signed-in user."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "emoji",
+                "isYou"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "matches": {
+            "type": "number",
+            "description": "Decided matches the pair played together; ties are left out."
+          },
+          "wins": {
+            "type": "number"
+          },
+          "losses": {
+            "type": "number"
+          },
+          "winRate": {
+            "type": "number",
+            "description": "wins / matches, from 0 to 1."
+          },
+          "currentStreak": {
+            "type": "number",
+            "description": "Positive for consecutive wins, negative for consecutive losses."
+          },
+          "rivalries": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "number",
+                "description": "Distinct opposing pairs this pair has a decided match against."
+              },
+              "top": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "opponents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Null when the player was deleted.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "matches": {
+                      "type": "number"
+                    },
+                    "wins": {
+                      "type": "number",
+                      "description": "Won by this pair."
+                    },
+                    "losses": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "opponents",
+                    "matches",
+                    "wins",
+                    "losses"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "The 5 most played."
+              }
+            },
+            "required": [
+              "total",
+              "top"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "group",
+          "range",
+          "players",
+          "matches",
+          "wins",
+          "losses",
+          "winRate",
+          "currentStreak",
+          "rivalries"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "create_match",
       "title": "Record match",
       "description": "Record a finished match in a group: both teams, the games of every set and optional highlights. Before calling: (1) resolve every player with list_players and pass their IDs; when a name matches several players or none, show the candidates and ask the user, never guess. (2) Restate the group, both teams, every set score and the date to the user, and call only after they confirm. Generate one random UUID as idempotency_key per confirmed match and reuse it if you retry. Returns what was saved and a link to the match.",
