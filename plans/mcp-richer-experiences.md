@@ -170,6 +170,32 @@ already use.
   structure, the cards stay out of the generic server and are dropped or
   deferred: they are optional.
 
+**Spike findings (MAR-207, November 2026).** None of the checks needs a
+change to the transport or the handler's structure, so both cards ship
+(scoreboard for `get_match`, ranking and top pairs for `get_group_stats`):
+
+- **Capability negotiation.** `mcp-handler` 2.3 serves through the SDK's
+  `createMcpHandler` with `legacy: "stateless"`. On 2025-era protocol versions
+  (what ChatGPT and Claude send today) a `tools/list` request carries no
+  client capabilities, because `initialize` was a different request. On the
+  2026-07-28 per-request envelope the capabilities arrive with every request,
+  but `registerTools` doesn't see them. So `get_match` always carries
+  `_meta.ui.resourceUri` (plus the older `_meta["ui/resourceUri"]`), which the
+  spec allows clients without MCP Apps to ignore.
+- **Resources behind auth.** `resources/list` and `resources/read` reach the
+  same route, so they pass `withMcpAuth` and the rate limit; only
+  `tools/call` is audited. The HTML is not served from any public route.
+- **Generic clients unchanged.** `handler.test.ts` compares `tools/list`
+  (without `_meta`) and a full `get_match` result with snapshots recorded
+  before the card existed.
+- **Bundling.** No new dependency: `@modelcontextprotocol/ext-apps`'s
+  self-contained client is ~540 KB. A shared bridge (`cards/bridge.ts`)
+  speaks the few postMessage calls the cards need (`ui/initialize`, tool
+  result, host context, size, ping, teardown), and each card adds a render
+  function. Both are serialized into an inline `<script>`, so each document
+  is ~10 KB, built at module load, with a CSP of `default-src 'none'` and
+  inline style and script only.
+
 **Maintenance: medium.** A second UI surface to keep in step with the web
 app's look (`PRODUCT.md`: playful, retro), light and dark themes from the
 host, and two hosts with slightly different iframe sizes and behaviour. Each

@@ -1,4 +1,5 @@
 import { toolAudit } from "./audit";
+import { cardToolMeta, registerCards } from "./cards";
 import type { CallToolResult, McpServer, ServerContext } from "@modelcontextprotocol/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -909,6 +910,8 @@ function run<A, R extends Record<string, unknown>>(body: (caller: Caller, args: 
 }
 
 export function registerTools(server: McpServer) {
+  // MCP Apps cards only add a resource and tool `_meta`; generic clients see the same tools.
+  registerCards(server);
   server.registerTool("list_groups", {
     title: "List groups",
     description: "List the Padelaso groups you belong to. Call this first: every other tool needs a group ID.",
@@ -952,6 +955,7 @@ export function registerTools(server: McpServer) {
     inputSchema: z.object({ group_id: groupId, match_id: matchId }),
     outputSchema: outputs.get_match,
     annotations: READ_ONLY,
+    _meta: cardToolMeta("match"),
   }, run(getMatch));
 
   server.registerTool("get_player_stats", {
@@ -977,6 +981,7 @@ export function registerTools(server: McpServer) {
     }),
     outputSchema: outputs.get_group_stats,
     annotations: READ_ONLY,
+    _meta: cardToolMeta("ranking"),
   }, run(getGroupStats));
 
   server.registerTool("compare_players", {

@@ -4,6 +4,7 @@ import { calculatePlayerStats } from "@padelaso/domain/stats";
 import { mapMatch } from "@padelaso/data/mappers";
 import { GET as metadata } from "@/app/.well-known/oauth-protected-resource/[[...resource]]/route";
 import { OPTIONS, POST } from "@/app/api/mcp/route";
+import { CARDS } from "./cards";
 
 const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureException, withScope: (fn: (scope: unknown) => void) =>
@@ -1392,5 +1393,61 @@ describe("MCP tool audit", () => {
     expect(captureException).toHaveBeenCalledWith(expect.objectContaining({ message: "MCP tool failed" }),
       expect.objectContaining({ tags: { operation: "mcp-tool", tool: "list_groups", client: CLIENT_ID } }));
     expect(JSON.stringify(captureException.mock.calls)).not.toContain("private-database-payload");
+  });
+});
+
+describe("generic MCP clients", () => {
+  // Recorded before MCP Apps cards existed. Clients that ignore `_meta` must see exactly this.
+  const withoutMeta = (value: object) => JSON.parse(JSON.stringify(value, (key, v) => key === "_meta" ? undefined : v));
+
+  it("see the same tool definitions", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    await expect(JSON.stringify(withoutMeta(result), null, 2)).toMatchFileSnapshot("__snapshots__/generic-tools-list.json");
+  });
+
+  it("get the same get_match result, structured and as text", async () => {
+    const result = await callTool("get_match", { group_id: GROUP_ID, match_id: MATCH_ID });
+    expect(result._meta).toBeUndefined();
+    await expect(JSON.stringify(result, null, 2)).toMatchFileSnapshot("__snapshots__/generic-get-match.json");
+  });
+});
+
+describe("MCP Apps cards", () => {
+  const MIME = "text/html;profile=mcp-app";
+  const UI_META = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false } };
+  const read = (uri: string) => ({ jsonrpc: "2.0", id: 2, method: "resources/read", params: { uri } });
+
+  it("links get_match and get_group_stats, and only them, to their cards", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    const meta = Object.fromEntries((result.tools as { name: string; _meta?: object }[])
+      .filter((t) => t._meta).map((t) => [t.name, t._meta]));
+    expect(meta).toEqual({
+      get_match: { ui: { resourceUri: CARDS.match.uri }, "ui/resourceUri": CARDS.match.uri },
+      get_group_stats: { ui: { resourceUri: CARDS.ranking.uri }, "ui/resourceUri": CARDS.ranking.uri },
+    });
+  });
+
+  it("lists and serves each card as an MCP App with no external origins", async () => {
+    const token = await sign(claims());
+    const { result: listed } = await payload(await rpc({ jsonrpc: "2.0", id: 1, method: "resources/list" }, token));
+    expect(listed.resources).toEqual([
+      expect.objectContaining({ uri: CARDS.match.uri, name: "match_card", mimeType: MIME, _meta: UI_META }),
+      expect.objectContaining({ uri: CARDS.ranking.uri, name: "ranking_card", mimeType: MIME, _meta: UI_META }),
+    ]);
+
+    for (const card of Object.values(CARDS)) {
+      const { result } = await payload(await rpc(read(card.uri), token));
+      expect(result.contents).toEqual([{ uri: card.uri, mimeType: MIME, text: card.html, _meta: UI_META }]);
+    }
+    // Static HTML: no data access, and only tool calls are audited.
+    expect(restCalls()).toHaveLength(0);
+    expect(console.info).not.toHaveBeenCalled();
+  });
+
+  it("serves cards only to signed-in clients, within the rate limit", async () => {
+    expect((await rpc(read(CARDS.match.uri))).status).toBe(401);
+    expect(rateLimitCalls()).toHaveLength(0);
+    expect((await rpc(read(CARDS.match.uri), await sign(claims()))).status).toBe(200);
+    expect(rateLimitCalls()).toHaveLength(1);
   });
 });
