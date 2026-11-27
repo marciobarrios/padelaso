@@ -521,6 +521,15 @@ describe("group, pair and rivalry stats", () => {
     }
   });
 
+  it.each([
+    ["get_group_stats", {}],
+    ["compare_players", { player_ids: [ANA, PABLO] }],
+    ["get_pair_stats", { player_ids: [ANA, PABLO] }],
+  ])("%s is named in the tool-call log", async (name, args) => {
+    await stats(name, { group_id: GROUP_ID, ...args });
+    expect(JSON.parse(vi.mocked(console.info).mock.calls[0][0])).toMatchObject({ tool: name, outcome: "ok" });
+  });
+
   it("ranks the group like the stats page, with pairs and rivalries", async () => {
     const result = await stats("get_group_stats", { group_id: GROUP_ID });
     expect(result.range).toBe("all");
