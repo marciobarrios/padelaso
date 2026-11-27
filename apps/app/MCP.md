@@ -3,7 +3,7 @@
 Padelaso exposes a remote [Model Context Protocol](https://modelcontextprotocol.io) server so
 assistants such as ChatGPT and Claude can read a user's groups, players, match history and
 stats, record new matches, add events to recorded ones, remove a mistaken event and correct a match. Users sign in with their Padelaso account through Supabase
-Auth's OAuth 2.1 server. Access is open to all signed-in, non-anonymous users through admitted OAuth clients (manual allowlist or opt-in self-service for ChatGPT and Grok Bot). Phase 1 (MAR-98) added the
+Auth's OAuth 2.1 server. Access is open to all signed-in, non-anonymous users through admitted OAuth clients (manual allowlist or opt-in self-service for ChatGPT, Grok Bot and Claude). Phase 1 (MAR-98) added the
 read tools; phase 2 (MAR-99) adds `create_match`; MAR-158 adds `add_match_events`; MAR-159 adds
 `remove_match_event`; MAR-160 adds `update_match`, which corrects a match's teams, score, date or
 court. The only tool that removes data is `remove_match_event`, one event at a time; no tool
@@ -29,7 +29,7 @@ runtime. Every request builds a fresh MCP server, so there is no session store o
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Existing public project settings. The issuer is derived from the URL. |
 | `MCP_RESOURCE_URL` | Canonical MCP URL, e.g. `https://app.padelaso.com/api/mcp`. Must be `https`, or `http` on localhost, and end in `/api/mcp`. Required in production (`VERCEL_ENV=production`): without it the endpoint and its metadata answer `500`. Elsewhere, if unset, the deployment's own origin is used, which suits previews and local development. |
 | `MCP_ALLOWED_CLIENT_IDS` | Comma-separated manually approved OAuth client IDs. Retain existing IDs during rollout and rollback. |
-| `MCP_SELF_SERVICE_ENABLED` | Exact value `true` additionally admits Supabase DCR clients whose registered callbacks all match the ChatGPT or Cursor (Grok Bot) policy below. Unset/other values keep manual-only admission. |
+| `MCP_SELF_SERVICE_ENABLED` | Exact value `true` additionally admits Supabase DCR clients whose registered callbacks all match the ChatGPT, Cursor (Grok Bot) or Claude policy below. Unset/other values keep manual-only admission. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Existing server-only key, additionally used to read OAuth client registration metadata when checking self-service admission. Never forwarded to tools or browsers. |
 | `MCP_RATE_LIMIT_PER_CLIENT` | Requests per minute for one user through one OAuth client. Default `60`. See [Rate limits](#rate-limits). |
 | `MCP_RATE_LIMIT_PER_USER` | Requests per minute for one user across all their clients. Default `120`. |
@@ -416,6 +416,7 @@ trust policy were recorded on MAR-154 before implementation. Sources checked 16 
   Or, for Grok Bot (MAR-156), exactly `https://www.cursor.com/agents/mcp/oauth/callback`, optionally
   together with exactly `http://localhost:8787/callback`. The loopback callback is accepted only
   next to the Cursor callback; a client registering only loopback callbacks is refused.
+  Or, for Claude (MAR-200), exactly `https://claude.ai/api/mcp/auth_callback`.
   No alternate host, port, credentials, query, fragment, encoding or extra path segment is accepted.
   Supabase still matches each authorization request's redirect URI exactly against registration.
 - Manual clients outside the explicit allowlist, deleted clients, and untrusted callbacks fail
@@ -447,6 +448,24 @@ Decision (owner, 27 November 2026): trust both callbacks, together, with the Cur
   user's own machine, never to a remote third party. Public clients must use PKCE, so redeeming a
   code also needs the verifier held by the client that started the flow. It is trusted only next to the Cursor callback, so a
   localhost-only registrant (any local tool) still needs a manual client.
+
+### Claude callback policy (MAR-200)
+
+Claude supports DCR. Tested by the owner on 27 November 2026 from Claude Desktop with the URL
+only: one connect registered **two** dynamic **confidential** clients named "Claude", seconds
+apart (grants `authorization_code`, `refresh_token`, token endpoint auth method
+`client_secret_post`), each with the single callback `https://claude.ai/api/mcp/auth_callback`.
+The web and mobile apps weren't checked separately; Claude's connectors run from claude.ai's
+backend, so they are expected to share it.
+
+Decision (owner, 27 November 2026): trust exactly `https://claude.ai/api/mcp/auth_callback`.
+
+- `https://claude.com/api/mcp/auth_callback` was not observed and is **not** trusted. If Claude
+  starts registering it, review it as a new callback.
+- Same model as ChatGPT and Cursor: Padelaso trusts the callback destination, not the client
+  name. Each user still signs in, approves consent and reaches only their own groups.
+- The client secret is issued by Supabase to Claude's backend at registration, one per client. It
+  is never shown to users, so it doesn't conflict with the no-shared-secret rule for manual clients.
 
 Supabase retains authorization-code/PKCE validation, refresh rotation/replay rejection, consent
 and grant revocation. Existing group RLS, Data API restrictions, tool authorization, audit and
@@ -543,10 +562,17 @@ Grok Bot registers itself, then the user signs in and approves consent (it may b
 If consent refuses it, see Troubleshooting; the manual client below is the fallback until it is
 retired.
 
+## Connecting Claude
+
+With the Claude policy deployed (MAR-200): in Claude, **Settings → Connectors → Add custom
+connector**, URL `https://app.padelaso.com/api/mcp`, and leave the advanced OAuth Client ID and
+Client Secret **empty**. Claude registers itself, then the user signs in and approves consent.
+A connect may register more than one client; unused ones can be deleted.
+
 ## Connecting other clients (manual public clients)
 
 Any Padelaso user can connect (MAR-149), so **no user is ever given a client secret**: a secret
-handed to every user protects nothing. Clients outside the ChatGPT and Cursor DCR policies use **one manually
+handed to every user protects nothing. Clients outside the ChatGPT, Cursor and Claude DCR policies use **one manually
 registered public client per app**, shared by all its users:
 
 1. **Authentication → OAuth Apps → Add client**: the app's exact callback as redirect URI and
@@ -564,11 +590,10 @@ DCR callback policy (see above).
 | Client | Redirect URI | Connector form | Status |
 | --- | --- | --- | --- |
 | Grok Bot | `https://www.cursor.com/agents/mcp/oauth/callback` (Grok Bot uses Cursor's connector backend, so consent may name it Cursor) | Custom connector → **Remote HTTPS**, URL `https://app.padelaso.com/api/mcp`, Client ID, Client Secret **empty**, no HTTP headers | Works, 16 November 2026 (one account; not yet checked whether the callback is the same for every user). Superseded by [URL-only setup](#connecting-grok-bot) (MAR-156). The manual client stays in `MCP_ALLOWED_CLIENT_IDS` until a URL-only connection is verified in production, then it is removed and deleted. |
-| Claude | To check | To check | Outstanding: check DCR support first, then a public client |
 
 Desktop MCP settings that offer only a URL and a bearer token, with no client ID field (for
 example Codex in the ChatGPT desktop app), are unverified. They likely register themselves with
-localhost callbacks, which neither policy admits.
+localhost callbacks, which no DCR policy admits.
 
 ### Troubleshooting
 
@@ -579,6 +604,7 @@ Problems seen during the first production connection (November 2026):
 | ChatGPT: "Couldn't discover OAuth settings" | The protected resource metadata answers `500`. Runtime logs show `MCP_RESOURCE_URL must be set in production`. | Set `MCP_RESOURCE_URL` and redeploy. A variable added after the last deployment isn't applied yet. |
 | Consent page: "Esta aplicación todavía no puede conectarse a Padelaso" | The client failed admission. | Check the rollout flag, DCR registration type and every registered callback; for manual clients compare `MCP_ALLOWED_CLIENT_IDS`. Redeploy after env edits. |
 | Grok Bot: consent page refuses a "Cursor" client | Its registered callbacks differ from the Cursor policy (new host, port or path), or this deployment predates MAR-156. | Read the client's redirect URIs in **Authentication → OAuth Apps**. If Cursor changed its callbacks, review the new ones before widening the policy; meanwhile, a manual public client (above) still works. Delete the refused clients. |
+| Claude: consent page refuses a "Claude" client | Its registered callbacks differ from `https://claude.ai/api/mcp/auth_callback` (for example `claude.com`), or this deployment predates MAR-200. | Read the client's redirect URIs in **Authentication → OAuth Apps**. Review any new callback before widening the policy; meanwhile, a manual public client still works. Delete the refused clients. |
 | ChatGPT shows an error right after approving | The token exchange fails. Supabase Auth logs show `invalid authentication method: client is registered for 'client_secret_basic' but 'client_secret_post' was used`. | Make the token endpoint auth method match in ChatGPT and on the Supabase client. Applies only to the legacy confidential client; public clients use `none`. |
 | Error before the consent page | The redirect URI isn't registered on the client. | Copy the `redirect_uri` from Supabase **Logs → Auth** into the client's redirect URIs. |
 | ChatGPT requests manual credentials / DCR is unavailable | Hosted DCR isn't enabled or discovery is stale. | Verify the real `registration_endpoint`, then recreate the connection so ChatGPT re-discovers it. |

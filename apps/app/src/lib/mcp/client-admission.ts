@@ -13,10 +13,12 @@ function isChatGptCallback(uri: string): boolean {
 // callbacks. The loopback is trusted only next to the Cursor callback.
 const CURSOR_CALLBACK = "https://www.cursor.com/agents/mcp/oauth/callback";
 const CURSOR_LOOPBACK = "http://localhost:8787/callback";
+// Claude (MAR-200) registers a confidential client with only this callback.
+const CLAUDE_CALLBACK = "https://claude.ai/api/mcp/auth_callback";
 
 /** Every URI must pass: a trusted callback next to an attacker's is unsafe. */
 function hasTrustedCallbacks(uris: string[]): boolean {
-  return uris.length > 0 && uris.every((uri) => isChatGptCallback(uri) || uri === CURSOR_CALLBACK ||
+  return uris.length > 0 && uris.every((uri) => isChatGptCallback(uri) || uri === CURSOR_CALLBACK || uri === CLAUDE_CALLBACK ||
     (uri === CURSOR_LOOPBACK && uris.includes(CURSOR_CALLBACK)));
 }
 

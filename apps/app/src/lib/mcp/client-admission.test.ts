@@ -15,6 +15,7 @@ const ID = "11111111-1111-4111-8111-111111111111";
 const CALLBACK = "https://chatgpt.com/connector/oauth/test-callback";
 const CURSOR = "https://www.cursor.com/agents/mcp/oauth/callback";
 const CURSOR_LOOPBACK = "http://localhost:8787/callback";
+const CLAUDE = "https://claude.ai/api/mcp/auth_callback";
 const client = (overrides = {}) => ({
   client_id: ID, registration_type: "dynamic", redirect_uris: [CALLBACK], ...overrides,
 });
@@ -82,6 +83,29 @@ describe("MCP client admission", () => {
   });
   it("refuses a Cursor client that also registers an untrusted callback", async () => {
     getClient.mockResolvedValue({ data: client({ redirect_uris: [CURSOR, "https://evil.test/callback"] }), error: null });
+    expect(await canUseMcpClient(ID)).toBe(false);
+  });
+  it.each([[CLAUDE], [CLAUDE, CALLBACK], [CLAUDE, CURSOR]].map((uris) => ({ uris })))("admits a registered dynamic Claude client: $uris", async ({ uris }) => {
+    getClient.mockResolvedValue({ data: client({ redirect_uris: uris }), error: null });
+    expect(await canUseMcpClient(ID)).toBe(true);
+  });
+  it.each([
+    "https://claude.com/api/mcp/auth_callback", "https://www.claude.ai/api/mcp/auth_callback",
+    "https://api.claude.ai/api/mcp/auth_callback", "https://claude.ai.evil.test/api/mcp/auth_callback",
+    "https://claude.ai@evil.test/api/mcp/auth_callback", "https://user@claude.ai/api/mcp/auth_callback",
+    "http://claude.ai/api/mcp/auth_callback", "https://claude.ai:443/api/mcp/auth_callback",
+    "https://claude.ai:444/api/mcp/auth_callback", "https://claude.ai/api/mcp/auth_callback/",
+    "https://claude.ai/api/mcp/auth_callback/extra", "https://claude.ai/api/mcp/auth_callback?next=https://evil.test",
+    "https://claude.ai/api/mcp/auth_callback#x", "https://claude.ai/api/mcp/%61uth_callback",
+    "https://claude.ai/api/mcp/auth_callback%2f", "https://CLAUDE.AI/api/mcp/auth_callback",
+    " https://claude.ai/api/mcp/auth_callback", "https://claude.ai/api/mcp/auth_callback\n",
+    "https://claude.ai/api/mcp/auth", "http://localhost/api/mcp/auth_callback",
+  ])("refuses a Claude lookalike next to the Claude callback: %s", async (uri) => {
+    getClient.mockResolvedValue({ data: client({ redirect_uris: [CLAUDE, uri] }), error: null });
+    expect(await canUseMcpClient(ID)).toBe(false);
+  });
+  it("refuses a Claude client that also registers an untrusted callback", async () => {
+    getClient.mockResolvedValue({ data: client({ redirect_uris: [CLAUDE, "https://evil.test/callback"] }), error: null });
     expect(await canUseMcpClient(ID)).toBe(false);
   });
   it.each([{ registration_type: "manual" }, { client_id: "other" }, { redirect_uris: [] }])("refuses clients outside the registration policy: %j", async (overrides) => {
