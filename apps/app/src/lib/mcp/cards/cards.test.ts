@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createRequire } from "node:module";
 import { describe, expect, it, vi } from "vitest";
-import { MATCH_CARD_CSP, MATCH_CARD_HTML } from "./match-card";
+import { CARD_CSP, CARDS } from ".";
 
 const result = {
   group: { id: "g", name: "Los del jueves", emoji: "🎾" },
@@ -28,11 +28,11 @@ const { JSDOM } = createRequire(import.meta.url)("jsdom") as {
 };
 
 /** Loads the card as a host would and returns what it posted and a way to answer. */
-function mountCard() {
+function mountCard(html: string = CARDS.match.html) {
   const host = new JSDOM("").window;
   const sent: Record<string, unknown>[] = [];
   host.postMessage = vi.fn((message: Record<string, unknown>) => { sent.push(message); });
-  const card = new JSDOM(MATCH_CARD_HTML, {
+  const card = new JSDOM(html, {
     runScripts: "dangerously",
     beforeParse(window) {
       Object.defineProperty(window, "parent", { value: host });
@@ -46,14 +46,23 @@ function mountCard() {
 const toolResult = (structuredContent: unknown) =>
   ({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { structuredContent, content: [] } });
 
-describe("match card", () => {
-  it("is one self-contained document with a CSP and no external origins", () => {
-    expect(MATCH_CARD_CSP).toContain("default-src 'none'");
-    expect(MATCH_CARD_HTML).toContain(`content="${MATCH_CARD_CSP}"`);
-    expect(MATCH_CARD_HTML).not.toMatch(/https?:\/\//);
-    expect(MATCH_CARD_HTML).not.toMatch(/<(script|link)[^>]+(src|href)=/);
-    expect(Buffer.byteLength(MATCH_CARD_HTML)).toBeLessThan(20_000);
+describe.each(Object.entries(CARDS))("%s card document", (_, { html }) => {
+  it("is self-contained, with a CSP and no external origins", () => {
+    expect(CARD_CSP).toContain("default-src 'none'");
+    expect(html).toContain(`content="${CARD_CSP}"`);
+    expect(html).not.toMatch(/https?:\/\//);
+    expect(html).not.toMatch(/<(script|link)[^>]+(src|href)=/);
+    expect(Buffer.byteLength(html)).toBeLessThan(20_000);
   });
+
+  it("renders whatever the tool returns without throwing", () => {
+    const { deliver, text } = mountCard(html);
+    deliver(toolResult({}));
+    expect(text()).not.toBe("");
+  });
+});
+
+describe("match card", () => {
 
   it("initializes with the host, then applies its theme and variables", async () => {
     const { card, sent, deliver } = mountCard();
@@ -95,7 +104,7 @@ describe("match card", () => {
     expect(teams[0].classList.contains("won")).toBe(true);
     expect(teams[0].textContent).toContain("Ganan");
     expect([...teams[0].querySelectorAll(".set")].map((s) => s.textContent)).toEqual(["6", "4", "7"]);
-    expect([...card.document.querySelectorAll(".events li")].map((li) => li.textContent))
+    expect([...card.document.querySelectorAll(".chips li")].map((li) => li.textContent))
       .toEqual(["Víbora letal · Ana ×2", "Globo perfecto · Jugador eliminado"]);
     expect(sent.at(-1)).toMatchObject({ method: "ui/notifications/size-changed" });
   });
@@ -120,5 +129,68 @@ describe("match card", () => {
     deliver({ jsonrpc: "2.0", id: 41, method: "ping" });
     deliver({ jsonrpc: "2.0", id: 42, method: "ui/resource-teardown", params: {} });
     expect(sent.slice(-2)).toEqual([{ jsonrpc: "2.0", id: 41, result: {} }, { jsonrpc: "2.0", id: 42, result: {} }]);
+  });
+});
+
+describe("ranking card", () => {
+  const stats = {
+    group: { id: "g", name: "Los del jueves", emoji: "🎾" },
+    range: "90d",
+    matches: 12,
+    ranking: {
+      minimumMatches: 5,
+      rankedPlayers: 3,
+      players: [
+        { position: 1, id: "a", name: "Ana", matches: 8, wins: 6, losses: 2, winRate: 0.75, undecided: 0, provisional: false },
+        { position: 2, id: "p", name: "<b>Pablo</b>", matches: 7, wins: 3, losses: 4, winRate: 0.4286, undecided: 0, provisional: false },
+        { position: null, id: "l", name: "Lucía", matches: 2, wins: 1, losses: 1, winRate: 0.5, undecided: 0, provisional: true },
+      ],
+    },
+    pairs: {
+      by: "winRate", minimumMatches: 3, total: 4,
+      top: [1, 2, 3, 4].map((n) => ({
+        players: [{ id: "a", name: "Ana" }, { id: `x${n}`, name: n === 1 ? null : `Jugador ${n}` }],
+        matches: 4, wins: 4 - n + 1, losses: n - 1, winRate: (5 - n) / 4, currentStreak: 1,
+      })),
+    },
+    rivalries: { total: 0, top: [] },
+  };
+
+  it("ranks players with record and win rate, in Spanish", () => {
+    const { card, sent, deliver, text } = mountCard(CARDS.ranking.html);
+    deliver(toolResult(stats));
+
+    expect(text()).toContain("🎾 Los del jueves");
+    expect(text()).toContain("Últimos 90 días · 12 partidos");
+    const rows = [...card.document.querySelectorAll(".ranking li")].map((li) =>
+      [...li.children].map((c) => c.textContent));
+    expect(rows).toEqual([
+      ["1", "Ana", "6–2", "75 %"],
+      ["2", "<b>Pablo</b>", "3–4", "43 %"],
+      ["–", "Lucía Provisional", "1–1", "50 %"],
+    ]);
+    expect(card.document.querySelector("b")).toBeNull();
+    expect(text()).toContain("Provisional: menos de 5 partidos, sin posición.");
+    expect(sent.at(-1)).toMatchObject({ method: "ui/notifications/size-changed" });
+  });
+
+  it("shows the top three pairs in the order the tool chose", () => {
+    const { card, deliver, text } = mountCard(CARDS.ranking.html);
+    deliver(toolResult(stats));
+    expect(text()).toContain("Parejas que más ganan");
+    expect([...card.document.querySelectorAll(".pairs .name")].map((n) => n.textContent))
+      .toEqual(["Ana y Jugador eliminado", "Ana y Jugador 2", "Ana y Jugador 3"]);
+
+    deliver(toolResult({ ...stats, pairs: { ...stats.pairs, by: "matches" } }));
+    expect(text()).toContain("Parejas que más juegan");
+  });
+
+  it("says when the range has no matches", () => {
+    const { card, deliver, text } = mountCard(CARDS.ranking.html);
+    deliver(toolResult({ ...stats, range: "30d", matches: 0, ranking: { ...stats.ranking, players: [] },
+      pairs: { ...stats.pairs, top: [] } }));
+    expect(text()).toContain("Últimos 30 días · 0 partidos");
+    expect(text()).toContain("Sin partidos en este periodo");
+    expect(card.document.querySelector(".ranking")).toBeNull();
   });
 });

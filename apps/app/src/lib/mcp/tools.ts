@@ -1,5 +1,5 @@
 import { toolAudit } from "./audit";
-import { MATCH_CARD_TOOL_META, registerCards } from "./cards/match-card";
+import { cardToolMeta, registerCards } from "./cards";
 import type { CallToolResult, McpServer, ServerContext } from "@modelcontextprotocol/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -955,7 +955,7 @@ export function registerTools(server: McpServer) {
     inputSchema: z.object({ group_id: groupId, match_id: matchId }),
     outputSchema: outputs.get_match,
     annotations: READ_ONLY,
-    _meta: MATCH_CARD_TOOL_META,
+    _meta: cardToolMeta("match"),
   }, run(getMatch));
 
   server.registerTool("get_player_stats", {
@@ -981,6 +981,7 @@ export function registerTools(server: McpServer) {
     }),
     outputSchema: outputs.get_group_stats,
     annotations: READ_ONLY,
+    _meta: cardToolMeta("ranking"),
   }, run(getGroupStats));
 
   server.registerTool("compare_players", {

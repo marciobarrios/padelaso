@@ -4,7 +4,7 @@ import { calculatePlayerStats } from "@padelaso/domain/stats";
 import { mapMatch } from "@padelaso/data/mappers";
 import { GET as metadata } from "@/app/.well-known/oauth-protected-resource/[[...resource]]/route";
 import { OPTIONS, POST } from "@/app/api/mcp/route";
-import { MATCH_CARD_HTML, MATCH_CARD_URI } from "./cards/match-card";
+import { CARDS } from "./cards";
 
 const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureException, withScope: (fn: (scope: unknown) => void) =>
@@ -1412,39 +1412,42 @@ describe("generic MCP clients", () => {
   });
 });
 
-describe("MCP Apps match card", () => {
-  const readCard = { jsonrpc: "2.0", id: 2, method: "resources/read", params: { uri: MATCH_CARD_URI } };
+describe("MCP Apps cards", () => {
+  const MIME = "text/html;profile=mcp-app";
+  const UI_META = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false } };
+  const read = (uri: string) => ({ jsonrpc: "2.0", id: 2, method: "resources/read", params: { uri } });
 
-  it("links get_match, and only get_match, to the card", async () => {
+  it("links get_match and get_group_stats, and only them, to their cards", async () => {
     const { result } = await payload(await rpc(listTools, await sign(claims())));
-    const tools = result.tools as { name: string; _meta?: Record<string, unknown> }[];
-    expect(tools.filter((t) => t._meta).map((t) => t.name)).toEqual(["get_match"]);
-    expect(tools.find((t) => t.name === "get_match")?._meta).toEqual({
-      ui: { resourceUri: MATCH_CARD_URI }, "ui/resourceUri": MATCH_CARD_URI,
+    const meta = Object.fromEntries((result.tools as { name: string; _meta?: object }[])
+      .filter((t) => t._meta).map((t) => [t.name, t._meta]));
+    expect(meta).toEqual({
+      get_match: { ui: { resourceUri: CARDS.match.uri }, "ui/resourceUri": CARDS.match.uri },
+      get_group_stats: { ui: { resourceUri: CARDS.ranking.uri }, "ui/resourceUri": CARDS.ranking.uri },
     });
   });
 
-  it("lists and serves the card as an MCP App with no external origins", async () => {
+  it("lists and serves each card as an MCP App with no external origins", async () => {
     const token = await sign(claims());
     const { result: listed } = await payload(await rpc({ jsonrpc: "2.0", id: 1, method: "resources/list" }, token));
-    expect(listed.resources).toEqual([expect.objectContaining({
-      uri: MATCH_CARD_URI, name: "match_card", mimeType: "text/html;profile=mcp-app",
-    })]);
+    expect(listed.resources).toEqual([
+      expect.objectContaining({ uri: CARDS.match.uri, name: "match_card", mimeType: MIME, _meta: UI_META }),
+      expect.objectContaining({ uri: CARDS.ranking.uri, name: "ranking_card", mimeType: MIME, _meta: UI_META }),
+    ]);
 
-    const { result } = await payload(await rpc(readCard, token));
-    expect(result.contents).toEqual([{
-      uri: MATCH_CARD_URI, mimeType: "text/html;profile=mcp-app", text: MATCH_CARD_HTML,
-      _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false } },
-    }]);
+    for (const card of Object.values(CARDS)) {
+      const { result } = await payload(await rpc(read(card.uri), token));
+      expect(result.contents).toEqual([{ uri: card.uri, mimeType: MIME, text: card.html, _meta: UI_META }]);
+    }
     // Static HTML: no data access, and only tool calls are audited.
     expect(restCalls()).toHaveLength(0);
     expect(console.info).not.toHaveBeenCalled();
   });
 
-  it("serves the card only to signed-in clients, within the rate limit", async () => {
-    expect((await rpc(readCard)).status).toBe(401);
+  it("serves cards only to signed-in clients, within the rate limit", async () => {
+    expect((await rpc(read(CARDS.match.uri))).status).toBe(401);
     expect(rateLimitCalls()).toHaveLength(0);
-    expect((await rpc(readCard, await sign(claims()))).status).toBe(200);
+    expect((await rpc(read(CARDS.match.uri), await sign(claims()))).status).toBe(200);
     expect(rateLimitCalls()).toHaveLength(1);
   });
 });

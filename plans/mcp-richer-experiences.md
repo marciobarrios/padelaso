@@ -171,7 +171,8 @@ already use.
   deferred: they are optional.
 
 **Spike findings (MAR-207, November 2026).** None of the checks needs a
-change to the transport or the handler's structure, so the match card ships:
+change to the transport or the handler's structure, so both cards ship
+(scoreboard for `get_match`, ranking and top pairs for `get_group_stats`):
 
 - **Capability negotiation.** `mcp-handler` 2.3 serves through the SDK's
   `createMcpHandler` with `legacy: "stateless"`. On 2025-era protocol versions
@@ -188,12 +189,12 @@ change to the transport or the handler's structure, so the match card ships:
   (without `_meta`) and a full `get_match` result with snapshots recorded
   before the card existed.
 - **Bundling.** No new dependency: `@modelcontextprotocol/ext-apps`'s
-  self-contained client is ~540 KB. The card is one TypeScript module whose
-  browser half speaks the few postMessage calls it needs (`ui/initialize`,
-  tool result, host context, size, ping, teardown) and is serialized into
-  an inline `<script>`. The whole document is ~10 KB, built at module load,
-  with a CSP of `default-src 'none'` and inline style and script only.
-- The ranking card waits for `get_group_stats` (MAR-205).
+  self-contained client is ~540 KB. A shared bridge (`cards/bridge.ts`)
+  speaks the few postMessage calls the cards need (`ui/initialize`, tool
+  result, host context, size, ping, teardown), and each card adds a render
+  function. Both are serialized into an inline `<script>`, so each document
+  is ~10 KB, built at module load, with a CSP of `default-src 'none'` and
+  inline style and script only.
 
 **Maintenance: medium.** A second UI surface to keep in step with the web
 app's look (`PRODUCT.md`: playful, retro), light and dark themes from the
