@@ -5,6 +5,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: "https://padelaso.com/privacidad", changeFrequency: "monthly", priority: 0.3 },
     { url: "https://padelaso.com/asistentes", changeFrequency: "monthly", priority: 0.5 },
     { url: "https://padelaso.com/asistentes/chatgpt", changeFrequency: "monthly", priority: 0.5 },
+    { url: "https://padelaso.com/asistentes/claude", changeFrequency: "monthly", priority: 0.5 },
+    { url: "https://padelaso.com/asistentes/grok", changeFrequency: "monthly", priority: 0.5 },
     {
       url: "https://padelaso.com",
       lastModified: new Date(),

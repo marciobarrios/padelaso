@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BackLink, GuideLink } from "./from-app";
 
 const title = "Padelaso en tu asistente de IA · Padelaso";
-const description = "Qué puedes pedirle a ChatGPT y a otros asistentes conectados a Padelaso, cómo registran un partido y qué límites tienen.";
+const description = "Qué puedes pedirle a ChatGPT, Claude, Grok Bot y otros asistentes conectados a Padelaso, cómo registran un partido y qué límites tienen.";
 
 export const metadata: Metadata = {
   title,
@@ -26,6 +26,16 @@ const clients = [
     name: "ChatGPT",
     href: "/asistentes/chatgpt",
     summary: "Solo necesitas la URL de Padelaso y tu cuenta. Sin ID ni secreto de cliente.",
+  },
+  {
+    name: "Claude",
+    href: "/asistentes/claude",
+    summary: "En la web o la app de escritorio, con la URL de Padelaso y tu cuenta. Sin ID ni secreto de cliente.",
+  },
+  {
+    name: "Grok Bot",
+    href: "/asistentes/grok",
+    summary: "Un conector Remote HTTPS con la URL de Padelaso. Sin ID, secreto ni cabeceras.",
   },
 ];
 
@@ -57,7 +67,7 @@ export default function AssistantsHelpPage() {
           <p className="text-[13px] font-extrabold tracking-[0.08em] uppercase">Asistentes de IA</p>
           <h1 className="font-pixel text-4xl leading-tight tracking-tight sm:text-5xl">Padelaso en tu asistente de IA</h1>
           <p className="text-lg text-ink-soft">Conecta tu cuenta a un asistente de IA y pídele tus partidos, estadísticas y rankings, o que registre el partido de hoy, sin abrir la app.</p>
-          <p className="text-sm text-ink-soft">Actualizado el 19 de noviembre de 2026</p>
+          <p className="text-sm text-ink-soft">Actualizado el 27 de noviembre de 2026</p>
         </header>
 
         <section aria-labelledby="conectar" className="space-y-4">
