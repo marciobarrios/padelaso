@@ -4,6 +4,7 @@ import { calculatePlayerStats } from "@padelaso/domain/stats";
 import { mapMatch } from "@padelaso/data/mappers";
 import { GET as metadata } from "@/app/.well-known/oauth-protected-resource/[[...resource]]/route";
 import { OPTIONS, POST } from "@/app/api/mcp/route";
+import { MATCH_CARD_HTML, MATCH_CARD_URI } from "./cards/match-card";
 
 const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureException, withScope: (fn: (scope: unknown) => void) =>
@@ -1408,5 +1409,42 @@ describe("generic MCP clients", () => {
     const result = await callTool("get_match", { group_id: GROUP_ID, match_id: MATCH_ID });
     expect(result._meta).toBeUndefined();
     await expect(JSON.stringify(result, null, 2)).toMatchFileSnapshot("__snapshots__/generic-get-match.json");
+  });
+});
+
+describe("MCP Apps match card", () => {
+  const readCard = { jsonrpc: "2.0", id: 2, method: "resources/read", params: { uri: MATCH_CARD_URI } };
+
+  it("links get_match, and only get_match, to the card", async () => {
+    const { result } = await payload(await rpc(listTools, await sign(claims())));
+    const tools = result.tools as { name: string; _meta?: Record<string, unknown> }[];
+    expect(tools.filter((t) => t._meta).map((t) => t.name)).toEqual(["get_match"]);
+    expect(tools.find((t) => t.name === "get_match")?._meta).toEqual({
+      ui: { resourceUri: MATCH_CARD_URI }, "ui/resourceUri": MATCH_CARD_URI,
+    });
+  });
+
+  it("lists and serves the card as an MCP App with no external origins", async () => {
+    const token = await sign(claims());
+    const { result: listed } = await payload(await rpc({ jsonrpc: "2.0", id: 1, method: "resources/list" }, token));
+    expect(listed.resources).toEqual([expect.objectContaining({
+      uri: MATCH_CARD_URI, name: "match_card", mimeType: "text/html;profile=mcp-app",
+    })]);
+
+    const { result } = await payload(await rpc(readCard, token));
+    expect(result.contents).toEqual([{
+      uri: MATCH_CARD_URI, mimeType: "text/html;profile=mcp-app", text: MATCH_CARD_HTML,
+      _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false } },
+    }]);
+    // Static HTML: no data access, and only tool calls are audited.
+    expect(restCalls()).toHaveLength(0);
+    expect(console.info).not.toHaveBeenCalled();
+  });
+
+  it("serves the card only to signed-in clients, within the rate limit", async () => {
+    expect((await rpc(readCard)).status).toBe(401);
+    expect(rateLimitCalls()).toHaveLength(0);
+    expect((await rpc(readCard, await sign(claims()))).status).toBe(200);
+    expect(rateLimitCalls()).toHaveLength(1);
   });
 });
