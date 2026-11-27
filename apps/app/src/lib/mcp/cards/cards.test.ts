@@ -193,4 +193,12 @@ describe("ranking card", () => {
     expect(text()).toContain("Sin partidos en este periodo");
     expect(card.document.querySelector(".ranking")).toBeNull();
   });
+
+  it("keeps the pairs when matches remain but no player is ranked", () => {
+    const { card, deliver, text } = mountCard(CARDS.ranking.html);
+    deliver(toolResult({ ...stats, ranking: { ...stats.ranking, players: [] } }));
+    expect(text()).toContain("Sin jugadores en el ranking");
+    expect(text()).not.toContain("Sin partidos");
+    expect(card.document.querySelectorAll(".pairs li")).toHaveLength(3);
+  });
 });

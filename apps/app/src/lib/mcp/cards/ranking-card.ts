@@ -20,23 +20,27 @@ export function renderRankingCard(data: RankingCard, { el }: CardKit): Node {
   header.append(el("span", "meta", details.filter(Boolean).join(" · ")));
   card.append(header);
 
-  const players = data.ranking?.players ?? [];
-  if (!players.length) {
+  if (!matches) {
     card.append(el("p", "note", "Sin partidos en este periodo"));
     return card;
   }
 
-  const list = el("ol", "ranking");
-  for (const player of players) {
-    const row = el("li", player.position === 1 ? "row first" : "row");
-    row.append(el("span", "position", player.position == null ? "–" : String(player.position)));
-    const name = el("span", "name", player.name ?? "");
-    if (player.provisional) name.append(" ", el("span", "tag", "Provisional"));
-    row.append(name);
-    row.append(el("span", "stat", record(player)), el("span", "stat", percent(player.winRate)));
-    list.append(row);
+  // Matches can outlive every player who played them, so the ranking may be empty.
+  const players = data.ranking?.players ?? [];
+  if (!players.length) card.append(el("p", "note", "Sin jugadores en el ranking"));
+  else {
+    const list = el("ol", "ranking");
+    for (const player of players) {
+      const row = el("li", player.position === 1 ? "row first" : "row");
+      row.append(el("span", "position", player.position == null ? "–" : String(player.position)));
+      const name = el("span", "name", player.name ?? "");
+      if (player.provisional) name.append(" ", el("span", "tag", "Provisional"));
+      row.append(name);
+      row.append(el("span", "stat", record(player)), el("span", "stat", percent(player.winRate)));
+      list.append(row);
+    }
+    card.append(list);
   }
-  card.append(list);
   const minimum = data.ranking?.minimumMatches;
   if (players.some((p) => p.provisional) && minimum) {
     card.append(el("p", "note", `Provisional: menos de ${minimum} partidos, sin posición.`));
